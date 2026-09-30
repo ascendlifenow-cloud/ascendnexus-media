@@ -1,0 +1,53 @@
+{
+  "generatedFor": "ANM-WEB-102",
+  "findings": [
+    {
+      "findingId": "SEC-102-001",
+      "title": "Credentialed CORS origin reflection",
+      "category": "CORS",
+      "severity": "high",
+      "status": "resolved",
+      "evidence": "server/middleware/mediaErrorMiddleware.ts previously reflected Origin with Access-Control-Allow-Credentials true.",
+      "implementedRemediation": "Centralized CORS policy now allowlists admin origins and never grants credentials to arbitrary origins.",
+      "verificationMethod": "npm run security:headers / npm run security:cors"
+    },
+    {
+      "findingId": "SEC-102-002",
+      "title": "Missing centralized browser security headers",
+      "category": "Security headers",
+      "severity": "medium",
+      "status": "resolved",
+      "implementedRemediation": "Added CSP, frame, MIME, permissions, referrer, COOP/CORP, and DNS-prefetch headers to JSON responses.",
+      "verificationMethod": "npm run security:headers"
+    },
+    {
+      "findingId": "SEC-102-003",
+      "title": "Admin mutation origin validation not centralized",
+      "category": "CSRF/CORS",
+      "severity": "high",
+      "status": "resolved",
+      "implementedRemediation": "Admin mutation requests with unapproved Origin are rejected before route handling.",
+      "verificationMethod": "npm run security:cors"
+    },
+    {
+      "findingId": "SEC-102-004",
+      "title": "Admin MFA not implemented",
+      "category": "Authentication",
+      "severity": "high",
+      "status": "deferred",
+      "recommendedRemediation": "Require MFA for privileged production administrators through TOTP/WebAuthn or identity-provider MFA.",
+      "implementedRemediation": "Documented as launch blocker or approved time-bounded exception requirement.",
+      "verificationMethod": "Staging identity review"
+    },
+    {
+      "findingId": "SEC-102-005",
+      "title": "Malware scanning provider not configured",
+      "category": "Upload security",
+      "severity": "high",
+      "status": "deferred",
+      "recommendedRemediation": "Integrate malware scanner or approve compensating control before accepting public launch upload workflow.",
+      "implementedRemediation": "Config health warns and launch decision records residual risk.",
+      "verificationMethod": "Staging upload security review"
+    }
+  ]
+}

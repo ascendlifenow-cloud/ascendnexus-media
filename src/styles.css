@@ -1,0 +1,107 @@
+@import "./styles/theme.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #090a0f;
+  --admin-sidebar-expanded-width: 17rem;
+  --admin-sidebar-collapsed-width: 4.75rem;
+  --admin-review-panel-width: min(48rem, 46vw);
+  --admin-review-panel-max-width: 52rem;
+  --admin-navigation-transition-duration: 200ms;
+  --admin-panel-transition-duration: 220ms;
+  --release-readiness-panel-width: min(42rem, 48vw);
+  --release-readiness-panel-max-width: 52rem;
+  --release-action-bar-height: 5rem;
+  --release-panel-transition-duration: 220ms;
+  --release-header-status-gap: 1rem;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: #090a0f;
+  overflow-x: hidden;
+}
+
+#root {
+  overflow-x: hidden;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(86, 215, 255, 0.28);
+}
+
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@keyframes anmSkeletonShimmer {
+  0% {
+    background-position: 180% 0;
+  }
+  100% {
+    background-position: -180% 0;
+  }
+}
+
+@keyframes anmLoaderBar {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(210%);
+  }
+}
+
+@keyframes anmRouteEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anm-skeleton {
+  background-size: 220% 100%;
+  animation: anmSkeletonShimmer 1.65s ease-in-out infinite;
+}
+
+.animate-anm-loader {
+  animation: anmLoaderBar 1.4s ease-in-out infinite;
+}
+
+.animate-anm-route-enter {
+  animation: anmRouteEnter 240ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .anm-skeleton,
+  .animate-anm-loader,
+  .animate-anm-route-enter {
+    animation: none !important;
+  }
+}

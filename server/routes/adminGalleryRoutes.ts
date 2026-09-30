@@ -1,0 +1,30 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { adminGalleryController } from "../controllers/adminGalleryController";
+
+export const handleAdminGalleryRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
+  const method = request.method ?? "GET";
+  const path = url.pathname;
+  if (method === "GET" && path === "/api/admin/gallery") return adminGalleryController.list(request, response, url).then(() => true);
+  if (method === "POST" && path === "/api/admin/gallery") return adminGalleryController.create(request, response).then(() => true);
+  if (method === "POST" && path === "/api/admin/gallery/reorder") return adminGalleryController.reorder(request, response).then(() => true);
+  const match = /^\/api\/admin\/gallery\/([^/]+)(?:\/([^/]+))?$/.exec(path);
+  if (!match) return false;
+  const galleryItemId = decodeURIComponent(match[1]);
+  const action = match[2];
+  if (!action && method === "GET") return adminGalleryController.get(request, response, galleryItemId).then(() => true);
+  if (!action && method === "PATCH") return adminGalleryController.update(request, response, galleryItemId).then(() => true);
+  if (!action && method === "DELETE") return adminGalleryController.delete(request, response, galleryItemId).then(() => true);
+  if (action === "validate" && (method === "GET" || method === "POST")) return adminGalleryController.validate(request, response, galleryItemId).then(() => true);
+  if (action === "readiness" && method === "GET") return adminGalleryController.readiness(request, response, galleryItemId).then(() => true);
+  if (action === "preview" && method === "GET") return adminGalleryController.preview(request, response, galleryItemId).then(() => true);
+  if (action === "publish" && method === "POST") return adminGalleryController.publish(request, response, galleryItemId).then(() => true);
+  if (action === "republish" && method === "POST") return adminGalleryController.republish(request, response, galleryItemId).then(() => true);
+  if (action === "unpublish" && method === "POST") return adminGalleryController.unpublish(request, response, galleryItemId).then(() => true);
+  if (action === "archive" && method === "POST") return adminGalleryController.archive(request, response, galleryItemId).then(() => true);
+  if (action === "restore" && method === "POST") return adminGalleryController.restore(request, response, galleryItemId).then(() => true);
+  if (action === "media" && method === "GET") return adminGalleryController.media(request, response, galleryItemId).then(() => true);
+  if (action === "versions" && method === "GET") return adminGalleryController.versions(request, response, galleryItemId).then(() => true);
+  if (action === "dependencies" && method === "GET") return adminGalleryController.dependencies(request, response, galleryItemId).then(() => true);
+  if (action === "audit" && method === "GET") return adminGalleryController.audit(request, response, galleryItemId).then(() => true);
+  return false;
+};

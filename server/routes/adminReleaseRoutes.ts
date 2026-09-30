@@ -1,0 +1,30 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { adminReleaseController } from "../controllers/adminReleaseController";
+
+export const handleAdminReleaseRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
+  const method = request.method ?? "GET";
+  const path = url.pathname;
+  if (method === "GET" && path === "/api/admin/releases") return adminReleaseController.list(request, response, url).then(() => true);
+  if (method === "POST" && path === "/api/admin/releases") return adminReleaseController.create(request, response).then(() => true);
+  const match = /^\/api\/admin\/releases\/([^/]+)(?:\/([^/]+))?$/.exec(path);
+  if (!match) return false;
+  const releaseId = decodeURIComponent(match[1]);
+  const action = match[2];
+  if (!action && method === "GET") return adminReleaseController.get(request, response, releaseId).then(() => true);
+  if (!action && method === "PATCH") return adminReleaseController.update(request, response, releaseId).then(() => true);
+  if (!action && method === "DELETE") return adminReleaseController.delete(request, response, releaseId).then(() => true);
+  if (action === "validate" && (method === "GET" || method === "POST")) return adminReleaseController.validate(request, response, releaseId).then(() => true);
+  if (action === "readiness" && method === "GET") return adminReleaseController.readiness(request, response, releaseId).then(() => true);
+  if (action === "preview" && method === "GET") return adminReleaseController.preview(request, response, releaseId).then(() => true);
+  if (action === "publish" && method === "POST") return adminReleaseController.publish(request, response, releaseId).then(() => true);
+  if (action === "republish" && method === "POST") return adminReleaseController.republish(request, response, releaseId).then(() => true);
+  if (action === "unpublish" && method === "POST") return adminReleaseController.unpublish(request, response, releaseId).then(() => true);
+  if (action === "archive" && method === "POST") return adminReleaseController.archive(request, response, releaseId).then(() => true);
+  if (action === "restore" && method === "POST") return adminReleaseController.restore(request, response, releaseId).then(() => true);
+  if (action === "media" && method === "GET") return adminReleaseController.media(request, response, releaseId).then(() => true);
+  if (action === "versions" && method === "GET") return adminReleaseController.versions(request, response, releaseId).then(() => true);
+  if (action === "dependencies" && method === "GET") return adminReleaseController.dependencies(request, response, releaseId).then(() => true);
+  if (action === "audit" && method === "GET") return adminReleaseController.audit(request, response, releaseId).then(() => true);
+  if (action === "processing" && method === "GET") return adminReleaseController.processing(request, response, releaseId).then(() => true);
+  return false;
+};

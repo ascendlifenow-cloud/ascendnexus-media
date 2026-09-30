@@ -1,0 +1,37 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { adminImportController } from "../controllers/admin/adminImportController";
+
+export const handleAdminImportRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
+  const method = request.method ?? "GET";
+  const path = url.pathname.replace(/\/+$/, "") || "/";
+  const importJobMatch = /^\/api\/admin\/imports\/([^/]+)$/.exec(path);
+  const inspectMatch = /^\/api\/admin\/imports\/([^/]+)\/inspect$/.exec(path);
+  const dryRunMatch = /^\/api\/admin\/imports\/([^/]+)\/dry-run$/.exec(path);
+  const decryptMatch = /^\/api\/admin\/imports\/([^/]+)\/decrypt$/.exec(path);
+  const verifyIntegrityMatch = /^\/api\/admin\/imports\/([^/]+)\/verify-integrity$/.exec(path);
+  const verifySignatureMatch = /^\/api\/admin\/imports\/([^/]+)\/verify-signature$/.exec(path);
+  const securityMatch = /^\/api\/admin\/imports\/([^/]+)\/security$/.exec(path);
+  const checkpointsMatch = /^\/api\/admin\/imports\/([^/]+)\/checkpoints$/.exec(path);
+  const conflictsMatch = /^\/api\/admin\/imports\/([^/]+)\/conflicts$/.exec(path);
+  const conflictMatch = /^\/api\/admin\/imports\/([^/]+)\/conflicts\/([^/]+)$/.exec(path);
+  const executeMatch = /^\/api\/admin\/imports\/([^/]+)\/execute$/.exec(path);
+  const rollbackMatch = /^\/api\/admin\/imports\/([^/]+)\/rollback$/.exec(path);
+  const verificationMatch = /^\/api\/admin\/imports\/([^/]+)\/verification$/.exec(path);
+  if (path === "/api/admin/imports/trusted-signers" && method === "GET") return adminImportController.trustedSigners(request, response).then(() => true);
+  if (path === "/api/admin/imports/upload" && method === "POST") return adminImportController.upload(request, response).then(() => true);
+  if (path === "/api/admin/imports" && method === "GET") return adminImportController.list(request, response).then(() => true);
+  if (importJobMatch && method === "GET") return adminImportController.get(request, response, importJobMatch[1]).then(() => true);
+  if (inspectMatch && method === "POST") return adminImportController.inspect(request, response, inspectMatch[1]).then(() => true);
+  if (dryRunMatch && method === "POST") return adminImportController.dryRun(request, response, dryRunMatch[1]).then(() => true);
+  if (decryptMatch && method === "POST") return adminImportController.decrypt(request, response, decryptMatch[1]).then(() => true);
+  if (verifyIntegrityMatch && method === "POST") return adminImportController.verifyIntegrity(request, response, verifyIntegrityMatch[1]).then(() => true);
+  if (verifySignatureMatch && method === "POST") return adminImportController.verifySignature(request, response, verifySignatureMatch[1]).then(() => true);
+  if (securityMatch && method === "GET") return adminImportController.security(request, response, securityMatch[1]).then(() => true);
+  if (checkpointsMatch && method === "GET") return adminImportController.checkpoints(request, response, checkpointsMatch[1]).then(() => true);
+  if (conflictsMatch && method === "GET") return adminImportController.conflicts(request, response, conflictsMatch[1]).then(() => true);
+  if (conflictMatch && method === "PATCH") return adminImportController.resolveConflict(request, response, conflictMatch[1], conflictMatch[2]).then(() => true);
+  if (executeMatch && method === "POST") return adminImportController.execute(request, response, executeMatch[1]).then(() => true);
+  if (rollbackMatch && method === "POST") return adminImportController.rollback(request, response, rollbackMatch[1]).then(() => true);
+  if (verificationMatch && method === "GET") return adminImportController.verification(request, response, verificationMatch[1]).then(() => true);
+  return false;
+};

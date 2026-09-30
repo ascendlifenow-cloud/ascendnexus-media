@@ -1,0 +1,28 @@
+import { MediaApiError } from "../media/mediaErrorUtils";
+
+export type PublicErrorCode =
+  | "PUBLIC_RESOURCE_NOT_FOUND"
+  | "PUBLIC_CONTENT_NOT_FOUND"
+  | "PUBLIC_CONTENT_NOT_PUBLISHED"
+  | "PUBLIC_INVALID_QUERY"
+  | "PUBLIC_INVALID_PAGE"
+  | "PUBLIC_PAGE_INVALID"
+  | "PUBLIC_PAGE_SIZE_INVALID"
+  | "PUBLIC_SORT_INVALID"
+  | "PUBLIC_INVALID_FILTER"
+  | "PUBLIC_FILTER_INVALID"
+  | "PUBLIC_RESPONSE_SAFETY_VIOLATION"
+  | "PUBLIC_MEDIA_UNAVAILABLE"
+  | "PUBLIC_CACHE_UNAVAILABLE"
+  | "PUBLIC_RATE_LIMITED"
+  | "PUBLIC_CONTENT_UNAVAILABLE"
+  | "PUBLIC_SERVICE_UNAVAILABLE"
+  | "PUBLIC_SEARCH_FAILED"
+  | "PUBLIC_METADATA_NOT_FOUND"
+  | "ANALYTICS_EVENT_INVALID"
+  | "ANALYTICS_NOT_CONSENTED"
+  | "CONSENT_CHOICES_INVALID"
+  | "PUBLIC_INTERNAL_ERROR";
+
+export const createPublicError = (code: PublicErrorCode, message = "Public content is unavailable.", status = 400) =>
+  new MediaApiError(code, message, status, "public", false);

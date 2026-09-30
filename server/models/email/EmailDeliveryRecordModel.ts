@@ -1,0 +1,32 @@
+export interface EmailDeliveryRecord {
+  emailDeliveryId: string;
+  deliveryType?: "contact_admin_notification" | "contact_visitor_acknowledgment" | "newsletter_confirmation" | "newsletter_welcome" | "newsletter_unsubscribe_confirmation" | "member_verification" | "member_notification";
+  templateKey?: string;
+  recipientCategory?: "admin" | "visitor" | "subscriber" | "member";
+  messageType: string;
+  recipientHash?: string;
+  recipient?: string;
+  recipientAddressEncryptedOrProtected?: string;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  provider: string;
+  providerMessageId?: string;
+  status: "queued" | "sending" | "sent" | "delivered" | "failed" | "retrying" | "bounced" | "complained" | "suppressed" | "dead_letter" | "canceled";
+  attempts: number;
+  maxAttempts?: number;
+  queuedAt?: string;
+  startedAt?: string;
+  lastAttemptAt?: string;
+  sentAt?: string;
+  deliveredAt?: string;
+  failedAt?: string;
+  bouncedAt?: string;
+  complainedAt?: string;
+  errorCode?: string;
+  lastErrorCode?: string;
+  lastErrorMessageSafe?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+  schemaVersion: number;
+}

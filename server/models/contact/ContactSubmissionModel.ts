@@ -1,0 +1,38 @@
+export interface ContactSubmissionRecord {
+  contactSubmissionId: string;
+  submissionType?: "contact_inquiry";
+  name: string;
+  email: string;
+  subject?: string;
+  message: string;
+  company?: string;
+  phone?: string;
+  preferredContactMethod?: string;
+  status: "new" | "reviewing" | "assigned" | "responded" | "closed" | "spam" | "archived" | "in_review" | "resolved";
+  priority?: "low" | "normal" | "high";
+  sourcePath?: string;
+  sourcePage?: string;
+  sourceContext?: Record<string, unknown>;
+  consent?: Record<string, unknown>;
+  spamAssessment?: Record<string, unknown>;
+  deliveryStatus?: "not_required" | "queued" | "pending" | "sent" | "failed" | "delayed";
+  notificationDeliveryIds?: string[];
+  acknowledgmentDeliveryId?: string;
+  idempotencyKey?: string;
+  requestFingerprint?: string;
+  ipHash?: string;
+  userAgentHash?: string;
+  assignedTo?: string;
+  adminNotes?: string;
+  internalNotes?: Array<{ noteId: string; body: string; createdBy: string; createdAt: string }>;
+  emailNotificationStatus?: string;
+  createdAt: string;
+  updatedAt: string;
+  respondedAt?: string;
+  closedAt?: string;
+  resolvedAt?: string;
+  archivedAt?: string;
+  deletedAt?: string;
+  metadata?: Record<string, unknown>;
+  schemaVersion: number;
+}

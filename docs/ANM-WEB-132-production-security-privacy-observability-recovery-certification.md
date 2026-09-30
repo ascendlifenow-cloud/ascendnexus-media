@@ -1,0 +1,85 @@
+# ANM-WEB-132 Production Security, Privacy, Observability & Recovery Certification
+
+Prompt: ANM-WEB-132
+Generated: 2026-08-11T16:38:21.717Z
+Environment: development
+Decision: SECURITY BLOCKED
+
+## Final Decision
+Security certification is blocked. Do not approve production launch until all P0/P1 security, privacy, observability, backup, restore, rollback, and inherited infrastructure blockers are resolved.
+
+## Summary
+- productionLike: false
+- authEnabled: false
+- csrfEnabled: false
+- rateLimitEnabled: false
+- monitoringEnabled: false
+- auditEventCount: 1000
+- securityEventCount: 59
+- publicFullSongExposureCount: 6
+- privateMediaExposureCount: 0
+- infrastructureDecision: INFRASTRUCTURE BLOCKED
+
+## Checks
+| Check | Area | Status | Summary |
+|---|---|---|---|
+| security.infrastructure.carry_forward | Infrastructure Carry-Forward | fail | ANM-WEB-131 is INFRASTRUCTURE BLOCKED with 8 P0 and 11 P1 open. |
+| security.auth.boundaries | Authentication | fail | Admin authentication is disabled or identity stores are missing. |
+| security.admin.authorization_matrix | Authorization | pass | Launch security permissions are registered and available to security administrators. |
+| security.media.full_song_public_exposure | Media Protection | fail | 6 full-song public exposure candidate(s) found. |
+| security.media.private_public_exposure | Media Protection | pass | No private storage object exposes a public or persistent signed URL in local data. |
+| security.transport.headers_cookies | Security Headers | fail | Security headers or Secure cookies are not fully verified for production. |
+| security.cors.csrf | CORS | fail | CORS allowlist and CSRF protection need deployed strict-mode evidence. |
+| security.rate_limits | Rate Limits | fail | Rate limits are not verified in a production-like runtime. |
+| security.privacy.logs | Log Privacy | pass | Audit logging and redaction fields are configured. |
+| security.audit.security_events | Audit | pass | Audit store exists and contains local administrative evidence. |
+| security.observability.alerts | Observability | fail | Monitoring/alerting/synthetic evidence is not production verified. |
+| security.recovery.backup_restore_rollback | Backup | fail | Production backup/restore/rollback evidence is missing or blocked by infrastructure certification. |
+| security.incident_response | Incident Response | pass | Security incident procedures and ANM-WEB-132 response runbook are present. |
+
+## Open Issues
+- P0 security.infrastructure.carry_forward: Production security certification inherits unresolved infrastructure blockers. ANM-WEB-131 is INFRASTRUCTURE BLOCKED with 8 P0 and 11 P1 open. Remediation: Resolve ANM-WEB-131 production environment, provider, backup, restore, rollback, and deployment blockers before security approval.
+- P0 security.auth.boundaries: Authentication boundaries are not production-ready. Admin authentication is disabled or identity stores are missing. Remediation: Enable production authentication and verify guest, member, and admin login boundaries with deployed browser evidence.
+- P0 security.media.full_song_public_exposure: Full-song media public exposure detected. 6 full-song public exposure candidate(s) found. Remediation: Demote full-song objects to private storage, revoke any public/signed URLs, purge caches, and rerun security:media-protection-certify.
+- P1 security.transport.headers_cookies: Security headers and cookies require production verification. Security headers or Secure cookies are not fully verified for production. Remediation: Verify CSP, frame, MIME, referrer, permissions, cross-origin headers, Secure/HttpOnly/SameSite cookies, and HTTPS-only delivery on the deployed domain.
+- P1 security.cors.csrf: CORS and CSRF are not production-certified. CORS allowlist and CSRF protection need deployed strict-mode evidence. Remediation: Run deployed origin preflight/mutation tests and enable CSRF for credentialed admin/member mutations.
+- P1 security.rate_limits: Production rate limits are not verified. Rate limits are not verified in a production-like runtime. Remediation: Verify public, auth, admin, media, upload, protected-content, billing, and export/import rate limits with deployed Redis/backing store evidence.
+- P1 security.observability.alerts: Production monitoring and alert delivery are not verified. Monitoring/alerting/synthetic evidence is not production verified. Remediation: Verify telemetry ingestion, security alert routing, on-call notifications, synthetic journeys, SLOs, and incident escalation in staging/production.
+- P0 security.recovery.backup_restore_rollback: Backup, restore, and rollback are not production-certified. Production backup/restore/rollback evidence is missing or blocked by infrastructure certification. Remediation: Run non-destructive backup, restore drill, media restore, queue recovery, and rollback rehearsal; attach evidence before launch approval.
+- P1 security.inherited.infra.environment.production_schema: Production environment schema is not cutover-ready. Current process is not running with production/staging strict configuration. Remediation: Set APP_ENV=production or staging with strict production variables and rerun production:env-verify.
+- P0 security.inherited.infra.secrets.source_scan: Potential committed secret material found. 1 potential secret artifact(s) require review. Remediation: Remove committed secret material, rotate affected credentials, and rerun production:secrets-scan.
+- P0 security.inherited.infra.database.production_connection: Production database is not verified. Production database connectivity/TLS/authentication is not verified in this environment. Remediation: Configure production MongoDB, run db health/index/integrity checks, and attach backup/restore evidence.
+- P1 security.inherited.infra.migrations.controlled: Production migration rehearsal evidence is missing. Migration inventory exists, but no production/staging migration execution evidence is recorded. Remediation: Run controlled staging migration and production migration with backup evidence before cutover.
+- P1 security.inherited.infra.redis.production_connection: Production Redis is not verified. Production Redis connectivity/TLS/namespace is not verified. Remediation: Configure production Redis, verify TLS/authentication, and run queue/session/cache smoke checks.
+- P1 security.inherited.infra.queues.health: Production queue infrastructure is not verified. Production queue creation, consumers, retries, and dead-letter behavior are not verified. Remediation: Run queue health and worker heartbeat checks against production-equivalent Redis.
+- P1 security.inherited.infra.workers.health: Production workers are not verified. Background/media worker deployment evidence is missing. Remediation: Deploy worker processes, verify heartbeat/restart policy, and run production:worker-health.
+- P0 security.inherited.infra.storage.production_provider: Production object storage is not verified. Object storage upload/download/private-master policy is not verified for production. Remediation: Configure S3/R2/Supabase/Firebase storage, verify private/public policies, and run storage/CDN smoke checks.
+- P1 security.inherited.infra.cdn.production: Production CDN is not verified. CDN origin, TLS, cache policy, range requests, and invalidation are not verified. Remediation: Configure CDN hostname/origin/cache policy and run production:cdn-health.
+- P1 security.inherited.infra.email.production_delivery: Production email delivery is not verified. Verification/password-reset email delivery has not been proven through a production provider. Remediation: Configure sender domain/provider, verify inbox delivery for verification and reset emails, and attach evidence.
+- P0 security.inherited.infra.dns.production: Production DNS/canonical domains are not verified. External DNS propagation and canonical host verification are not recorded. Remediation: Verify web/API/CDN/email DNS from external resolvers and update DNS inventory.
+- P0 security.inherited.infra.tls.production: Production TLS is not externally verified. TLS certificate chain, hostname, expiry, redirects, and mixed-content checks are not recorded. Remediation: Run production:tls-verify against canonical domains after deployment.
+- P1 security.inherited.infra.web_security: Production security headers are not verified. Production HTTP security headers/CSP have not been exercised on real hosts. Remediation: Run security header and CSP browser checks on public/admin/member critical paths.
+- P1 security.inherited.infra.cors_cookie_csrf: Production CORS/cookie/CSRF configuration is not verified. Production CORS/cookie/CSRF behavior is not fully verified. Remediation: Verify exact origins with credentials, secure cookies, logout invalidation, and CSRF mutation denial.
+- P0 security.inherited.infra.deployment.pipeline: Production deployment/cutover evidence is missing. No immutable production deployment, health check, smoke, or cutover evidence is recorded. Remediation: Run controlled production deployment workflow only after environment, backup, migration, storage, email, DNS, and rollback gates pass.
+- P0 security.inherited.infra.backup.restore: Production backup evidence is missing. Database backup, object-storage recovery, and restore-test evidence are missing. Remediation: Create pre-cutover backup, verify readability/encryption/retention, and run isolated restore test.
+- P1 security.inherited.infra.rollback.rehearsal: Rollback rehearsal evidence is missing. Rollback command exists as a guarded workflow, but staging rehearsal evidence is missing. Remediation: Run release A/B rollback rehearsal, verify DB compatibility, workers, login, and public routes.
+- P1 security.inherited.infra.staging.rehearsal: Production-equivalent staging deployment rehearsal is missing. Build/test/backup/migration/deploy/smoke/email/media/rollback staging evidence is missing. Remediation: Execute ANM-WEB-131 phase 82 staging rehearsal and attach evidence.
+- P0 security.inherited.infra.cutover.production: Production cutover verification is missing. Production cutover has not been performed or evidenced. Remediation: Do not cut traffic until all P0/P1 gates pass; after cutover run production infrastructure smoke and monitoring window checks.
+
+## Evidence References
+- /docs/ANM-WEB-132-security-certification-registry.md
+- /docs/ANM-WEB-132-security-control-inventory.md
+- /docs/ANM-WEB-132-production-attack-surface.md
+- /docs/ANM-WEB-132-admin-authorization-matrix.md
+- /docs/ANM-WEB-132-cors-certification.md
+- /docs/ANM-WEB-132-privacy-data-inventory.md
+- /docs/ANM-WEB-132-log-privacy-report.md
+- /docs/ANM-WEB-132-rate-limit-inventory.md
+- /docs/ANM-WEB-132-alert-inventory.md
+- /docs/ANM-WEB-132-backup-certification.md
+- /docs/ANM-WEB-132-incident-response-runbook.md
+- /docs/ANM-WEB-132-implementation-summary.md
+- /docs/ANM-WEB-131-production-infrastructure-registry.md
+- /docs/ANM-WEB-131-production-environment-matrix.md
+- /docs/ANM-WEB-131-production-infrastructure-certification.md
+- /docs/ANM-WEB-131-implementation-summary.md

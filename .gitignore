@@ -1,0 +1,29 @@
+dist/
+node_modules/
+*.tsbuildinfo
+
+# Runtime databases, exports, encryption material, and uploaded media.
+# These belong in durable storage/backups, not source control.
+server/data/**
+server/uploads/**
+server/media-intake/**
+
+# Local process output.
+screenlog.*
+*.log
+
+# macOS metadata.
+.DS_Store
+**/.DS_Store
+
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+credentials.json
+.tmp/
+server/uploads/tmp/**

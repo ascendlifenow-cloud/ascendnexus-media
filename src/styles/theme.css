@@ -1,0 +1,85 @@
+@layer base {
+  :root {
+    --anm-bg: #090a0f;
+    --anm-bg-soft: #111522;
+    --anm-surface: #171826;
+    --anm-surface-glass: rgba(255, 255, 255, 0.075);
+    --anm-purple: #8b5cf6;
+    --anm-pink: #ff5bbd;
+    --anm-magenta: #d946ef;
+    --anm-sunrise: #ff8a3d;
+    --anm-gold: #f8d37a;
+    --anm-blue: #56d7ff;
+    --anm-muted: #a8adbd;
+    --anm-border: rgba(255, 255, 255, 0.14);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+}
+
+@layer components {
+  .anm-page-shell {
+    @apply min-h-screen bg-anm-bg text-white;
+  }
+
+  .anm-section {
+    @apply py-16 sm:py-20 lg:py-24;
+  }
+
+  .anm-container {
+    @apply mx-auto max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .anm-hero-title {
+    @apply font-display text-5xl font-semibold leading-[1.02] text-white sm:text-7xl lg:text-8xl;
+  }
+
+  .anm-page-title {
+    @apply font-display text-4xl font-semibold leading-tight text-white sm:text-6xl;
+  }
+
+  .anm-section-title {
+    @apply font-display text-3xl font-semibold leading-tight text-white sm:text-5xl;
+  }
+
+  .anm-card-title {
+    @apply font-display text-2xl font-semibold leading-tight text-white;
+  }
+
+  .anm-body {
+    @apply text-base leading-7 text-white/70;
+  }
+
+  .anm-muted {
+    @apply text-sm leading-6 text-white/60;
+  }
+
+  .anm-meta {
+    @apply text-xs font-semibold uppercase tracking-[0.22em] text-white/50;
+  }
+
+  .anm-eyebrow {
+    @apply text-sm font-bold uppercase tracking-[0.24em] text-anm-gold;
+  }
+
+  .anm-focus {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-anm-blue/70 focus-visible:ring-offset-2 focus-visible:ring-offset-anm-bg;
+  }
+
+  .anm-glass-panel {
+    @apply rounded-anm-panel border border-white/10 bg-anm-surface-glass shadow-anm-card-glow backdrop-blur-xl;
+  }
+
+  .anm-card-hover {
+    @apply transition duration-300 ease-anm-out hover:-translate-y-1 hover:border-anm-blue/45 hover:shadow-anm-soft-glow;
+  }
+}

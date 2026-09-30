@@ -1,0 +1,30 @@
+{
+  "generatedFor": "ANM-WEB-102",
+  "routes": [
+    { "method": "GET", "path": "/api/public/health", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "public-short", "owner": "public-delivery" },
+    { "method": "GET", "path": "/api/public/config", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "public-short", "owner": "configuration" },
+    { "method": "GET", "path": "/api/public/site", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "public", "owner": "site-config" },
+    { "method": "GET", "path": "/api/public/homepage", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "public", "owner": "homepage" },
+    { "method": "GET", "path": "/api/public/artists", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "public", "owner": "artists" },
+    { "method": "GET", "path": "/api/public/releases", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "public", "owner": "releases" },
+    { "method": "GET", "path": "/api/public/gallery", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "public", "owner": "gallery" },
+    { "method": "GET", "path": "/api/public/search", "classification": "public", "authRequired": false, "permission": null, "rateLimitPolicy": "search", "csrfRequired": false, "cache": "public-short", "owner": "search" },
+    { "method": "POST", "path": "/api/public/contact", "classification": "public-form", "authRequired": false, "permission": null, "rateLimitPolicy": "forms", "csrfRequired": false, "cache": "no-store", "owner": "forms" },
+    { "method": "POST", "path": "/api/public/newsletter/subscribe", "classification": "public-form", "authRequired": false, "permission": null, "rateLimitPolicy": "forms", "csrfRequired": false, "cache": "no-store", "owner": "forms" },
+    { "method": "POST", "path": "/api/public/consent", "classification": "public-privacy", "authRequired": false, "permission": null, "rateLimitPolicy": "public", "csrfRequired": false, "cache": "no-store", "owner": "privacy" },
+    { "method": "POST", "path": "/api/public/analytics/events", "classification": "public-analytics", "authRequired": false, "permission": null, "rateLimitPolicy": "analytics", "csrfRequired": false, "cache": "no-store", "owner": "analytics" },
+    { "method": "POST", "path": "/api/admin/auth/login", "classification": "admin-auth", "authRequired": false, "permission": null, "rateLimitPolicy": "login", "csrfRequired": false, "cache": "no-store", "owner": "auth" },
+    { "method": "GET", "path": "/api/admin/auth/session", "classification": "admin", "authRequired": true, "permission": "authenticated", "rateLimitPolicy": "admin", "csrfRequired": false, "cache": "no-store", "owner": "auth" },
+    { "method": "GET", "path": "/api/admin/artists", "classification": "admin", "authRequired": true, "permission": "artists.read", "rateLimitPolicy": "admin", "csrfRequired": false, "cache": "no-store", "owner": "artists" },
+    { "method": "POST", "path": "/api/admin/artists", "classification": "admin", "authRequired": true, "permission": "artists.create", "rateLimitPolicy": "admin", "csrfRequired": true, "cache": "no-store", "owner": "artists" },
+    { "method": "GET", "path": "/api/admin/releases", "classification": "admin", "authRequired": true, "permission": "releases.read", "rateLimitPolicy": "admin", "csrfRequired": false, "cache": "no-store", "owner": "releases" },
+    { "method": "POST", "path": "/api/admin/releases", "classification": "admin", "authRequired": true, "permission": "releases.create", "rateLimitPolicy": "admin", "csrfRequired": true, "cache": "no-store", "owner": "releases" },
+    { "method": "POST", "path": "/api/admin/media/uploads", "classification": "admin-upload", "authRequired": true, "permission": "media.upload", "rateLimitPolicy": "uploads", "csrfRequired": true, "cache": "no-store", "owner": "media" },
+    { "method": "POST", "path": "/api/admin/publication/*", "classification": "admin-high-risk", "authRequired": true, "permission": "publication.*", "rateLimitPolicy": "admin", "csrfRequired": true, "cache": "no-store", "owner": "publication" },
+    { "method": "GET", "path": "/api/admin/security/health", "classification": "admin-security", "authRequired": true, "permission": "security.read", "rateLimitPolicy": "admin", "csrfRequired": false, "cache": "no-store", "owner": "security" }
+  ],
+  "notes": [
+    "Dynamic admin routes inherit the same resource permission families documented in the authorization matrix.",
+    "CSRF is currently enforced through admin origin validation and SameSite cookies; token-based CSRF remains a staging hardening item."
+  ]
+}

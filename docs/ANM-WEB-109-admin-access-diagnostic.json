@@ -1,0 +1,48 @@
+{
+  "promptId": "ANM-WEB-109",
+  "diagnosedAt": "2026-07-11T20:41:50.509Z",
+  "environment": "local",
+  "observedFailure": "Canonical production admin auth endpoints were missing while legacy /api/admin/auth/* endpoints existed.",
+  "rootCause": "Admin authentication route contract drift between frontend/backend legacy routes and ANM-WEB-109 production routes.",
+  "secondaryCauses": [
+    "admin.access was not a first-class permission",
+    "Bootstrap accepted direct password input",
+    "Detailed auth health was not protected",
+    "Local AUTH_ENABLED default is false",
+    "MFA remains unresolved locally"
+  ],
+  "loginPage": {
+    "path": "/admin/login",
+    "available": true
+  },
+  "apiEndpoints": {
+    "canonicalLogin": "/api/auth/admin/login",
+    "canonicalSession": "/api/auth/session",
+    "canonicalLogout": "/api/auth/logout",
+    "legacyLogin": "/api/admin/auth/login",
+    "legacyCompatibility": true
+  },
+  "bootstrap": {
+    "bootstrapRequired": false,
+    "bootstrapCompleted": true,
+    "activeSuperAdminCount": 3
+  },
+  "permissions": {
+    "adminAccessDefined": true,
+    "missingRequiredPermissions": [],
+    "roleMappingsValid": true
+  },
+  "security": {
+    "sessionMode": "server_session_http_only_cookie",
+    "sessionTokenStoredHashed": true,
+    "detailedHealthProtected": true,
+    "csrfLocalReady": false,
+    "mfaReady": false
+  },
+  "rootCauseResolved": true,
+  "remainingBlockers": [
+    "Enable AUTH_ENABLED in runtime environment",
+    "Enable CSRF in production/staging",
+    "Satisfy MFA policy through implementation or approved external MFA exception"
+  ]
+}

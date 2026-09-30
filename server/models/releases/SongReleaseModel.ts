@@ -1,0 +1,40 @@
+export type SongReleaseRecordStatus = "draft" | "published" | "archived" | "deleted";
+export type SongReleasePublicationState = "draft" | "processing" | "ready_to_publish" | "publishing" | "published" | "publish_failed" | "unpublishing" | "archived";
+
+export interface SongReleaseRecord {
+  releaseId: string;
+  songId: string;
+  artistId: string;
+  title: string;
+  slug: string;
+  description?: string;
+  lyrics?: string;
+  releaseDate: string;
+  genre: string;
+  styleTags: string[];
+  status: SongReleaseRecordStatus;
+  publicationState: SongReleasePublicationState;
+  publicVisibility: boolean;
+  featured: boolean;
+  featuredPlacement?: string;
+  coverArtUrl?: string;
+  coverArtThumbnailUrl?: string;
+  coverArtLargeUrl?: string;
+  audioPreviewUrl?: string;
+  externalLinks: Record<string, string>;
+  seoMetadataId?: string;
+  socialMetadataId?: string;
+  sortOrder?: number;
+  createdBy?: string;
+  updatedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;
+  archivedBy?: string;
+  deletedAt?: string;
+  deletedBy?: string;
+  deleteReason?: string;
+  previousStatus?: string;
+  metadata?: Record<string, unknown>;
+  schemaVersion: number;
+}

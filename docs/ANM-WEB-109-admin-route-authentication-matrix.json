@@ -1,0 +1,31 @@
+{
+  "promptId": "ANM-WEB-109",
+  "generatedAt": "2026-07-11T20:41:50.509Z",
+  "authMode": "server_session_http_only_cookie",
+  "routes": [
+    { "path": "/api/auth/admin/login", "method": "POST", "authentication": "signed_out", "permission": "admin.access" },
+    { "path": "/api/admin/auth/login", "method": "POST", "authentication": "signed_out", "permission": "admin.access" },
+    { "path": "/api/auth/session", "method": "GET", "authentication": "required", "permission": "admin.access" },
+    { "path": "/api/auth/logout", "method": "POST", "authentication": "best_effort", "permission": "current_session" },
+    { "path": "/api/auth/admin/activate", "method": "POST", "authentication": "activation_token", "permission": "pending_admin" },
+    { "path": "/api/admin/auth/health", "method": "GET", "authentication": "required", "permission": "security.read OR users.manage" }
+  ],
+  "adminPrefixes": [
+    "/api/admin/users",
+    "/api/admin/artists",
+    "/api/admin/releases",
+    "/api/admin/media",
+    "/api/admin/gallery",
+    "/api/admin/homepage",
+    "/api/admin/site-settings",
+    "/api/admin/metadata",
+    "/api/admin/seo",
+    "/api/admin/operations",
+    "/api/admin/distribution",
+    "/api/admin/intelligence",
+    "/api/admin/observability",
+    "/api/admin/deployment",
+    "/api/admin/security"
+  ],
+  "launchBlockerPolicy": "Any /api/admin/* route without backend authentication and permission enforcement is a launch blocker."
+}

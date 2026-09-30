@@ -1,0 +1,1 @@
+export { usePublicArtists } from "./usePublicApiHooks";

@@ -1,0 +1,30 @@
+import type { IncomingMessage, ServerResponse } from "node:http";
+import { adminArtistController } from "../controllers/adminArtistController";
+
+export const handleAdminArtistRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
+  const method = request.method ?? "GET";
+  const path = url.pathname;
+  if (method === "GET" && path === "/api/admin/artists") return adminArtistController.list(request, response, url).then(() => true);
+  if (method === "POST" && path === "/api/admin/artists") return adminArtistController.create(request, response).then(() => true);
+  const match = /^\/api\/admin\/artists\/([^/]+)(?:\/([^/]+))?$/.exec(path);
+  if (!match) return false;
+  const artistId = decodeURIComponent(match[1]);
+  const action = match[2];
+  if (!action && method === "GET") return adminArtistController.get(request, response, artistId).then(() => true);
+  if (!action && method === "PATCH") return adminArtistController.update(request, response, artistId).then(() => true);
+  if (!action && method === "DELETE") return adminArtistController.delete(request, response, artistId).then(() => true);
+  if (action === "validate" && method === "POST") return adminArtistController.validate(request, response, artistId).then(() => true);
+  if (action === "validate" && method === "GET") return adminArtistController.validate(request, response, artistId).then(() => true);
+  if (action === "readiness" && method === "GET") return adminArtistController.readiness(request, response, artistId).then(() => true);
+  if (action === "preview" && method === "GET") return adminArtistController.preview(request, response, artistId).then(() => true);
+  if (action === "publish" && method === "POST") return adminArtistController.publish(request, response, artistId).then(() => true);
+  if (action === "unpublish" && method === "POST") return adminArtistController.unpublish(request, response, artistId).then(() => true);
+  if (action === "archive" && method === "POST") return adminArtistController.archive(request, response, artistId).then(() => true);
+  if (action === "restore" && method === "POST") return adminArtistController.restore(request, response, artistId).then(() => true);
+  if (action === "republish" && method === "POST") return adminArtistController.republish(request, response, artistId).then(() => true);
+  if (action === "media" && method === "GET") return adminArtistController.media(request, response, artistId).then(() => true);
+  if (action === "versions" && method === "GET") return adminArtistController.versions(request, response, artistId).then(() => true);
+  if (action === "audit" && method === "GET") return adminArtistController.audit(request, response, artistId).then(() => true);
+  if (action === "processing" && method === "GET") return adminArtistController.processing(request, response, artistId).then(() => true);
+  return false;
+};
