@@ -297,7 +297,7 @@ export const buildBackendConfig = (env: NodeJS.ProcessEnv = process.env): Backen
 
   const server = {
     host: envString(env, "API_HOST", envString(env, "MEDIA_API_HOST", "127.0.0.1"))!,
-    port: parseInteger(env.API_PORT ?? env.MEDIA_API_PORT, "API_PORT", 5313, issues, { min: 1, max: 65535 }),
+    port: parseInteger(env.PORT ?? env.API_PORT ?? env.MEDIA_API_PORT, "API_PORT", 5313, issues, { min: 1, max: 65535 }),
     publicApiBaseUrl: envString(env, "PUBLIC_API_BASE_URL"),
     adminAppBaseUrl: envString(env, "ADMIN_APP_BASE_URL"),
     publicAppBaseUrl: envString(env, "PUBLIC_APP_BASE_URL"),

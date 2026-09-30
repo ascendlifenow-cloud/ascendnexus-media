@@ -1,11 +1,16 @@
 FROM node:20.18.1-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run typecheck
+RUN mkdir -p /app/.tmp/media-uploads /app/.tmp/media-processing \
+  && chown -R node:node /app/.tmp
 USER node
-EXPOSE 4000
-HEALTHCHECK CMD node -e "fetch('http://127.0.0.1:'+(process.env.MEDIA_API_PORT||4000)+'/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+EXPOSE 10000
+HEALTHCHECK CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||process.env.API_PORT||process.env.MEDIA_API_PORT||5313)+'/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "scripts/run-cached-tsx.mjs", "server/index.ts"]

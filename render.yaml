@@ -1,0 +1,201 @@
+services:
+  - type: keyvalue
+    name: anm-staging-queue
+    region: oregon
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+  - type: web
+    name: anm-staging-api
+    runtime: docker
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile.api
+    healthCheckPath: /health/live
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: CONFIG_STRICT_MODE
+        value: "true"
+      - key: API_HOST
+        value: 0.0.0.0
+      - key: PUBLIC_APP_BASE_URL
+        value: https://staging.ascendnexusmedia.com
+      - key: ADMIN_APP_BASE_URL
+        value: https://staging.ascendnexusmedia.com/admin
+      - key: PUBLIC_API_BASE_URL
+        value: https://api-staging.ascendnexusmedia.com/api/public
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://staging.ascendnexusmedia.com
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: AUTH_PROVIDER
+        value: local
+      - key: AUTH_SESSION_SECRET
+        generateValue: true
+      - key: AUTH_ACCESS_TOKEN_SECRET
+        generateValue: true
+      - key: AUTH_REFRESH_TOKEN_SECRET
+        generateValue: true
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: AUTH_COOKIE_SAME_SITE
+        value: lax
+      - key: MEDIA_AUTH_DISABLED
+        value: "false"
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: ascend_nexus_media_staging
+      - key: DATABASE_AUTO_MIGRATE
+        value: "false"
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: anm-staging-queue
+          property: connectionString
+      - key: REDIS_TLS_REQUIRED
+        value: "false"
+      - key: MEDIA_STORAGE_PROVIDER
+        value: r2
+      - key: MEDIA_STORAGE_ENDPOINT
+        sync: false
+      - key: MEDIA_STORAGE_BUCKET
+        value: anm-media-staging
+      - key: MEDIA_STORAGE_REGION
+        value: auto
+      - key: MEDIA_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: MEDIA_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: MEDIA_STORAGE_PUBLIC_BASE_URL
+        value: https://staging-media.ascendnexusmedia.com
+      - key: MEDIA_STORAGE_PUBLIC_PREFIX
+        value: public
+      - key: MEDIA_STORAGE_PRIVATE_PREFIX
+        value: private
+      - key: MEDIA_STORAGE_MOCK_ENABLED
+        value: "false"
+      - key: MEDIA_STORAGE_LOCAL_ENABLED
+        value: "false"
+      - key: MEDIA_STORAGE_ALLOW_PRODUCTION_MOCK_FALLBACK
+        value: "false"
+      - key: MEDIA_CDN_ENABLED
+        value: "true"
+      - key: MEDIA_CDN_PROVIDER
+        value: cloudflare
+      - key: MEDIA_CDN_BASE_URL
+        value: https://staging-media.ascendnexusmedia.com
+      - key: MEDIA_UPLOADS_ENABLED
+        value: "true"
+      - key: MEDIA_DIRECT_UPLOAD_ENABLED
+        value: "true"
+      - key: MEDIA_WORKERS_ENABLED
+        value: "true"
+      - key: MEDIA_IMAGE_PROCESSING_ENABLED
+        value: "true"
+      - key: MEDIA_AUDIO_METADATA_ENABLED
+        value: "true"
+      - key: MEDIA_AUDIO_WAVEFORM_ENABLED
+        value: "true"
+      - key: MEDIA_AUDIO_TRANSCODE_ENABLED
+        value: "true"
+      - key: FFMPEG_PATH
+        value: /usr/bin/ffmpeg
+      - key: FFPROBE_PATH
+        value: /usr/bin/ffprobe
+      - key: MEDIA_PUBLICATION_ENABLED
+        value: "true"
+      - key: PUBLIC_API_ENABLED
+        value: "true"
+      - key: PUBLIC_API_SEED_FALLBACK_ENABLED
+        value: "false"
+      - key: PUBLIC_CACHE_ENABLED
+        value: "true"
+      - key: EMAIL_ENABLED
+        value: "false"
+      - key: MONITORING_ENABLED
+        value: "false"
+      - key: SECURITY_HELMET_ENABLED
+        value: "true"
+      - key: SECURITY_CSP_ENABLED
+        value: "true"
+      - key: SECURITY_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: SECURITY_CSRF_ENABLED
+        value: "true"
+      - key: SECURITY_ERROR_DETAILS_ENABLED
+        value: "false"
+      - key: LOG_LEVEL
+        value: info
+      - key: LOG_FORMAT
+        value: json
+      - key: LOG_PRETTY
+        value: "false"
+
+  - type: worker
+    name: anm-staging-media-worker
+    runtime: docker
+    region: oregon
+    branch: main
+    dockerfilePath: ./Dockerfile.worker
+    autoDeployTrigger: commit
+    envVars:
+      - key: APP_ENV
+        value: staging
+      - key: CONFIG_STRICT_MODE
+        value: "true"
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DATABASE
+        value: ascend_nexus_media_staging
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: anm-staging-queue
+          property: connectionString
+      - key: REDIS_TLS_REQUIRED
+        value: "false"
+      - key: MEDIA_STORAGE_PROVIDER
+        value: r2
+      - key: MEDIA_STORAGE_ENDPOINT
+        sync: false
+      - key: MEDIA_STORAGE_BUCKET
+        value: anm-media-staging
+      - key: MEDIA_STORAGE_REGION
+        value: auto
+      - key: MEDIA_STORAGE_ACCESS_KEY_ID
+        sync: false
+      - key: MEDIA_STORAGE_SECRET_ACCESS_KEY
+        sync: false
+      - key: MEDIA_STORAGE_PUBLIC_BASE_URL
+        value: https://staging-media.ascendnexusmedia.com
+      - key: MEDIA_STORAGE_MOCK_ENABLED
+        value: "false"
+      - key: MEDIA_STORAGE_LOCAL_ENABLED
+        value: "false"
+      - key: MEDIA_STORAGE_ALLOW_PRODUCTION_MOCK_FALLBACK
+        value: "false"
+      - key: MEDIA_WORKERS_ENABLED
+        value: "true"
+      - key: MEDIA_PROCESSING_REDIS_REQUIRED
+        value: "true"
+      - key: MEDIA_IMAGE_PROCESSING_ENABLED
+        value: "true"
+      - key: MEDIA_AUDIO_METADATA_ENABLED
+        value: "true"
+      - key: MEDIA_AUDIO_WAVEFORM_ENABLED
+        value: "true"
+      - key: MEDIA_AUDIO_TRANSCODE_ENABLED
+        value: "true"
+      - key: FFMPEG_PATH
+        value: /usr/bin/ffmpeg
+      - key: FFPROBE_PATH
+        value: /usr/bin/ffprobe
+      - key: LOG_LEVEL
+        value: info
+      - key: LOG_FORMAT
+        value: json
+      - key: LOG_PRETTY
+        value: "false"
