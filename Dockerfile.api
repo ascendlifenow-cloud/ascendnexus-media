@@ -5,9 +5,10 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends ffmpeg ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --include=dev
 COPY . .
 RUN npm run typecheck
+RUN npm prune --omit=dev
 RUN mkdir -p /app/.tmp/media-uploads /app/.tmp/media-processing \
   && chown -R node:node /app/.tmp
 USER node

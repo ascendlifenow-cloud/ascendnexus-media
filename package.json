@@ -435,6 +435,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
+    "tsx": "^4.23.15",
     "zustand": "^5.0.2"
   },
   "devDependencies": {
