@@ -611,7 +611,19 @@ export class MediaPublicationOrchestrationService {
           fileName: storage.fileName,
         });
         const provider = backendStorageProviderRegistry.getActiveProvider();
-        const publicUrl = this.buildCdnUrl(provider.getPublicUrl(publicPath) ?? `${mediaBackendConfig.publicBaseUrl}/${publicPath.replace(/^public\/?/, "")}`, publicVersionId);
+        const copyResult = await provider.copyFile(storage.storagePath, publicPath, {
+          accessLevel: "public",
+          assetType: asset.assetType,
+          mimeType: storage.mimeType,
+          metadata: {
+            sourceStorageObjectId: storage.storageObjectId,
+            publicationOperationId: operation.publicationOperationId,
+            publicVersionId,
+          },
+        });
+        const copiedPublicUrl = copyResult.publicUrl ?? provider.getPublicUrl(publicPath);
+        if (!copiedPublicUrl) throw new Error(`Public URL was not generated for promoted media asset ${assetId}.`);
+        const publicUrl = this.buildCdnUrl(copiedPublicUrl, publicVersionId);
         const publicStorage = await mediaStoragePersistenceService.create({
           ...storage,
           storageObjectId: `storage-public-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -624,6 +636,8 @@ export class MediaPublicationOrchestrationService {
           updatedAt: new Date().toISOString(),
           metadata: {
             ...(storage.metadata ?? {}),
+            ...(copyResult.metadata ?? {}),
+            etag: copyResult.etag,
             sourceStorageObjectId: storage.storageObjectId,
             publicationOperationId: operation.publicationOperationId,
             publicVersionId,
