@@ -115,6 +115,8 @@ services:
         value: "true"
       - key: EMAIL_ENABLED
         value: "false"
+      - key: FEATURE_CONTACT_ENABLED
+        value: "false"
       - key: MONITORING_ENABLED
         value: "false"
       - key: SECURITY_HELMET_ENABLED
@@ -146,6 +148,39 @@ services:
         value: staging
       - key: CONFIG_STRICT_MODE
         value: "true"
+      - key: PUBLIC_APP_BASE_URL
+        value: https://staging.ascendnexusmedia.com
+      - key: ADMIN_APP_BASE_URL
+        value: https://staging.ascendnexusmedia.com/admin
+      - key: PUBLIC_API_BASE_URL
+        value: https://api-staging.ascendnexusmedia.com/api/public
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://staging.ascendnexusmedia.com
+      - key: AUTH_ENABLED
+        value: "true"
+      - key: AUTH_PROVIDER
+        value: local
+      - key: AUTH_SESSION_SECRET
+        fromService:
+          type: web
+          name: anm-staging-api
+          envVarKey: AUTH_SESSION_SECRET
+      - key: AUTH_ACCESS_TOKEN_SECRET
+        fromService:
+          type: web
+          name: anm-staging-api
+          envVarKey: AUTH_ACCESS_TOKEN_SECRET
+      - key: AUTH_REFRESH_TOKEN_SECRET
+        fromService:
+          type: web
+          name: anm-staging-api
+          envVarKey: AUTH_REFRESH_TOKEN_SECRET
+      - key: AUTH_COOKIE_SECURE
+        value: "true"
+      - key: AUTH_COOKIE_SAME_SITE
+        value: lax
+      - key: MEDIA_AUTH_DISABLED
+        value: "false"
       - key: MONGODB_URI
         sync: false
       - key: MONGODB_DATABASE
@@ -171,12 +206,26 @@ services:
         sync: false
       - key: MEDIA_STORAGE_PUBLIC_BASE_URL
         value: https://staging-media.ascendnexusmedia.com
+      - key: MEDIA_STORAGE_PUBLIC_PREFIX
+        value: public
+      - key: MEDIA_STORAGE_PRIVATE_PREFIX
+        value: private
       - key: MEDIA_STORAGE_MOCK_ENABLED
         value: "false"
       - key: MEDIA_STORAGE_LOCAL_ENABLED
         value: "false"
       - key: MEDIA_STORAGE_ALLOW_PRODUCTION_MOCK_FALLBACK
         value: "false"
+      - key: MEDIA_CDN_ENABLED
+        value: "true"
+      - key: MEDIA_CDN_PROVIDER
+        value: cloudflare
+      - key: MEDIA_CDN_BASE_URL
+        value: https://staging-media.ascendnexusmedia.com
+      - key: MEDIA_UPLOADS_ENABLED
+        value: "true"
+      - key: MEDIA_DIRECT_UPLOAD_ENABLED
+        value: "true"
       - key: MEDIA_WORKERS_ENABLED
         value: "true"
       - key: MEDIA_PROCESSING_REDIS_REQUIRED
@@ -193,6 +242,30 @@ services:
         value: /usr/bin/ffmpeg
       - key: FFPROBE_PATH
         value: /usr/bin/ffprobe
+      - key: MEDIA_PUBLICATION_ENABLED
+        value: "true"
+      - key: PUBLIC_API_ENABLED
+        value: "true"
+      - key: PUBLIC_API_SEED_FALLBACK_ENABLED
+        value: "false"
+      - key: PUBLIC_CACHE_ENABLED
+        value: "true"
+      - key: EMAIL_ENABLED
+        value: "false"
+      - key: FEATURE_CONTACT_ENABLED
+        value: "false"
+      - key: MONITORING_ENABLED
+        value: "false"
+      - key: SECURITY_HELMET_ENABLED
+        value: "true"
+      - key: SECURITY_CSP_ENABLED
+        value: "true"
+      - key: SECURITY_RATE_LIMIT_ENABLED
+        value: "true"
+      - key: SECURITY_CSRF_ENABLED
+        value: "true"
+      - key: SECURITY_ERROR_DETAILS_ENABLED
+        value: "false"
       - key: LOG_LEVEL
         value: info
       - key: LOG_FORMAT
