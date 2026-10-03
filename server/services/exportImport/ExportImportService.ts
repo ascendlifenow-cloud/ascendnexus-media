@@ -30,6 +30,25 @@ const schemaVersion = 1;
 const nowIso = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 const sha256 = (data: string | Buffer) => crypto.createHash("sha256").update(data).digest("hex");
+const compactArchiveSegment = (value: string, maximumBytes: number): string => {
+  const sanitized = sanitizeFileName(value) || "asset";
+  if (Buffer.byteLength(sanitized) <= maximumBytes) return sanitized;
+  const extension = path.extname(sanitized);
+  const digest = sha256(sanitized).slice(0, 10);
+  const suffix = `${digest}${extension}`;
+  const available = Math.max(1, maximumBytes - Buffer.byteLength(suffix) - 1);
+  let stem = path.basename(sanitized, extension);
+  while (Buffer.byteLength(stem) > available) stem = stem.slice(0, -1);
+  return `${stem}-${suffix}`;
+};
+const buildArchiveAssetPath = (category: string, assetReference: string, fileName: string, uniqueReference: string): string => {
+  const safeCategory = compactArchiveSegment(category, 16);
+  const safeAssetReference = compactArchiveSegment(assetReference, 28);
+  const uniquePrefix = sha256(uniqueReference).slice(0, 10);
+  const baseLength = Buffer.byteLength(`assets/${safeCategory}/${safeAssetReference}/${uniquePrefix}-`);
+  const safeFileName = compactArchiveSegment(fileName, Math.max(16, 100 - baseLength));
+  return `assets/${safeCategory}/${safeAssetReference}/${uniquePrefix}-${safeFileName}`;
+};
 
 const exportJobs = new Map<string, ExportJob>();
 const importJobs = new Map<string, ImportJob>();
@@ -575,7 +594,7 @@ export class ExportPackageService {
         const category = String(object.mediaCategory || "documents").replace(/[^a-zA-Z0-9_-]/g, "_");
         const assetReference = String(object.assetId || object.storageObjectId || "asset").replace(/[^a-zA-Z0-9_-]/g, "_");
         files.push({
-          archivePath: `assets/${category}/${assetReference}/${sanitizeFileName(object.originalFileName || object.fileName)}`,
+          archivePath: buildArchiveAssetPath(category, assetReference, object.originalFileName || object.fileName, object.storageObjectId),
           sourcePath: absolutePath,
           storageObjectId: object.storageObjectId,
           assetId: object.assetId,

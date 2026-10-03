@@ -37,7 +37,17 @@ try {
     const job = await exportPackageService.createExport({ mediaAssetIds, allMedia: args.all === "true" }, { includeMedia: true, includeOriginals: true, exportProtectedMedia: args.protected === "true", encryptPackage: args.encrypt === "true" }, "cli");
     json({ success: job.status === "completed", job });
   } else if (command === "export-full-content") {
-    const job = await exportPackageService.createExport({ allArtists: true, allReleases: true, allMedia: true }, { includeMedia: true, includeReleases: true, includeOriginals: true, exportProtectedMedia: args.protected === "true", encryptPackage: args.encrypt === "true" }, "cli");
+    const job = await exportPackageService.createExport(
+      { allArtists: true, allReleases: true, allMedia: true },
+      {
+        includeMedia: true,
+        includeReleases: true,
+        includeOriginals: args.originals !== "false",
+        exportProtectedMedia: args.protected === "true",
+        encryptPackage: args.encrypt === "true",
+      },
+      "cli",
+    );
     json({ success: job.status === "completed", job });
   } else if (command === "estimate") {
     json({ success: true, data: await exportEstimationService.estimate({ allArtists: args.artists === "true", allReleases: args.releases === "true", allMedia: args.media === "true" }, { includeMedia: true }) });
