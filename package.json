@@ -29,6 +29,7 @@
     "storage:verify-full-song-privacy": "node scripts/run-cached-tsx.mjs scripts/storageVerifyFullSongPrivacy.ts",
     "storage:test-provider": "node scripts/run-cached-tsx.mjs scripts/production-storage-smoke.mjs",
     "storage:test-cdn": "node scripts/run-cached-tsx.mjs scripts/storageCdnSmoke.ts",
+    "staging:migrate-content": "node scripts/run-cached-tsx.mjs scripts/migrateStagingContent.ts",
     "test:auth": "node scripts/run-cached-tsx.mjs scripts/auth-smoke.ts",
     "test:config": "node scripts/config-validation-smoke.mjs",
     "auth:initialize": "node scripts/run-cached-tsx.mjs scripts/initializeAuth.ts",

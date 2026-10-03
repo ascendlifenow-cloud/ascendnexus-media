@@ -16,7 +16,9 @@ const hmac = (key: string | Buffer, value: string): Buffer => createHmac("sha256
 const hmacHex = (key: string | Buffer, value: string): string => createHmac("sha256", key).update(value).digest("hex");
 const amzDate = (date = new Date()): string => date.toISOString().replace(/[:-]|\.\d{3}/g, "");
 const shortDate = (date: string): string => date.slice(0, 8);
-const encodePath = (storagePath: string): string => storagePath.split("/").map(encodeURIComponent).join("/");
+const awsEncode = (value: string): string => encodeURIComponent(value).replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+const encodePath = (storagePath: string): string => storagePath.split("/").map(awsEncode).join("/");
+const lexicalCompare = (left: string, right: string): number => left < right ? -1 : left > right ? 1 : 0;
 const cleanMetadataValue = (value: unknown): string => String(value ?? "").replace(/[\r\n]/g, " ").slice(0, 1024);
 const escapeXml = (value: string): string =>
   value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
@@ -335,7 +337,9 @@ export class S3CompatibleStorageAdapter implements BackendStorageProviderAdapter
   }): Headers {
     const now = amzDate();
     const date = shortDate(now);
-    const payloadHash = options.body ? sha256Hex(options.body) : "UNSIGNED-PAYLOAD";
+    // Header-authenticated S3 requests need the real empty-payload digest.
+    // UNSIGNED-PAYLOAD is reserved for the presigned URL flow below.
+    const payloadHash = sha256Hex(options.body ?? Buffer.alloc(0));
     const host = url.host;
     const baseHeaders: Record<string, string> = {
       host,
@@ -352,13 +356,13 @@ export class S3CompatibleStorageAdapter implements BackendStorageProviderAdapter
       baseHeaders[`x-amz-meta-${key.toLowerCase().replace(/[^a-z0-9-]+/g, "-")}`] = cleanMetadataValue(value);
     });
     const canonicalHeaders = Object.entries(baseHeaders)
-      .sort(([a], [b]) => a.localeCompare(b))
+      .sort(([a], [b]) => lexicalCompare(a, b))
       .map(([key, value]) => `${key}:${value.trim()}\n`)
       .join("");
     const signedHeaders = Object.keys(baseHeaders).sort().join(";");
     const canonicalRequest = [
       method,
-      `/${encodePath(storagePath)}`,
+      url.pathname || "/",
       this.canonicalQuery(url),
       canonicalHeaders,
       signedHeaders,
@@ -383,7 +387,7 @@ export class S3CompatibleStorageAdapter implements BackendStorageProviderAdapter
     url.searchParams.set("X-Amz-Expires", String(expirationSeconds));
     url.searchParams.set("X-Amz-SignedHeaders", "host");
     Object.entries(responseParams).forEach(([key, value]) => url.searchParams.set(key, value));
-    const canonicalRequest = [method, `/${encodePath(storagePath)}`, this.canonicalQuery(url), `host:${url.host}\n`, "host", "UNSIGNED-PAYLOAD"].join("\n");
+    const canonicalRequest = [method, url.pathname || "/", this.canonicalQuery(url), `host:${url.host}\n`, "host", "UNSIGNED-PAYLOAD"].join("\n");
     const stringToSign = ["AWS4-HMAC-SHA256", now, scope, sha256Hex(canonicalRequest)].join("\n");
     const signature = hmacHex(getSigningKey(mediaBackendConfig.secretAccessKey as string, date, mediaBackendConfig.region, this.service), stringToSign);
     url.searchParams.set("X-Amz-Signature", signature);
@@ -392,8 +396,9 @@ export class S3CompatibleStorageAdapter implements BackendStorageProviderAdapter
 
   private canonicalQuery(url: URL): string {
     return [...url.searchParams.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .map(([key, value]) => [awsEncode(key), awsEncode(value)] as const)
+      .sort(([leftKey, leftValue], [rightKey, rightValue]) => lexicalCompare(leftKey, rightKey) || lexicalCompare(leftValue, rightValue))
+      .map(([key, value]) => `${key}=${value}`)
       .join("&");
   }
 
