@@ -5,6 +5,11 @@ const adminMutationMethods = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 
 export const isAdminPath = (path: string) => path.startsWith("/api/admin");
 export const isPublicPath = (path: string) => path.startsWith("/api/public");
+export const isCredentialedApiPath = (path: string) =>
+  path.startsWith("/api/admin") ||
+  path.startsWith("/api/auth") ||
+  path.startsWith("/api/account") ||
+  path.startsWith("/api/member");
 
 export const getRequestPath = (request: IncomingMessage) => {
   try {
@@ -93,13 +98,15 @@ export const getAllowedCorsOrigin = (request: IncomingMessage): string | undefin
 export const buildCorsHeaders = (request: IncomingMessage): Record<string, string> => {
   const path = getRequestPath(request);
   const origin = getAllowedCorsOrigin(request);
-  const credentialed = Boolean(origin && origin !== "*" && isAdminPath(path));
+  const credentialed = Boolean(origin && origin !== "*" && isCredentialedApiPath(path));
   return {
     "Access-Control-Allow-Origin": origin ?? "null",
     "Vary": "Origin",
     "Access-Control-Allow-Credentials": credentialed ? "true" : "false",
-    "Access-Control-Allow-Headers": isAdminPath(path) ? "Content-Type, Authorization, X-Admin-Dev-Token, X-CSRF-Token" : "Content-Type, If-None-Match, If-Modified-Since, Idempotency-Key",
-    "Access-Control-Allow-Methods": isAdminPath(path) ? "GET,POST,PATCH,DELETE,OPTIONS" : "GET,POST,OPTIONS",
+    "Access-Control-Allow-Headers": credentialed
+      ? "Content-Type, Authorization, X-Admin-Dev-Token, X-CSRF-Token, X-Auth-Scope, If-None-Match, If-Modified-Since, Idempotency-Key"
+      : "Content-Type, If-None-Match, If-Modified-Since, Idempotency-Key",
+    "Access-Control-Allow-Methods": credentialed ? "GET,POST,PATCH,PUT,DELETE,OPTIONS" : "GET,POST,OPTIONS",
   };
 };
 
