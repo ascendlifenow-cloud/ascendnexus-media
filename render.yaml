@@ -119,6 +119,8 @@ services:
         value: "false"
       - key: MONITORING_ENABLED
         value: "false"
+      - key: ANALYTICS_DEBUG
+        value: "false"
       - key: SECURITY_HELMET_ENABLED
         value: "true"
       - key: SECURITY_CSP_ENABLED
@@ -255,6 +257,8 @@ services:
       - key: FEATURE_CONTACT_ENABLED
         value: "false"
       - key: MONITORING_ENABLED
+        value: "false"
+      - key: ANALYTICS_DEBUG
         value: "false"
       - key: SECURITY_HELMET_ENABLED
         value: "true"

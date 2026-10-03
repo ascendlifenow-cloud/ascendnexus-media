@@ -348,7 +348,7 @@ export const buildBackendConfig = (env: NodeJS.ProcessEnv = process.env): Backen
     initialAdminBootstrapEnabled: parseBoolean(env.AUTH_INITIAL_ADMIN_BOOTSTRAP_ENABLED, "AUTH_INITIAL_ADMIN_BOOTSTRAP_ENABLED", false, issues),
     initialAdminEmail: envString(env, "AUTH_INITIAL_ADMIN_EMAIL"),
     passwordResetEnabled: parseBoolean(env.AUTH_PASSWORD_RESET_ENABLED, "AUTH_PASSWORD_RESET_ENABLED", false, issues),
-    legacyDevAdminToken: envString(env, "MEDIA_ADMIN_DEV_TOKEN", flags.isProduction ? undefined : "dev-admin-token"),
+    legacyDevAdminToken: envString(env, "MEDIA_ADMIN_DEV_TOKEN", flags.isProduction || flags.isStaging ? undefined : "dev-admin-token"),
     authDisabled: parseBoolean(env.MEDIA_AUTH_DISABLED, "MEDIA_AUTH_DISABLED", false, issues),
   };
 
@@ -472,7 +472,7 @@ export const buildBackendConfig = (env: NodeJS.ProcessEnv = process.env): Backen
     trackSearch: parseBoolean(env.ANALYTICS_TRACK_SEARCH, "ANALYTICS_TRACK_SEARCH", true, issues),
     trackExternalLinks: parseBoolean(env.ANALYTICS_TRACK_EXTERNAL_LINKS, "ANALYTICS_TRACK_EXTERNAL_LINKS", true, issues),
     consentRequired: parseBoolean(env.ANALYTICS_CONSENT_REQUIRED, "ANALYTICS_CONSENT_REQUIRED", true, issues),
-    debug: parseBoolean(env.ANALYTICS_DEBUG, "ANALYTICS_DEBUG", !flags.isProduction, issues),
+    debug: parseBoolean(env.ANALYTICS_DEBUG, "ANALYTICS_DEBUG", !flags.isProduction && !flags.isStaging, issues),
   };
 
   const security = {
@@ -581,7 +581,7 @@ export const buildPublicRuntimeConfig = (config: BackendConfig): PublicRuntimeCo
     trackSearch: config.analytics.trackSearch,
     trackExternalLinks: config.analytics.trackExternalLinks,
     consentRequired: config.analytics.consentRequired,
-    debug: config.analytics.debug && !config.app.isProduction,
+    debug: config.analytics.debug && !config.app.isProduction && !config.app.isStaging,
   },
   features: {
     publicSearchEnabled: config.features.publicSearchEnabled,
