@@ -42,6 +42,16 @@ const envValue = (key: string): string | undefined => {
 
 const apiBase = (): string => (envValue("VITE_PUBLIC_API_BASE_URL") ?? "").replace(/\/+$/, "");
 
+const publicRequestUrl = (path: string): string => {
+  const base = apiBase();
+  if (!base) return path;
+  const publicApiPrefix = "/api/public";
+  if (base.endsWith(publicApiPrefix) && (path === publicApiPrefix || path.startsWith(`${publicApiPrefix}/`))) {
+    return `${base}${path.slice(publicApiPrefix.length)}`;
+  }
+  return `${base}${path}`;
+};
+
 export class PublicMediaApiClient {
   private readonly artists = new ArtistService();
   private readonly releases = new ReleaseService();
@@ -210,8 +220,7 @@ export class PublicMediaApiClient {
   }
 
   private async fetchPublic<T>(path: string, allowUndefined = false): Promise<PublicApiResponse<T> | undefined> {
-    const base = apiBase();
-    const response = await fetch(`${base}${path}`);
+    const response = await fetch(publicRequestUrl(path));
     if (response.status === 404 && allowUndefined) return undefined;
     if (!response.ok) throw new Error(`Public API request failed: ${response.status}`);
     const payload = await response.json() as PublicApiResponse<T>;
