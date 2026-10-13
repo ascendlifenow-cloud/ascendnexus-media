@@ -37,6 +37,9 @@ const fileFor = (storagePath: string) => {
 
 const publicUrl = (storagePath: string) => storagePath.startsWith("public/") ? `${publicBaseUrl}/${storagePath}` : undefined;
 
+const migratedPublicUrl = (storagePath: string) =>
+  `${publicBaseUrl}/public/${storagePath.replace(/^\/+/, "").replace(/^(?:public\/)+/, "")}`;
+
 const rewritePublicUrls = (value: unknown): unknown => {
   if (Array.isArray(value)) return value.map(rewritePublicUrls);
   if (value && typeof value === "object") {
@@ -45,8 +48,8 @@ const rewritePublicUrls = (value: unknown): unknown => {
   if (typeof value !== "string") return value;
   const marker = "/uploads/media/public/";
   const markerIndex = value.indexOf(marker);
-  if (markerIndex >= 0) return `${publicBaseUrl}/public/${value.slice(markerIndex + marker.length).replace(/^\/+/, "")}`;
-  if (value.startsWith("public/")) return `${publicBaseUrl}/${value}`;
+  if (markerIndex >= 0) return migratedPublicUrl(value.slice(markerIndex + marker.length));
+  if (value.startsWith("public/")) return migratedPublicUrl(value);
   return value;
 };
 
