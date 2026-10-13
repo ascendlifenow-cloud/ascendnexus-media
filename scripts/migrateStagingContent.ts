@@ -29,8 +29,11 @@ const source = JSON.parse(await fs.readFile(dataPath, "utf8")) as Record<string,
 const activeAssets = (source.mediaAssets ?? []).filter((asset) => !["archived", "deleted"].includes(asset.status));
 const activeAssetIds = new Set(activeAssets.map((asset) => asset.assetId));
 
+const normalizeStoragePath = (storagePath: string) =>
+  storagePath.replace(/^\/+/, "").replace(/^media\/(?=public\/|private\/)/, "");
+
 const fileFor = (storagePath: string) => {
-  const resolved = path.resolve(uploadRoot, storagePath);
+  const resolved = path.resolve(uploadRoot, normalizeStoragePath(storagePath));
   if (!resolved.startsWith(`${path.resolve(uploadRoot)}${path.sep}`)) throw new Error("Storage path escaped the upload root.");
   return resolved;
 };
@@ -79,7 +82,7 @@ const stats = {
 try {
   const storageObjects = (source.mediaStorageObjects ?? []).filter((item) =>
     item.assetId && activeAssetIds.has(item.assetId) && !["failed", "deleted"].includes(item.status),
-  );
+  ).map((item) => ({ ...item, storagePath: normalizeStoragePath(item.storagePath) }));
   const available: Array<{ record: Row; filePath: string; size: number }> = [];
   const missing: Row[] = [];
   for (const record of storageObjects) {
