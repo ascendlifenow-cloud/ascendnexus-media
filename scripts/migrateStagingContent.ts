@@ -45,7 +45,7 @@ const rewritePublicUrls = (value: unknown): unknown => {
   if (typeof value !== "string") return value;
   const marker = "/uploads/media/public/";
   const markerIndex = value.indexOf(marker);
-  if (markerIndex >= 0) return `${publicBaseUrl}/${value.slice(markerIndex + marker.length).replace(/^\/+/, "")}`;
+  if (markerIndex >= 0) return `${publicBaseUrl}/public/${value.slice(markerIndex + marker.length).replace(/^\/+/, "")}`;
   if (value.startsWith("public/")) return `${publicBaseUrl}/${value}`;
   return value;
 };
