@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ReleaseCatalogService, type ReleaseCatalogSortMode } from "../services/ReleaseCatalogService";
 
@@ -13,6 +13,7 @@ const getSortMode = (value: string | null): ReleaseCatalogSortMode =>
 export function useReleasesCatalog() {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get("q") ?? "";
+  const [searchQuery, setSearchQuery] = useState(queryParam);
   const artistParam = searchParams.get("artist") ?? "";
   const genreParam = searchParams.get("genre") ?? "";
   const tagParam = searchParams.get("tag") ?? "";
@@ -22,6 +23,10 @@ export function useReleasesCatalog() {
     queryKey: ["release-catalog"],
     queryFn: () => releaseCatalogService.getCatalogData(),
   });
+
+  useEffect(() => {
+    setSearchQuery(queryParam);
+  }, [queryParam]);
 
   const artists = query.data?.artists ?? [];
   const genres = query.data?.genres ?? [];
@@ -56,22 +61,23 @@ export function useReleasesCatalog() {
   );
 
   const clearFilters = useCallback(() => {
+    setSearchQuery("");
     setSearchParams(new URLSearchParams(), { replace: true });
   }, [setSearchParams]);
 
   const filteredReleases = useMemo(() => {
     const releases = query.data?.releases ?? [];
     const filtered = releaseCatalogService.filterCatalogReleases(releases, {
-      query: queryParam,
+      query: searchQuery,
       artist: selectedArtist,
       genre: selectedGenre,
       tag: selectedTag,
       sort: sortMode,
     });
     return releaseCatalogService.sortCatalogReleases(filtered, sortMode);
-  }, [query.data?.releases, queryParam, selectedArtist, selectedGenre, selectedTag, sortMode]);
+  }, [query.data?.releases, searchQuery, selectedArtist, selectedGenre, selectedTag, sortMode]);
 
-  const hasFilters = Boolean(queryParam.trim() || selectedArtist || selectedGenre || selectedTag || sortMode !== "newest");
+  const hasFilters = Boolean(searchQuery.trim() || selectedArtist || selectedGenre || selectedTag || sortMode !== "newest");
   const hasPublishedReleases = (query.data?.releases.length ?? 0) > 0;
 
   return {
@@ -82,12 +88,12 @@ export function useReleasesCatalog() {
     artistCounts: query.data?.artistCounts ?? {},
     genreCounts: query.data?.genreCounts ?? {},
     styleTagCounts: query.data?.styleTagCounts ?? {},
-    query: queryParam,
+    query: searchQuery,
     selectedArtist,
     selectedGenre,
     selectedTag,
     sortMode,
-    setQuery: (value: string) => setParam("q", value),
+    setQuery: setSearchQuery,
     setArtist: (value: string) => setParam("artist", value),
     setGenre: (value: string) => setParam("genre", value),
     setTag: (value: string) => setParam("tag", value),

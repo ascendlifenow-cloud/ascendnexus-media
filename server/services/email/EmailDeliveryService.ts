@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getBackendConfig } from "../../config/backendConfig";
 import type { EmailDeliveryRecord } from "../../models/email/EmailDeliveryRecordModel";
 import { emailDeliveryRepository } from "../../repositories/EmailDeliveryRepository";
+import { emailProviderDeliveryService } from "./EmailProviderDeliveryService";
 
 export interface QueueEmailDeliveryInput {
   deliveryType: NonNullable<EmailDeliveryRecord["deliveryType"]>;
@@ -46,7 +47,34 @@ export class EmailDeliveryService {
       updatedAt: now,
       schemaVersion: 1,
     };
-    return emailDeliveryRepository.create(record as EmailDeliveryRecord & Record<string, unknown>) as Promise<EmailDeliveryRecord>;
+    await emailDeliveryRepository.create(record as EmailDeliveryRecord & Record<string, unknown>);
+    if (!providerConfigured) return record;
+
+    const subject = typeof input.metadata?.subject === "string" ? input.metadata.subject : "";
+    const text = typeof input.metadata?.text === "string" ? input.metadata.text : undefined;
+    const html = typeof input.metadata?.html === "string" ? input.metadata.html : undefined;
+    const startedAt = new Date().toISOString();
+    await emailDeliveryRepository.update(record.emailDeliveryId, { status: "sending", startedAt, lastAttemptAt: startedAt, attempts: 1 });
+    try {
+      const result = await emailProviderDeliveryService.send({ recipient: input.recipient, subject, text, html });
+      const sentAt = new Date().toISOString();
+      return await emailDeliveryRepository.update(record.emailDeliveryId, {
+        status: "sent",
+        sentAt,
+        providerMessageId: result.providerMessageId,
+        lastErrorCode: undefined,
+        lastErrorMessageSafe: undefined,
+      }) as EmailDeliveryRecord;
+    } catch (error) {
+      const failedAt = new Date().toISOString();
+      const code = error instanceof Error ? error.message.split(":")[0] : "EMAIL_DELIVERY_FAILED";
+      return await emailDeliveryRepository.update(record.emailDeliveryId, {
+        status: "failed",
+        failedAt,
+        lastErrorCode: code,
+        lastErrorMessageSafe: "Email delivery failed. Check provider configuration and delivery logs.",
+      }) as EmailDeliveryRecord;
+    }
   }
 
   async getHealth() {

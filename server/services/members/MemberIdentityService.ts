@@ -482,9 +482,11 @@ export class MemberIdentityService {
   }
 
   private async queueVerificationEmail(member: MemberAccount, token: string, request: IncomingMessage, templateKey: string) {
+    const config = getBackendConfig();
     const host = request.headers.host || "localhost";
     const protocol = String(request.headers["x-forwarded-proto"] ?? "").split(",")[0] || (host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https");
-    const verificationUrl = `${protocol}://${host}/verify-email?token=${encodeURIComponent(token)}`;
+    const publicAppBaseUrl = (config.app.publicAppBaseUrl || `${protocol}://${host}`).replace(/\/+$/, "");
+    const verificationUrl = `${publicAppBaseUrl}/verify-email?token=${encodeURIComponent(token)}`;
     const template = memberVerificationEmailTemplates.registrationVerification({ displayName: member.displayName, verificationUrl, expiresInHours: 24 });
     await emailDeliveryService.queueDelivery({
       deliveryType: "member_verification",
