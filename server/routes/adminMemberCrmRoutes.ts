@@ -13,6 +13,9 @@ export const handleAdminMemberCrmRoute = async (request: IncomingMessage, respon
   if (method === "GET" && memberMatch) return adminMemberCrmController.detail(request, response, memberMatch[1]).then(() => true);
   if (method === "PATCH" && memberMatch) return adminMemberCrmController.setStatus(request, response, memberMatch[1]).then(() => true);
 
+  const resendVerificationMatch = /^\/api\/admin\/members\/([^/]+)\/resend-verification$/.exec(path);
+  if (method === "POST" && resendVerificationMatch) return adminMemberCrmController.resendVerification(request, response, resendVerificationMatch[1]).then(() => true);
+
   const timelineMatch = /^\/api\/admin\/members\/([^/]+)\/timeline$/.exec(path);
   if (method === "GET" && timelineMatch) return adminMemberCrmController.timeline(request, response, timelineMatch[1]).then(() => true);
   const healthMatch = /^\/api\/admin\/members\/([^/]+)\/health$/.exec(path);

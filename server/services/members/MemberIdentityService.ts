@@ -341,6 +341,37 @@ export class MemberIdentityService {
     return sanitizeMemberAccount(await this.requireMember(memberId));
   }
 
+  async adminResendVerification(memberId: string, request: IncomingMessage, actorId: string) {
+    const member = await this.requireMember(memberId);
+    if (member.emailVerified) throw new AuthApiError("MEMBER_ALREADY_VERIFIED", "This member's email is already verified.", 409);
+    if (["Deleted", "Disabled", "Suspended"].includes(member.status)) {
+      throw new AuthApiError("MEMBER_ACCOUNT_INACTIVE", "Verification email cannot be sent while this member account is inactive.", 409);
+    }
+
+    let token = "";
+    await jsonDatabase.update((data) => {
+      for (const record of data.memberVerificationTokens) {
+        if (record.memberId === member.memberId && record.status === "active") record.status = "revoked";
+      }
+      token = this.createVerificationTokenRecord(data.memberVerificationTokens, member.memberId, request);
+    });
+
+    const delivery = await this.queueVerificationEmail(member, token, request, "admin_member_resend_verification");
+    await this.audit(
+      "member_verification_sent",
+      member.memberId,
+      `Verification email resent by administrator; provider status: ${delivery.status}.`,
+      actorId,
+    );
+    return {
+      accepted: delivery.status === "sent" || delivery.status === "delivered" || delivery.status === "queued",
+      status: delivery.status,
+      provider: delivery.provider,
+      sentAt: delivery.sentAt,
+      errorCode: delivery.lastErrorCode,
+    };
+  }
+
   async getHealth() {
     const data = await jsonDatabase.read();
     const activeMembers = data.memberAccounts.filter((member) => member.status === "Active").length;
@@ -488,7 +519,7 @@ export class MemberIdentityService {
     const publicAppBaseUrl = (config.app.publicAppBaseUrl || `${protocol}://${host}`).replace(/\/+$/, "");
     const verificationUrl = `${publicAppBaseUrl}/verify-email?token=${encodeURIComponent(token)}`;
     const template = memberVerificationEmailTemplates.registrationVerification({ displayName: member.displayName, verificationUrl, expiresInHours: 24 });
-    await emailDeliveryService.queueDelivery({
+    return emailDeliveryService.queueDelivery({
       deliveryType: "member_verification",
       recipientCategory: "member",
       recipient: member.email,

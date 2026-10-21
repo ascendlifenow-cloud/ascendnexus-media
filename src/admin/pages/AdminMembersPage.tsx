@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useParams } from "react-router-dom";
-import { RefreshCw, Search, ShieldAlert, UserRound } from "lucide-react";
+import { LoaderCircle, MailCheck, RefreshCw, Search, ShieldAlert, UserRound } from "lucide-react";
 import { adminMemberCrmApiService } from "../services/AdminMemberCrmApiService";
 
 export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "health" | "audit" | "security" | "support" | "risk" | "moderation" | "sessions" | "subscriptions" | "entitlements" | "activity" | "notifications" }) {
@@ -11,6 +11,8 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
+  const [verificationMessage, setVerificationMessage] = useState("");
+  const [verificationSending, setVerificationSending] = useState(false);
   const activeMemberId = params.memberId ?? String(detail?.member && (detail.member as Record<string, unknown>).memberId || "");
 
   const load = () => {
@@ -41,6 +43,22 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
     if (!activeMemberId) return;
     await adminMemberCrmApiService.moderate(activeMemberId, { action: "restore", reason: "Administrative CRM restore action." });
     await refreshDetail();
+  };
+  const resendVerification = async () => {
+    if (!activeMemberId || verificationSending) return;
+    setVerificationSending(true);
+    setVerificationMessage("");
+    setError("");
+    try {
+      const result = await adminMemberCrmApiService.resendVerification(activeMemberId);
+      if (!result.accepted) throw new Error(result.errorCode ? `Email delivery failed (${result.errorCode}).` : "Email provider did not accept the verification message.");
+      setVerificationMessage(result.status === "sent" || result.status === "delivered" ? "Verification email sent." : "Verification email queued.");
+      await refreshDetail();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to resend the verification email.");
+    } finally {
+      setVerificationSending(false);
+    }
   };
 
   const statKeys = ["totalMembers", "activeMembers", "inactiveMembers", "premiumReady", "supportQueue", "securityAlerts", "suspensions"];
@@ -95,12 +113,23 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
                     <p className="mt-1 text-sm text-white/56">{String(member.membershipTier)} · {String(member.status)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {!Boolean(member.emailVerified) ? (
+                      <button
+                        className="inline-flex items-center gap-2 rounded-md border border-cyanGlow/20 px-3 py-2 text-sm text-cyan-50 hover:bg-cyanGlow/10 disabled:cursor-not-allowed disabled:opacity-50"
+                        onClick={resendVerification}
+                        disabled={verificationSending || ["Deleted", "Disabled", "Suspended"].includes(String(member.status))}
+                      >
+                        {verificationSending ? <LoaderCircle className="animate-spin" size={16} /> : <MailCheck size={16} />}
+                        {verificationSending ? "Sending..." : "Resend Verification"}
+                      </button>
+                    ) : null}
                     <button className="rounded-md border border-white/10 px-3 py-2 text-sm text-white hover:bg-white/8" onClick={() => adminMemberCrmApiService.grantMembership(String(member.memberId), "premium").then(refreshDetail)}>Grant Premium</button>
                     <button className="rounded-md border border-white/10 px-3 py-2 text-sm text-white hover:bg-white/8" onClick={() => adminMemberCrmApiService.revokeSessions(String(member.memberId)).then(refreshDetail)}>Revoke Sessions</button>
                     <button className="rounded-md border border-amber-300/20 px-3 py-2 text-sm text-amber-100 hover:bg-amber-500/10" onClick={suspend}>Suspend</button>
                     <button className="rounded-md border border-cyanGlow/20 px-3 py-2 text-sm text-cyan-50 hover:bg-cyanGlow/10" onClick={restore}>Restore</button>
                   </div>
                 </div>
+                {verificationMessage ? <p className="mt-4 rounded-md border border-emerald-300/20 bg-emerald-500/10 p-3 text-sm text-emerald-100" role="status">{verificationMessage}</p> : null}
               </section>
 
               <section className="grid gap-4 lg:grid-cols-3">

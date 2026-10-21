@@ -72,6 +72,11 @@ export class AdminMemberCrmController {
     sendJson(response, 200, { success: true, data: await memberAdministrationService.setAccountStatus(memberId, body.status ?? "Active", auth.userId) });
   }
 
+  async resendVerification(request: IncomingMessage, response: ServerResponse, memberId: string) {
+    const auth = await this.auth(request, "users.manage");
+    sendJson(response, 200, { success: true, data: await memberIdentityService.adminResendVerification(memberId, request, auth.userId) });
+  }
+
   async sessions(request: IncomingMessage, response: ServerResponse, memberId: string) {
     await this.auth(request, "users.read");
     sendJson(response, 200, { success: true, data: await memberSessionAdministrationService.list(memberId) });
