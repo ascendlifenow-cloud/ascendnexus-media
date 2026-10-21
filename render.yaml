@@ -114,7 +114,15 @@ services:
       - key: PUBLIC_CACHE_ENABLED
         value: "true"
       - key: EMAIL_ENABLED
-        value: "false"
+        value: "true"
+      - key: EMAIL_PROVIDER
+        value: resend
+      - key: EMAIL_API_KEY
+        sync: false
+      - key: EMAIL_FROM_ADDRESS
+        value: members@ascendnexusmedia.com
+      - key: EMAIL_FROM_NAME
+        value: Ascend Nexus Media
       - key: FEATURE_CONTACT_ENABLED
         value: "false"
       - key: MONITORING_ENABLED

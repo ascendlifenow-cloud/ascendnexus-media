@@ -408,32 +408,42 @@ export class JsonDatabase {
   private async readMongo(): Promise<MediaDatabaseShape> {
     const db = await databaseConnectionService.getDb();
     const next = emptyDatabase() as unknown as Record<string, unknown[]>;
-    for (const collectionDef of databaseCollections) {
-      next[collectionDef.property] = (await db.collection(collectionDef.collectionName).find({}).toArray()).map(stripInternalMongoFields);
+    const batchSize = 12;
+    for (let index = 0; index < databaseCollections.length; index += batchSize) {
+      const batch = databaseCollections.slice(index, index + batchSize);
+      const results = await Promise.all(batch.map(async (collectionDef) => ({
+        property: collectionDef.property,
+        records: (await db.collection(collectionDef.collectionName).find({}).toArray()).map(stripInternalMongoFields),
+      })));
+      for (const result of results) next[result.property] = result.records;
     }
     return next as unknown as MediaDatabaseShape;
   }
 
   private async writeMongo(data: MediaDatabaseShape): Promise<MediaDatabaseShape> {
     const db = await databaseConnectionService.getDb();
-    for (const collectionDef of databaseCollections) {
-      const records = ((data as unknown as Record<string, Array<Record<string, unknown>>>)[collectionDef.property] ?? []).map((record) => withDatabaseDefaults(record));
-      const collection = db.collection(collectionDef.collectionName);
-      const currentIds = records.map((record) => record[collectionDef.applicationId]).filter(Boolean);
-      if (currentIds.length) {
-        await collection.deleteMany({ [collectionDef.applicationId]: { $nin: currentIds } });
-      } else {
-        await collection.deleteMany({});
-      }
-      if (records.length) {
-        await collection.bulkWrite(records.map((record) => ({
-          replaceOne: {
-            filter: { [collectionDef.applicationId]: record[collectionDef.applicationId] },
-            replacement: record,
-            upsert: true,
-          },
-        })), { ordered: true });
-      }
+    const batchSize = 12;
+    for (let index = 0; index < databaseCollections.length; index += batchSize) {
+      const batch = databaseCollections.slice(index, index + batchSize);
+      await Promise.all(batch.map(async (collectionDef) => {
+        const records = ((data as unknown as Record<string, Array<Record<string, unknown>>>)[collectionDef.property] ?? []).map((record) => withDatabaseDefaults(record));
+        const collection = db.collection(collectionDef.collectionName);
+        const currentIds = records.map((record) => record[collectionDef.applicationId]).filter(Boolean);
+        if (currentIds.length) {
+          await collection.deleteMany({ [collectionDef.applicationId]: { $nin: currentIds } });
+        } else {
+          await collection.deleteMany({});
+        }
+        if (records.length) {
+          await collection.bulkWrite(records.map((record) => ({
+            replaceOne: {
+              filter: { [collectionDef.applicationId]: record[collectionDef.applicationId] },
+              replacement: record,
+              upsert: true,
+            },
+          })), { ordered: true });
+        }
+      }));
     }
     return data;
   }

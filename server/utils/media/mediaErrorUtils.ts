@@ -13,7 +13,8 @@ export type MediaErrorCode =
   | "MEDIA_REQUEST_INVALID"
   | `PUBLICATION_${string}`
   | `ARTIST_${string}`
-  | `RELEASE_${string}`;
+  | `RELEASE_${string}`
+  | `MEMBER_${string}`;
 
 export class MediaApiError extends Error {
   constructor(

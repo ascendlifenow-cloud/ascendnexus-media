@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { LoaderCircle, MailCheck, RefreshCw, Search, ShieldAlert, UserRound } from "lucide-react";
@@ -13,22 +13,47 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
   const [error, setError] = useState("");
   const [verificationMessage, setVerificationMessage] = useState("");
   const [verificationSending, setVerificationSending] = useState(false);
-  const activeMemberId = params.memberId ?? String(detail?.member && (detail.member as Record<string, unknown>).memberId || "");
+  const [selectedMemberId, setSelectedMemberId] = useState(params.memberId ?? "");
+  const [detailLoading, setDetailLoading] = useState(false);
+  const detailRequestRef = useRef(0);
+  const activeMemberId = selectedMemberId;
 
-  const load = () => {
+  const load = (signal?: AbortSignal) => {
     setError("");
-    adminMemberCrmApiService.dashboard().then(setDashboard).catch((err) => setError(err instanceof Error ? err.message : "Unable to load CRM dashboard."));
-    adminMemberCrmApiService.search(query).then((items) => {
-      setMembers(items);
-      if (!params.memberId && !detail && items[0]?.memberId) void adminMemberCrmApiService.detail(String(items[0].memberId)).then(setDetail);
-    }).catch(() => setMembers([]));
-    if (params.memberId) adminMemberCrmApiService.detail(params.memberId).then(setDetail).catch((err) => setError(err instanceof Error ? err.message : "Unable to load member detail."));
+    adminMemberCrmApiService.dashboard(signal).then(setDashboard).catch((err) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Unable to load CRM dashboard.");
+    });
+    adminMemberCrmApiService.search(query, signal).then(setMembers).catch((err) => {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      setMembers([]);
+    });
   };
 
-  useEffect(load, [params.memberId]);
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    if (params.memberId) void selectMember(params.memberId);
+    return () => controller.abort();
+  }, [params.memberId]);
 
-  const selectMember = (memberId: string) => adminMemberCrmApiService.detail(memberId).then(setDetail);
-  const refreshDetail = () => activeMemberId ? adminMemberCrmApiService.detail(activeMemberId).then(setDetail) : Promise.resolve();
+  const selectMember = async (memberId: string) => {
+    const requestId = ++detailRequestRef.current;
+    setSelectedMemberId(memberId);
+    setDetailLoading(true);
+    setDetail(null);
+    setError("");
+    setVerificationMessage("");
+    try {
+      const nextDetail = await adminMemberCrmApiService.detail(memberId);
+      if (requestId === detailRequestRef.current) setDetail(nextDetail);
+    } catch (err) {
+      if (requestId === detailRequestRef.current) setError(err instanceof Error ? err.message : "Unable to load member detail.");
+    } finally {
+      if (requestId === detailRequestRef.current) setDetailLoading(false);
+    }
+  };
+  const refreshDetail = () => activeMemberId ? selectMember(activeMemberId) : Promise.resolve();
   const addSupportNote = async () => {
     if (!activeMemberId) return;
     await adminMemberCrmApiService.supportNote(activeMemberId, { subject: "Support follow-up", body: "Administrative support note created from CRM.", status: "open" });
@@ -77,7 +102,7 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
             <h1 className="mt-2 text-3xl font-semibold capitalize text-white">{focus.replace(/-/g, " ")}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/62">Identity operations, member lifecycle, engagement, support, moderation, sessions, risk, and customer success in one administrative view.</p>
           </div>
-          <button className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm text-white hover:bg-white/8" onClick={load}><RefreshCw size={16} /> Refresh</button>
+          <button className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm text-white hover:bg-white/8" onClick={() => load()}><RefreshCw size={16} /> Refresh</button>
         </div>
         {error ? <p className="mt-4 rounded-md border border-rose-300/20 bg-rose-500/10 p-3 text-sm text-rose-100">{error}</p> : null}
       </section>
@@ -92,17 +117,21 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
             <label className="text-xs font-bold uppercase tracking-[0.16em] text-white/42">Member search</label>
             <div className="mt-3 flex gap-2">
               <input className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-3 py-2 text-white" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Email, name, tier, status" />
-              <button className="rounded-md border border-white/10 p-2 text-white" onClick={() => adminMemberCrmApiService.search(query).then(setMembers)} aria-label="Search members"><Search size={18} /></button>
+              <button className="rounded-md border border-white/10 p-2 text-white" onClick={() => adminMemberCrmApiService.search(query).then(setMembers).catch((err) => setError(err instanceof Error ? err.message : "Unable to search members."))} aria-label="Search members"><Search size={18} /></button>
             </div>
           </div>
           <div className="max-h-[42rem] overflow-auto rounded-md border border-white/10 bg-white/[0.04]">
-            {members.map((item) => <button key={String(item.memberId)} className="block w-full border-b border-white/10 p-4 text-left hover:bg-white/[0.06]" onClick={() => selectMember(String(item.memberId))}><p className="font-semibold text-white">{String(item.displayName)}</p><p className="mt-1 text-xs text-white/52">{String(item.emailRedacted ?? item.email)} · {String(item.status)} · {String(item.membershipTier)}</p></button>)}
+            {members.map((item) => {
+              const itemId = String(item.memberId);
+              const selected = itemId === selectedMemberId;
+              return <button key={itemId} className={`block w-full border-b p-4 text-left transition ${selected ? "translate-x-1 border-cyanGlow/30 bg-cyanGlow/10 shadow-[inset_3px_0_0_rgba(58,226,255,0.8)]" : "border-white/10 hover:bg-white/[0.06]"}`} onClick={() => void selectMember(itemId)} aria-pressed={selected}><p className="font-semibold text-white">{String(item.displayName)}</p><p className="mt-1 text-xs text-white/52">{String(item.emailRedacted ?? item.email)} · {String(item.status)} · {String(item.membershipTier)}</p></button>;
+            })}
             {!members.length ? <p className="p-6 text-sm text-white/50">No members found.</p> : null}
           </div>
         </div>
 
         <div className="space-y-4">
-          {member ? (
+          {detailLoading ? <div className="flex min-h-48 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-sm text-white/60" role="status"><LoaderCircle className="mr-2 animate-spin" size={18} /> Loading selected member...</div> : member ? (
             <>
               <section className="rounded-md border border-white/10 bg-white/[0.04] p-5">
                 <div className="flex flex-wrap items-start justify-between gap-4">

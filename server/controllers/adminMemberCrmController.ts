@@ -4,6 +4,7 @@ import { sendJson } from "../middleware/mediaErrorMiddleware";
 import { mediaAuthorizationService } from "../services/media/MediaAuthorizationService";
 import type { MemberAccountStatus } from "../models/members/MemberModels";
 import type { MemberModerationAction, MemberSupportStatus } from "../models/memberCrm/MemberCrmModels";
+import { MediaApiError } from "../utils/media/mediaErrorUtils";
 import {
   memberAdministrationService,
   memberCrmService,
@@ -74,7 +75,12 @@ export class AdminMemberCrmController {
 
   async resendVerification(request: IncomingMessage, response: ServerResponse, memberId: string) {
     const auth = await this.auth(request, "users.manage");
-    sendJson(response, 200, { success: true, data: await memberIdentityService.adminResendVerification(memberId, request, auth.userId) });
+    try {
+      sendJson(response, 200, { success: true, data: await memberIdentityService.adminResendVerification(memberId, request, auth.userId) });
+    } catch (error) {
+      if (error instanceof MediaApiError) throw error;
+      throw new MediaApiError("MEMBER_VERIFICATION_SEND_FAILED", "Verification email could not be sent. Check the API email configuration and provider logs.", 500, "email");
+    }
   }
 
   async sessions(request: IncomingMessage, response: ServerResponse, memberId: string) {
