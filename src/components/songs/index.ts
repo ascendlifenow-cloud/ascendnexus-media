@@ -1,6 +1,7 @@
 export { FeaturedReleaseCard } from "./FeaturedReleaseCard";
 export { RelatedSongCard } from "./RelatedSongCard";
 export { ReleaseSongCard } from "./ReleaseSongCard";
+export { SongPlaybackActions } from "./SongPlaybackActions";
 export { SongCardActions } from "./SongCardActions";
 export { SongCardMeta } from "./SongCardMeta";
 export { SongCardTags } from "./SongCardTags";

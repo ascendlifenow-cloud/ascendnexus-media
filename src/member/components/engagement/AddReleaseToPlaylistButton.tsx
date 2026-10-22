@@ -1,13 +1,19 @@
 import { ListPlus } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { PublicSongRelease } from "../../../models/release";
 import { Button } from "../../../components/ui/Button";
 import { memberEngagementApiService } from "../../services/MemberEngagementApiService";
 
 interface PlaylistSummary { playlistId: string; name: string; items?: unknown[] }
+export interface PlaylistReleaseReference {
+  releaseId: string;
+  title: string;
+  slug?: string;
+  coverArtUrl?: string;
+  coverArtThumbnailUrl?: string;
+}
 
-export function AddReleaseToPlaylistButton({ release, compact = false }: { release: PublicSongRelease; compact?: boolean }) {
+export function AddReleaseToPlaylistButton({ release, compact = false, className }: { release: PlaylistReleaseReference; compact?: boolean; className?: string }) {
   const [open, setOpen] = useState(false);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -47,10 +53,10 @@ export function AddReleaseToPlaylistButton({ release, compact = false }: { relea
   };
 
   return (
-    <div className="relative">
-      <Button type="button" variant="secondary" size={compact ? "sm" : "lg"} onClick={() => void toggle()} disabled={loading}>
+    <div className={`relative ${compact ? "" : "sm:flex-1"}`}>
+      <Button type="button" variant="secondary" size={compact ? "sm" : "lg"} className={`w-full ${className ?? ""}`} onClick={() => void toggle()} disabled={loading}>
         <ListPlus className="h-4 w-4" aria-hidden="true" />
-        {loading ? "Loading" : "Add to playlist"}
+        {loading ? "Loading" : "Playlist"}
       </Button>
       {open ? (
         <div className="absolute left-0 top-full z-30 mt-2 min-w-64 rounded-md border border-white/15 bg-night p-2 shadow-2xl">

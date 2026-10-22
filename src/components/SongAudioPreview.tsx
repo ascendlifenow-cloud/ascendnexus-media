@@ -1,5 +1,5 @@
 import type { PublicSongRelease } from "../models/release";
-import { AudioPreviewPlayer } from "./AudioPreviewPlayer";
+import { SongPlaybackActions } from "./songs/SongPlaybackActions";
 
 interface SongAudioPreviewProps {
   song: PublicSongRelease;
@@ -15,13 +15,7 @@ export function SongAudioPreview({ song, artistName }: SongAudioPreviewProps) {
             <p className="text-sm font-bold uppercase tracking-[0.24em] text-cyanGlow">Audio Preview</p>
             <h2 className="mt-3 text-3xl font-semibold text-white sm:text-4xl">{song.title}</h2>
           </div>
-          <AudioPreviewPlayer
-            releaseId={song.releaseId}
-            title={song.title}
-            artistName={artistName}
-            audioPreviewUrl={song.audioPreviewUrl}
-            analyticsSong={song}
-          />
+          <SongPlaybackActions release={{ ...song, artistName, release: song }} />
         </div>
       </div>
     </section>

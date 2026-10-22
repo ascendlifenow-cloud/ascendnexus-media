@@ -1,16 +1,11 @@
-import { ListMusic, Plus, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { ListMusic, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
-import { AudioPreviewPlayer } from "../../components/AudioPreviewPlayer";
-import { Button } from "../../components/ui/Button";
-import { memberEngagementApiService, cardToResource } from "../services/MemberEngagementApiService";
-import type { MemberDashboardContentCard, MemberDashboardPlaylist } from "../services/memberPortalTypes";
+import { SongPlaybackActions } from "../../components/songs/SongPlaybackActions";
+import type { MemberDashboardContentCard } from "../services/memberPortalTypes";
 import { useMemberPortal } from "../hooks/useMemberPortal";
-import { usePublicAudioPlayer } from "../../hooks/public";
 import { CardGrid, PageHeader, Panel } from "./memberPageParts";
 
 function StreamingSongList({ title, items, empty, accent }: { title: string; items: MemberDashboardContentCard[]; empty: string; accent: "cyan" | "pink" }) {
-  const player = usePublicAudioPlayer();
   return (
     <section className="min-w-0 border-t border-white/10 pt-4">
       <div className="mb-4 flex items-center gap-3">
@@ -29,15 +24,7 @@ function StreamingSongList({ title, items, empty, accent }: { title: string; ite
                 <p className="mt-1 truncate text-xs text-white/48">{item.subtitle || item.accessLabel}</p>
               </div>
               <div className="col-span-2 sm:col-span-1">
-                {item.audioPreviewUrl ? (
-                  <div className="space-y-2">
-                    <AudioPreviewPlayer releaseId={item.contentId} title={item.title} artistName={item.subtitle || "Ascend Nexus Media"} audioPreviewUrl={item.audioPreviewUrl} compact />
-                    <Button type="button" variant="ghost" size="sm" onClick={() => player.enqueue(
-                      { releaseId: item.contentId, url: item.audioPreviewUrl! },
-                      { releaseId: item.contentId, title: item.title, artistName: item.subtitle, coverArtUrl: item.imageUrl },
-                    )}><ListMusic className="h-4 w-4" aria-hidden /> Add to streaming queue</Button>
-                  </div>
-                ) : <Link to={item.href} className="text-sm font-semibold text-cyanGlow">Open song</Link>}
+                <SongPlaybackActions compact release={{ releaseId: item.contentId, title: item.title, slug: item.href.split("/").pop(), artistName: item.subtitle, coverArtUrl: item.imageUrl, audioPreviewUrl: item.audioPreviewUrl }} />
               </div>
             </article>
           ))}
@@ -47,44 +34,7 @@ function StreamingSongList({ title, items, empty, accent }: { title: string; ite
   );
 }
 
-function AddToPlaylistButton({ item, playlists, onAdded }: { item: MemberDashboardContentCard; playlists: MemberDashboardPlaylist[]; onAdded: () => Promise<void> }) {
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState("");
-  const [message, setMessage] = useState("");
-  const add = async (playlist: MemberDashboardPlaylist) => {
-    setBusy(playlist.playlistId);
-    setMessage("");
-    try {
-      await memberEngagementApiService.addPlaylistItem(playlist.playlistId, cardToResource(item));
-      await onAdded();
-      setMessage(`Added to ${playlist.name}`);
-      setOpen(false);
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not add this song.");
-    } finally {
-      setBusy("");
-    }
-  };
-  return (
-    <div className="relative">
-      <Button type="button" variant="secondary" size="sm" className="w-full" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
-        <Plus className="h-4 w-4" aria-hidden /> Add To Playlist
-      </Button>
-      {open ? (
-        <div className="absolute bottom-full left-0 right-0 z-20 mb-2 max-h-52 overflow-y-auto rounded-md border border-white/15 bg-night p-2 shadow-2xl">
-          {playlists.length ? playlists.map((playlist) => (
-            <button key={playlist.playlistId} type="button" disabled={Boolean(busy)} onClick={() => void add(playlist)} className="flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm text-white/76 hover:bg-white/10 disabled:opacity-50">
-              <span className="truncate">{playlist.name}</span><span className="ml-3 text-xs text-white/38">{playlist.itemCount}</span>
-            </button>
-          )) : <Link to="/member/playlists" className="block rounded px-3 py-2 text-sm font-semibold text-cyanGlow hover:bg-white/8">Create your first playlist</Link>}
-        </div>
-      ) : null}
-      {message ? <p className="mt-2 text-xs text-white/58" role="status">{message}</p> : null}
-    </div>
-  );
-}
-
-function RecentReleaseGrid({ items, playlists, onAdded }: { items: MemberDashboardContentCard[]; playlists: MemberDashboardPlaylist[]; onAdded: () => Promise<void> }) {
+function RecentReleaseGrid({ items }: { items: MemberDashboardContentCard[] }) {
   if (!items.length) return <p className="rounded-md border border-white/10 bg-black/20 p-4 text-sm text-white/58">No published releases are visible to this membership yet.</p>;
   return (
     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -96,8 +46,7 @@ function RecentReleaseGrid({ items, playlists, onAdded }: { items: MemberDashboa
             <h3 className="absolute inset-x-4 bottom-4 text-xl font-semibold leading-tight text-white">{item.title}</h3>
           </Link>
           <div className="space-y-3 p-4">
-            {item.audioPreviewUrl ? <AudioPreviewPlayer releaseId={item.contentId} title={item.title} artistName={item.subtitle || "Ascend Nexus Media"} audioPreviewUrl={item.audioPreviewUrl} compact /> : null}
-            <AddToPlaylistButton item={item} playlists={playlists} onAdded={onAdded} />
+            <SongPlaybackActions compact release={{ releaseId: item.contentId, title: item.title, slug: item.href.split("/").pop(), artistName: item.subtitle, coverArtUrl: item.imageUrl, audioPreviewUrl: item.audioPreviewUrl }} />
           </div>
         </article>
       ))}
@@ -106,7 +55,7 @@ function RecentReleaseGrid({ items, playlists, onAdded }: { items: MemberDashboa
 }
 
 export function MemberDashboardPage() {
-  const { dashboard, refreshDashboard } = useMemberPortal();
+  const { dashboard } = useMemberPortal();
   const listeningItems = dashboard.continueListeningItems.length ? dashboard.continueListeningItems : dashboard.curatedPlaylist;
   const listeningTitle = dashboard.continueListeningItems.length ? "Continue Listening" : "Your Curated Listening Queue";
   return (
@@ -119,7 +68,7 @@ export function MemberDashboardPage() {
         <StreamingSongList title="Recommended Playlist" items={dashboard.curatedPlaylist} empty="Recommendations will appear as releases become available." accent="pink" />
       </section>
       <Panel title="Recently Released">
-        <RecentReleaseGrid items={dashboard.recentReleases} playlists={dashboard.userPlaylists} onAdded={refreshDashboard} />
+        <RecentReleaseGrid items={dashboard.recentReleases} />
       </Panel>
       {dashboard.userPlaylists.length ? (
         <Panel title="Your Playlists">

@@ -1,7 +1,7 @@
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
-import { AudioPreviewPlayer } from "../../components/AudioPreviewPlayer";
+import { SongPlaybackActions } from "../../components/songs/SongPlaybackActions";
 import { Trash2 } from "lucide-react";
 import { memberEngagementApiService } from "../services/MemberEngagementApiService";
 import { useMemberPortal } from "../hooks/useMemberPortal";
@@ -72,7 +72,7 @@ export function MemberPlaylistsPage() {
                 <article key={item.contentId} className="grid gap-3 py-3 sm:grid-cols-[3.5rem_minmax(0,1fr)_minmax(13rem,0.8fr)] sm:items-center">
                   <div className="aspect-square overflow-hidden rounded-md bg-white/8">{item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}</div>
                   <div className="min-w-0"><p className="truncate font-semibold text-white">{item.title}</p><p className="mt-1 text-xs text-white/46">{item.subtitle || item.accessLabel}</p></div>
-                  {item.audioPreviewUrl ? <AudioPreviewPlayer releaseId={item.contentId} title={item.title} artistName={item.subtitle || "Ascend Nexus Media"} audioPreviewUrl={item.audioPreviewUrl} compact /> : <p className="text-sm text-white/46">Open the release to listen.</p>}
+                  <SongPlaybackActions compact release={{ releaseId: item.contentId, title: item.title, slug: item.href.split("/").pop(), artistName: item.subtitle, coverArtUrl: item.imageUrl, audioPreviewUrl: item.audioPreviewUrl }} />
                 </article>
               ))}
             </div>

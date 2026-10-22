@@ -1,16 +1,13 @@
-import { CalendarDays, Disc3, ListMusic, Music2, UserRound } from "lucide-react";
+import { CalendarDays, Disc3, Music2, UserRound } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { ArtistPublicProfile } from "../models/artist";
 import type { PublicSongRelease } from "../models/release";
 import { formatReleaseDate } from "../utils/format";
-import { isPlayablePreviewAvailable } from "../utils/releaseCatalog";
 import { CoverArtImage } from "./media/CoverArtImage";
 import { SongStyleTags } from "./SongStyleTags";
-import { AudioPreviewPlayer } from "./AudioPreviewPlayer";
 import { ExternalLinksPanel } from "./links";
-import { AddReleaseToPlaylistButton } from "../member/components/engagement/AddReleaseToPlaylistButton";
-import { usePublicAudioPlayer } from "../hooks/public";
+import { SongPlaybackActions } from "./songs/SongPlaybackActions";
 import { MemberProtectedAudioPlayer } from "../member/components/media/MemberProtectedAudioPlayer";
 import { Button } from "./ui/Button";
 import { LinkButton } from "./ui/LinkButton";
@@ -22,23 +19,8 @@ interface SongHeroProps {
 }
 
 export function SongHero({ song, artist, onPlayPreview }: SongHeroProps) {
-  const previewAvailable = isPlayablePreviewAvailable(song.audioPreviewUrl);
   const artistName = artist?.displayName ?? "Ascend Nexus Media Artist";
   const [lyricsOpen, setLyricsOpen] = useState(false);
-  const player = usePublicAudioPlayer();
-
-  const addToQueue = () => {
-    if (!song.audioPreviewUrl) return;
-    player.enqueue({ releaseId: song.releaseId, url: song.audioPreviewUrl }, {
-      releaseId: song.releaseId,
-      title: song.title,
-      slug: song.slug,
-      artistId: song.artistId,
-      artistName,
-      coverArtUrl: song.coverArtThumbnailUrl ?? song.coverArtUrl,
-      release: song,
-    });
-  };
 
   return (
     <section className="relative overflow-hidden bg-anm-page-gradient pt-32">
@@ -80,16 +62,22 @@ export function SongHero({ song, artist, onPlayPreview }: SongHeroProps) {
             <SongStyleTags genre={song.genre} styleTags={song.styleTags} />
           </div>
           <div className="mt-8">
-            <AudioPreviewPlayer releaseId={song.releaseId} title={song.title} artistName={artistName} audioPreviewUrl={song.audioPreviewUrl} analyticsSong={song} compact />
+            <SongPlaybackActions release={{
+              releaseId: song.releaseId,
+              title: song.title,
+              slug: song.slug,
+              artistId: song.artistId,
+              artistName,
+              coverArtUrl: song.coverArtUrl,
+              coverArtThumbnailUrl: song.coverArtThumbnailUrl,
+              audioPreviewUrl: song.audioPreviewUrl,
+              release: song,
+            }} onPreviewPlay={onPlayPreview} />
           </div>
           <div className="mt-3">
             <MemberProtectedAudioPlayer releaseSlug={song.slug} title={song.title} />
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button type="button" onClick={addToQueue} disabled={!previewAvailable} variant="primary" size="lg">
-              <ListMusic className="h-4 w-4" aria-hidden="true" /> Add to streaming queue
-            </Button>
-            <AddReleaseToPlaylistButton release={song} />
             <Button type="button" onClick={() => setLyricsOpen((value) => !value)} variant="ghost" size="lg" aria-expanded={lyricsOpen}>
               <Music2 className="h-4 w-4" aria-hidden="true" /> Lyrics
             </Button>
