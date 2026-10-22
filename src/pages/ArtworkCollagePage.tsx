@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ImageOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -175,6 +175,8 @@ function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: Publ
 export function ArtworkCollagePage() {
   const navigate = useNavigate();
   const [layoutSeed] = useState(() => Math.random());
+  const [visibleCount, setVisibleCount] = useState(12);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const artworkQuery = useQuery({
     queryKey: ["public-api", "artwork-collage"],
     queryFn: toPublicArtworkItems,
@@ -191,6 +193,22 @@ export function ArtworkCollagePage() {
     [artworkQuery.data, layoutSeed],
   );
 
+  useEffect(() => {
+    setVisibleCount(12);
+  }, [artworkQuery.data]);
+
+  useEffect(() => {
+    const target = loadMoreRef.current;
+    if (!target || visibleCount >= artworkItems.length) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setVisibleCount((current) => Math.min(current + 8, artworkItems.length));
+      }
+    }, { rootMargin: "320px" });
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [artworkItems.length, visibleCount]);
+
   const goBack = () => {
     if (typeof window !== "undefined" && window.history.length > 1) navigate(-1);
     else navigate("/");
@@ -206,11 +224,13 @@ export function ArtworkCollagePage() {
 
         {!artworkQuery.isLoading && !artworkQuery.isError && artworkItems.length ? (
           <main aria-label="Full screen artwork collage" className="columns-1 gap-3 sm:columns-2 lg:columns-3 xl:columns-4 2xl:columns-5">
-            {artworkItems.map((item, index) => (
+            {artworkItems.slice(0, visibleCount).map((item, index) => (
               <ArtworkCollageTile key={item.id} item={item} priority={index < 8} layoutSeed={layoutSeed} />
             ))}
           </main>
         ) : null}
+
+        {visibleCount < artworkItems.length ? <div ref={loadMoreRef} className="h-16" aria-hidden="true" /> : null}
 
         {!artworkQuery.isLoading && !artworkQuery.isError && !artworkItems.length ? (
           <div className="flex min-h-screen flex-col items-center justify-center gap-3 px-6 text-center">
