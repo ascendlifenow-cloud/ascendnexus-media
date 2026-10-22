@@ -9,6 +9,7 @@ export interface MemberDashboardContentCard {
   subtitle?: string;
   href: string;
   imageUrl?: string;
+  audioPreviewUrl?: string;
   releaseDate?: string;
   accessState: "public" | "allowed" | "preview" | "upgrade_required" | "coming_soon";
   accessLabel: string;
@@ -16,6 +17,14 @@ export interface MemberDashboardContentCard {
   streamAvailable?: boolean;
   downloadAvailable?: boolean;
   reason?: string;
+}
+
+export interface MemberDashboardPlaylist {
+  playlistId: string;
+  name: string;
+  description?: string;
+  itemCount: number;
+  items: MemberDashboardContentCard[];
 }
 
 export interface MemberReadinessSummary {
@@ -45,6 +54,9 @@ export interface MemberDashboardResponse {
     accountState?: string;
   };
   continueListening: MemberReadinessSummary;
+  continueListeningItems: MemberDashboardContentCard[];
+  curatedPlaylist: MemberDashboardContentCard[];
+  userPlaylists: MemberDashboardPlaylist[];
   recentReleases: MemberDashboardContentCard[];
   recommendations: MemberDashboardContentCard[];
   followedArtists: MemberReadinessSummary;

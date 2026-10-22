@@ -126,13 +126,18 @@ export class MembershipCatalogService {
   }
 
   async getCatalog() {
-    const data = await jsonDatabase.read();
-    if (!data.membershipTiers.length || !data.entitlementDefinitions.length) return this.ensureDefaultCatalog();
+    const [tiers, plans, entitlements, tierGrants] = await Promise.all([
+      jsonDatabase.listCollection("membershipTiers"),
+      jsonDatabase.listCollection("membershipPlans"),
+      jsonDatabase.listCollection("entitlementDefinitions"),
+      jsonDatabase.listCollection("tierEntitlementGrants"),
+    ]);
+    if (!tiers.length || !entitlements.length) return this.ensureDefaultCatalog();
     return {
-      tiers: data.membershipTiers,
-      plans: data.membershipPlans,
-      entitlements: data.entitlementDefinitions,
-      tierGrants: data.tierEntitlementGrants,
+      tiers,
+      plans,
+      entitlements,
+      tierGrants,
     };
   }
 

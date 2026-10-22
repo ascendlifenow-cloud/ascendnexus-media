@@ -1,6 +1,8 @@
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
+import { AudioPreviewPlayer } from "../../components/AudioPreviewPlayer";
+import { Trash2 } from "lucide-react";
 import { memberEngagementApiService } from "../services/MemberEngagementApiService";
 import { useMemberPortal } from "../hooks/useMemberPortal";
 import { CardGrid, Field, inputClass, PageHeader, Panel } from "./memberPageParts";
@@ -43,20 +45,40 @@ export function MemberFollowingPage() {
 }
 
 export function MemberPlaylistsPage() {
-  const [items, setItems] = useState<Array<Record<string, unknown>>>([]);
+  const { dashboard, refreshDashboard } = useMemberPortal();
   const [name, setName] = useState("My Ascend Mix");
-  const load = () => memberEngagementApiService.playlists().then(setItems);
-  useEffect(() => { void load(); }, []);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await memberEngagementApiService.createPlaylist({ name });
-    await load();
+    await refreshDashboard();
+  };
+  const remove = async (playlistId: string) => {
+    await memberEngagementApiService.deletePlaylist(playlistId);
+    await refreshDashboard();
   };
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow="Playlists" title="Playlists">Create private playlists and prepare future sharing/collaboration.</PageHeader>
+      <PageHeader eyebrow="Playlists" title="Your streaming playlists">Build listening queues from Ascend Nexus releases and play public previews directly from each list.</PageHeader>
       <Panel title="Create playlist"><form className="flex flex-col gap-3 sm:flex-row" onSubmit={submit}><input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} /><Button type="submit">Create</Button></form></Panel>
-      <Panel title="Your playlists"><ResourceList items={items} empty="No playlists yet." /></Panel>
+      {dashboard.userPlaylists.length ? dashboard.userPlaylists.map((playlist) => (
+        <Panel key={playlist.playlistId} title={playlist.name}>
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <p className="text-sm text-white/52">{playlist.itemCount} song{playlist.itemCount === 1 ? "" : "s"}</p>
+            <Button variant="secondary" size="sm" onClick={() => void remove(playlist.playlistId)}><Trash2 className="h-4 w-4" aria-hidden /> Remove Playlist</Button>
+          </div>
+          {playlist.items.length ? (
+            <div className="divide-y divide-white/8">
+              {playlist.items.map((item) => (
+                <article key={item.contentId} className="grid gap-3 py-3 sm:grid-cols-[3.5rem_minmax(0,1fr)_minmax(13rem,0.8fr)] sm:items-center">
+                  <div className="aspect-square overflow-hidden rounded-md bg-white/8">{item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}</div>
+                  <div className="min-w-0"><p className="truncate font-semibold text-white">{item.title}</p><p className="mt-1 text-xs text-white/46">{item.subtitle || item.accessLabel}</p></div>
+                  {item.audioPreviewUrl ? <AudioPreviewPlayer releaseId={item.contentId} title={item.title} artistName={item.subtitle || "Ascend Nexus Media"} audioPreviewUrl={item.audioPreviewUrl} compact /> : <p className="text-sm text-white/46">Open the release to listen.</p>}
+                </article>
+              ))}
+            </div>
+          ) : <p className="rounded-md border border-dashed border-white/12 p-5 text-sm text-white/52">Use Add To Playlist on a recent release to begin this list.</p>}
+        </Panel>
+      )) : <Panel><p className="text-sm text-white/58">Create your first playlist, then add songs from the member dashboard.</p></Panel>}
     </div>
   );
 }

@@ -319,6 +319,7 @@ export function AppRouter() {
             <Route path="security" element={<MemberSecurityPage />} />
             <Route path="sessions" element={<MemberSessionsPage />} />
             <Route path="membership" element={<MemberMembershipPage />} />
+            <Route path="account" element={<MemberMembershipPage />} />
             <Route path="billing" element={<MemberBillingPage focus="billing" />} />
             <Route path="subscription" element={<MemberBillingPage focus="subscription" />} />
             <Route path="payment-methods" element={<MemberBillingPage focus="payment-methods" />} />

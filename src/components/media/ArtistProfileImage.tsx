@@ -88,8 +88,9 @@ export function ArtistProfileImage({
   const fetchPriorityAttributes = { fetchpriority: priority ? "high" : "auto" } as unknown as ImgHTMLAttributes<HTMLImageElement>;
 
   useEffect(() => {
+    setHasError(false);
     setIsLoaded(false);
-  }, [imageSrc]);
+  }, [preferredSrc]);
 
   return (
     <ArtistImageGalleryReadyWrapper artistName={displayName ?? artistName}>

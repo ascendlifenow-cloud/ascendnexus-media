@@ -38,8 +38,8 @@ export class EffectiveEntitlementService {
     const allowed = new Set<string>();
     const denied = new Set<string>();
     if (current?.tier) current.tier.entitlementKeys.forEach((key) => allowed.add(key));
-    const data = await jsonDatabase.read();
-    for (const grant of data.memberEntitlementGrants) {
+    const grants = await jsonDatabase.listCollection("memberEntitlementGrants");
+    for (const grant of grants) {
       if (grant.memberId !== member.memberId) continue;
       if (!["active", "scheduled"].includes(grant.status)) continue;
       if (grant.startsAt && Date.parse(grant.startsAt) > Date.now()) continue;

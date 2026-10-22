@@ -29,8 +29,8 @@ const sanitizeResource = (input: Partial<MemberEngagementResourceRef>): MemberEn
 
 export class FavoritesService {
   async list(member: MemberAccountResponse) {
-    const data = await jsonDatabase.read();
-    return data.memberFavorites.filter((item) => item.memberId === member.memberId && item.status === "active").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const records = await jsonDatabase.listCollection("memberFavorites");
+    return records.filter((item) => item.memberId === member.memberId && item.status === "active").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async add(member: MemberAccountResponse, resource: Partial<MemberEngagementResourceRef>) {
@@ -67,8 +67,8 @@ export class FavoritesService {
 
 export class FollowingService {
   async list(member: MemberAccountResponse) {
-    const data = await jsonDatabase.read();
-    return data.memberFollows.filter((item) => item.memberId === member.memberId && item.status === "active").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const records = await jsonDatabase.listCollection("memberFollows");
+    return records.filter((item) => item.memberId === member.memberId && item.status === "active").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async follow(member: MemberAccountResponse, resource: Partial<MemberEngagementResourceRef>) {
@@ -105,10 +105,13 @@ export class FollowingService {
 
 export class PlaylistService {
   async list(member: MemberAccountResponse) {
-    const data = await jsonDatabase.read();
-    return data.memberPlaylists.filter((item) => item.memberId === member.memberId && item.status === "active").map((playlist) => ({
+    const [playlists, playlistItems] = await Promise.all([
+      jsonDatabase.listCollection("memberPlaylists"),
+      jsonDatabase.listCollection("memberPlaylistItems"),
+    ]);
+    return playlists.filter((item) => item.memberId === member.memberId && item.status === "active").map((playlist) => ({
       ...playlist,
-      items: data.memberPlaylistItems.filter((item) => item.memberId === member.memberId && item.playlistId === playlist.playlistId).sort((a, b) => a.position - b.position),
+      items: playlistItems.filter((item) => item.memberId === member.memberId && item.playlistId === playlist.playlistId).sort((a, b) => a.position - b.position),
     })).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   }
 
@@ -194,8 +197,8 @@ export class ListeningHistoryService {
   }
 
   async recent(member: MemberAccountResponse, limit = 20) {
-    const data = await jsonDatabase.read();
-    return data.memberPlaybackHistory.filter((item) => item.memberId === member.memberId).slice(0, limit);
+    const records = await jsonDatabase.listCollection("memberPlaybackHistory");
+    return records.filter((item) => item.memberId === member.memberId).slice(0, limit);
   }
 
   async continueListening(member: MemberAccountResponse, limit = 6) {
@@ -222,8 +225,8 @@ export class ViewingHistoryService {
   }
 
   async recent(member: MemberAccountResponse, limit = 20) {
-    const data = await jsonDatabase.read();
-    return data.memberViewingHistory.filter((item) => item.memberId === member.memberId).slice(0, limit);
+    const records = await jsonDatabase.listCollection("memberViewingHistory");
+    return records.filter((item) => item.memberId === member.memberId).slice(0, limit);
   }
 }
 
@@ -235,8 +238,8 @@ export class ContinueListeningService {
 
 export class NotificationService {
   async list(member: MemberAccountResponse) {
-    const data = await jsonDatabase.read();
-    return data.memberNotifications.filter((item) => item.memberId === member.memberId && item.status !== "archived").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const records = await jsonDatabase.listCollection("memberNotifications");
+    return records.filter((item) => item.memberId === member.memberId && item.status !== "archived").sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   async create(member: MemberAccountResponse, input: { type?: MemberNotificationType; title?: string; body?: string; resource?: Partial<MemberEngagementResourceRef> }) {

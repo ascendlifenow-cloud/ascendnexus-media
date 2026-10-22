@@ -14,6 +14,7 @@ interface PublicArtworkCollageItem {
   title: string;
   label: string;
   imageUrl: string;
+  fallbackImageUrl?: string;
   altText: string;
   type: GalleryMediaType | "release_cover" | "artist_profile";
 }
@@ -68,24 +69,28 @@ const toPublicArtworkItems = async (): Promise<PublicArtworkCollageItem[]> => {
   };
 
   artists.forEach((artist) => {
-    if (!isCollageSafeImageUrl(artist.profileImage)) return;
+    const imageUrl = artist.profileThumbnailUrl || artist.profileImage;
+    if (!isCollageSafeImageUrl(imageUrl)) return;
     addItem({
       id: `artist:${artist.artistId}`,
       title: artist.displayName,
       label: "Artist Profile Art",
-      imageUrl: artist.profileImage,
+      imageUrl,
+      fallbackImageUrl: imageUrl !== artist.profileImage && isCollageSafeImageUrl(artist.profileImage) ? artist.profileImage : undefined,
       altText: `${artist.displayName} profile artwork`,
       type: "artist_profile",
     });
   });
 
   releases.forEach((release) => {
-    if (!isCollageSafeImageUrl(release.coverArtUrl)) return;
+    const imageUrl = release.coverArtThumbnailUrl || release.coverArtUrl;
+    if (!isCollageSafeImageUrl(imageUrl)) return;
     addItem({
       id: `release:${release.releaseId}`,
       title: release.title,
       label: "Album Cover Art",
-      imageUrl: release.coverArtUrl,
+      imageUrl,
+      fallbackImageUrl: imageUrl !== release.coverArtUrl && isCollageSafeImageUrl(release.coverArtUrl) ? release.coverArtUrl : undefined,
       altText: `${release.title} cover art`,
       type: "release_cover",
     });
@@ -119,6 +124,7 @@ const toPublicArtworkItems = async (): Promise<PublicArtworkCollageItem[]> => {
 
 function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: PublicArtworkCollageItem; priority?: boolean; layoutSeed: number }) {
   const [failed, setFailed] = useState(false);
+  const [imageUrl, setImageUrl] = useState(item.imageUrl);
   const layoutValue = seededValue(item.id, layoutSeed);
   const marginClass = tileMarginClasses[Math.floor(layoutValue * tileMarginClasses.length)] ?? "mb-4";
   const liftClass = tileLiftClasses[Math.floor(seededValue(`${item.id}:lift`, layoutSeed) * tileLiftClasses.length)] ?? "";
@@ -128,12 +134,15 @@ function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: Publ
       <div className={`relative min-h-52 bg-gradient-to-br ${getTileTone(item.type)}`}>
         {!failed ? (
           <img
-            src={item.imageUrl}
+            src={imageUrl}
             alt={item.altText}
             loading={priority ? "eager" : "lazy"}
             decoding="async"
             className="h-auto w-full object-cover"
-            onError={() => setFailed(true)}
+            onError={() => {
+              if (item.fallbackImageUrl && imageUrl !== item.fallbackImageUrl) setImageUrl(item.fallbackImageUrl);
+              else setFailed(true);
+            }}
           />
         ) : (
           <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-5 text-center">

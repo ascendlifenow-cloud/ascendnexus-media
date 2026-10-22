@@ -5,6 +5,7 @@ import { EmptyState } from "../components/EmptyState";
 import { SectionLoadingSkeleton } from "../components/loading";
 import { RouteMetadata } from "../components/RouteMetadata";
 import { SongCarouselCard } from "../components/songs/SongCarouselCard";
+import { ArtistProfileImage } from "../components/media/ArtistProfileImage";
 import { LinkButton } from "../components/ui/LinkButton";
 import { usePublicLanding } from "../hooks/public";
 import type { PublicLandingArtistCard, PublicLandingGalleryCard } from "../models/publicExperience";
@@ -154,7 +155,15 @@ function ArtistCard({ card }: { card: PublicLandingArtistCard }) {
   return (
     <Link to={`/artists/${card.artist.slug}`} className="group block overflow-hidden rounded-md border border-white/10 bg-white/6 transition hover:-translate-y-1 hover:border-cyanGlow/40">
       <div className="aspect-square bg-black/30">
-        {profileImage ? <img src={profileImage} alt={`${card.artist.displayName} profile artwork`} loading="lazy" decoding="async" width="640" height="640" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : null}
+        <ArtistProfileImage
+          src={profileImage}
+          artistName={card.artist.name}
+          displayName={card.artist.displayName}
+          size="card"
+          shape="square"
+          alt={`${card.artist.displayName} profile artwork`}
+          className="h-full transition duration-500 group-hover:scale-105"
+        />
       </div>
       <div className="p-4">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-cyanGlow">

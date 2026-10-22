@@ -7,6 +7,8 @@ import { jsonDatabase } from "../media/JsonDatabase";
 import { memberPortalCacheService } from "./MemberPortalCacheService";
 import { memberRecommendationService } from "./MemberRecommendationService";
 import { favoritesService, followingService, listeningHistoryService, notificationService, playlistService } from "../memberEngagement/MemberEngagementServices";
+import type { MemberEngagementResourceRef } from "../../models/memberEngagement/MemberEngagementModels";
+import type { PublicSongRelease } from "../../../src/models/release";
 
 const forbiddenPattern = /(private\/|signedUrl|signature=|token=|storagePath|privateObjectKey|full[-_]?song)/i;
 const safeImage = (value?: string) => value && !forbiddenPattern.test(value) ? value : undefined;
@@ -18,6 +20,40 @@ const readiness = (label: string, message: string, href?: string, count = 0, sta
   href,
   count,
 });
+
+const releaseCard = (release: PublicSongRelease): MemberDashboardContentCard => ({
+  contentType: "release",
+  contentId: release.releaseId,
+  title: release.title,
+  subtitle: release.genre,
+  href: `/songs/${release.slug}`,
+  imageUrl: safeImage(release.coverArtThumbnailUrl ?? release.coverArtUrl),
+  audioPreviewUrl: safeImage(release.audioPreviewUrl),
+  releaseDate: release.releaseDate,
+  accessState: "public",
+  accessLabel: "Public",
+  previewAvailable: Boolean(release.audioPreviewUrl),
+  streamAvailable: false,
+  downloadAvailable: false,
+});
+
+const resourceCard = (resource: MemberEngagementResourceRef, releases: PublicSongRelease[]): MemberDashboardContentCard | undefined => {
+  const release = releases.find((item) => item.releaseId === resource.resourceId || item.songId === resource.resourceId || item.slug === resource.slug);
+  if (release) return releaseCard(release);
+  if (resource.resourceType !== "release" && resource.resourceType !== "song") return undefined;
+  return {
+    contentType: "release",
+    contentId: resource.resourceId,
+    title: resource.title || "Saved song",
+    href: resource.slug ? `/songs/${resource.slug}` : "/member/songs",
+    imageUrl: safeImage(resource.imageUrl),
+    accessState: "allowed",
+    accessLabel: "Member",
+    previewAvailable: false,
+    streamAvailable: false,
+    downloadAvailable: false,
+  };
+};
 
 export class MemberDashboardService {
   async getDashboard(member: MemberAccountResponse): Promise<MemberDashboardResponse> {
@@ -39,20 +75,7 @@ export class MemberDashboardService {
 
   async getRecentReleases(limit = 8): Promise<MemberDashboardContentCard[]> {
     const releases = await publicContentDeliveryService.listPublicReleases();
-    return releases.slice(0, limit).map((release) => ({
-      contentType: "release",
-      contentId: release.releaseId,
-      title: release.title,
-      subtitle: release.genre,
-      href: `/songs/${release.slug}`,
-      imageUrl: safeImage(release.coverArtUrl),
-      releaseDate: release.releaseDate,
-      accessState: "public",
-      accessLabel: "Public",
-      previewAvailable: Boolean(release.audioPreviewUrl),
-      streamAvailable: false,
-      downloadAvailable: false,
-    }));
+    return releases.slice(0, limit).map(releaseCard);
   }
 
   async getMemberGalleries(limit = 6): Promise<MemberDashboardContentCard[]> {
@@ -76,8 +99,8 @@ export class MemberDashboardService {
     const membership = await this.getMembershipSummary(member);
     const tierKey = membership?.tierKey ?? "free";
     const now = Date.now();
-    const data = await jsonDatabase.read();
-    const published = data.memberAnnouncements
+    const announcements = await jsonDatabase.listCollection("memberAnnouncements");
+    const published = announcements
       .filter((announcement) => announcement.status === "published")
       .filter((announcement) => Date.parse(announcement.startsAt) <= now)
       .filter((announcement) => !announcement.endsAt || Date.parse(announcement.endsAt) > now)
@@ -153,7 +176,7 @@ export class MemberDashboardService {
   }
 
   private async buildDashboard(member: MemberAccountResponse): Promise<MemberDashboardResponse> {
-    const [membership, entitlements, recentReleases, recommendations, earlyAccess, exclusiveContent, memberGalleries, announcements, continueListening, favorites, follows, playlists, notifications] = await Promise.all([
+    const [membership, entitlements, recentReleases, recommendations, earlyAccess, exclusiveContent, memberGalleries, announcements, continueListening, favorites, follows, playlists, notifications, allReleases] = await Promise.all([
       this.getMembershipSummary(member),
       effectiveEntitlementService.getForMember(member),
       this.getRecentReleases(),
@@ -167,7 +190,17 @@ export class MemberDashboardService {
       followingService.list(member),
       playlistService.list(member),
       notificationService.list(member),
+      publicContentDeliveryService.listPublicReleases(),
     ]);
+    const continueListeningItems = continueListening.map((item) => resourceCard(item.resource, allReleases)).filter((item): item is MemberDashboardContentCard => Boolean(item));
+    const userPlaylists = playlists.map((playlist) => ({
+      playlistId: playlist.playlistId,
+      name: playlist.name,
+      description: playlist.description,
+      itemCount: playlist.items.length,
+      items: playlist.items.map((item) => resourceCard(item.resource, allReleases)).filter((item): item is MemberDashboardContentCard => Boolean(item)),
+    }));
+    const curatedPlaylist = (continueListeningItems.length ? recommendations : recommendations.length ? recommendations : recentReleases).slice(0, 8);
     const hasFullStream = entitlements.allowed.includes("audio.stream.full");
     const hasDownloads = entitlements.allowed.some((key) => key.endsWith(".download") || key === "audio.download");
     const capabilities = [
@@ -198,6 +231,9 @@ export class MemberDashboardService {
         accountState: member.status,
       },
       continueListening: readiness("Continue listening", continueListening.length ? `${continueListening.length} resumable item${continueListening.length === 1 ? "" : "s"} available.` : "Playback history is active. Items appear after member playback events.", "/member/history", continueListening.length),
+      continueListeningItems,
+      curatedPlaylist,
+      userPlaylists,
       recentReleases,
       recommendations,
       followedArtists: readiness("Followed artists", follows.length ? `${follows.length} followed resource${follows.length === 1 ? "" : "s"}.` : "Follow artists, albums, playlists, and collections from member pages.", "/member/following", follows.length),

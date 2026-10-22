@@ -35,7 +35,7 @@ export function MemberRouteGuard({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [location.pathname]);
+  }, []);
 
   if (loading) return <PublicPageLoader />;
   if (blocked === "auth" || !session || !dashboard) {

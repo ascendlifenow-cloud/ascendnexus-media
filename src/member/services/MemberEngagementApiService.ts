@@ -36,6 +36,7 @@ export const memberEngagementApiService = {
   unfollow: (followId: string) => request<void>(`/api/member/following/${encodeURIComponent(followId)}`, { method: "DELETE" }),
   playlists: () => request<Array<Record<string, unknown>>>("/api/member/playlists"),
   createPlaylist: (input: { name: string; description?: string }) => request<Record<string, unknown>>("/api/member/playlists", { method: "POST", body: JSON.stringify(input) }),
+  deletePlaylist: (playlistId: string) => request<void>(`/api/member/playlists/${encodeURIComponent(playlistId)}`, { method: "DELETE" }),
   addPlaylistItem: (playlistId: string, resource: EngagementResourceRef) => request<Array<Record<string, unknown>>>(`/api/member/playlists/${encodeURIComponent(playlistId)}/items`, { method: "POST", body: JSON.stringify(resource) }),
   history: () => request<{ listening: Array<Record<string, unknown>>; viewing: Array<Record<string, unknown>> }>("/api/member/history"),
   recordPlayback: (resource: EngagementResourceRef & { eventType?: string; lastPositionSeconds?: number; durationSeconds?: number }) => request<Array<Record<string, unknown>>>("/api/member/history", { method: "POST", body: JSON.stringify(resource) }),

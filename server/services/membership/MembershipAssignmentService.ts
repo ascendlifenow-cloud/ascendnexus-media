@@ -56,16 +56,18 @@ export class MembershipAssignmentService {
   }
 
   async getCurrentMembership(memberId: string) {
-    const catalog = await membershipCatalogService.getCatalog();
-    const data = await jsonDatabase.read();
-    const assignment = data.memberMembershipAssignments.find((item) => item.memberId === memberId && item.status === "active" && (!item.endsAt || Date.parse(item.endsAt) > Date.now()));
+    const [catalog, assignments] = await Promise.all([
+      membershipCatalogService.getCatalog(),
+      jsonDatabase.listCollection("memberMembershipAssignments"),
+    ]);
+    const assignment = assignments.find((item) => item.memberId === memberId && item.status === "active" && (!item.endsAt || Date.parse(item.endsAt) > Date.now()));
     const tier = assignment ? catalog.tiers.find((item) => item.tierId === assignment.tierId) : await membershipCatalogService.getDefaultFreeTier();
     return assignment && tier ? { assignment, tier } : tier ? { assignment: undefined, tier } : undefined;
   }
 
   async getMembershipHistory(memberId: string) {
-    const data = await jsonDatabase.read();
-    return data.memberMembershipAssignments.filter((item) => item.memberId === memberId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const assignments = await jsonDatabase.listCollection("memberMembershipAssignments");
+    return assignments.filter((item) => item.memberId === memberId).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
 
   private async updateActive(memberId: string, status: MemberMembershipAssignmentRecord["status"]) {

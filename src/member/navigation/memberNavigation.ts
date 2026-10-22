@@ -28,7 +28,7 @@ export const buildMemberNavigation = (dashboard?: MemberDashboardResponse): Memb
     { navigationKey: "feed", label: "Feed", path: "/member/feed", icon: Layers3, featureStatus: "available", order: 7, group: "content", mobileVisible: true },
     { navigationKey: "early-access", label: "Early Access", path: "/member/early-access", icon: Clock3, featureStatus: "available", showAsUpgradeTeaser: !dashboard?.earlyAccess.length, order: 8, group: "content", mobileVisible: true },
     { navigationKey: "exclusive-content", label: "Exclusive", path: "/member/exclusive-content", icon: Star, featureStatus: "available", showAsUpgradeTeaser: !exclusiveAvailable, order: 9, group: "content", mobileVisible: true },
-    { navigationKey: "membership", label: "Membership", path: "/member/membership", icon: ShieldCheck, featureStatus: "available", order: 10, group: "account", mobileVisible: true },
+    { navigationKey: "membership", label: "Account", path: "/member/account", icon: ShieldCheck, featureStatus: "available", order: 10, group: "account", mobileVisible: true },
     { navigationKey: "profile", label: "Profile", path: "/member/profile", icon: UserRound, featureStatus: "available", order: 11, group: "account", mobileVisible: false },
     { navigationKey: "preferences", label: "Preferences", path: "/member/preferences", icon: Settings, featureStatus: "available", order: 7, group: "account", mobileVisible: false },
     { navigationKey: "security", label: "Security", path: "/member/security", icon: LockKeyhole, featureStatus: "available", order: 8, group: "account", mobileVisible: false },
