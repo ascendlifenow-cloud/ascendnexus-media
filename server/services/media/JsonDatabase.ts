@@ -422,28 +422,24 @@ export class JsonDatabase {
 
   private async writeMongo(data: MediaDatabaseShape): Promise<MediaDatabaseShape> {
     const db = await databaseConnectionService.getDb();
-    const batchSize = 12;
-    for (let index = 0; index < databaseCollections.length; index += batchSize) {
-      const batch = databaseCollections.slice(index, index + batchSize);
-      await Promise.all(batch.map(async (collectionDef) => {
-        const records = ((data as unknown as Record<string, Array<Record<string, unknown>>>)[collectionDef.property] ?? []).map((record) => withDatabaseDefaults(record));
-        const collection = db.collection(collectionDef.collectionName);
-        const currentIds = records.map((record) => record[collectionDef.applicationId]).filter(Boolean);
-        if (currentIds.length) {
-          await collection.deleteMany({ [collectionDef.applicationId]: { $nin: currentIds } });
-        } else {
-          await collection.deleteMany({});
-        }
-        if (records.length) {
-          await collection.bulkWrite(records.map((record) => ({
-            replaceOne: {
-              filter: { [collectionDef.applicationId]: record[collectionDef.applicationId] },
-              replacement: record,
-              upsert: true,
-            },
-          })), { ordered: true });
-        }
-      }));
+    for (const collectionDef of databaseCollections) {
+      const records = ((data as unknown as Record<string, Array<Record<string, unknown>>>)[collectionDef.property] ?? []).map((record) => withDatabaseDefaults(record));
+      const collection = db.collection(collectionDef.collectionName);
+      const currentIds = records.map((record) => record[collectionDef.applicationId]).filter(Boolean);
+      if (currentIds.length) {
+        await collection.deleteMany({ [collectionDef.applicationId]: { $nin: currentIds } });
+      } else {
+        await collection.deleteMany({});
+      }
+      if (records.length) {
+        await collection.bulkWrite(records.map((record) => ({
+          replaceOne: {
+            filter: { [collectionDef.applicationId]: record[collectionDef.applicationId] },
+            replacement: record,
+            upsert: true,
+          },
+        })), { ordered: true });
+      }
     }
     return data;
   }
