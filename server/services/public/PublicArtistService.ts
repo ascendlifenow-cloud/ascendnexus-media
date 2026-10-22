@@ -71,6 +71,15 @@ export class PublicArtistService {
     return (await this.listActivePublishedArtists()).find((artist) => artist.slug === slug);
   }
 
+  async getPublishedArtistById(artistId: string): Promise<ArtistPublicProfile | undefined> {
+    const persisted = await artistRepository.findById(artistId);
+    if (persisted?.status === "active" && persisted.publicationState === "published" && persisted.publicVisibility) {
+      return recordToPublicArtist(persisted);
+    }
+    if (databaseConnectionService.isConfigured() || !getBackendConfig().publicDelivery.seedFallbackEnabled) return undefined;
+    return publicArtistsSeed.find((artist) => artist.artistId === artistId);
+  }
+
   async getArtistLatestReleases(artistId: string, limit = 3) {
     const persisted = await releaseRepository.latestByArtist(artistId, limit);
     if (persisted.length || databaseConnectionService.isConfigured() || !getBackendConfig().publicDelivery.seedFallbackEnabled) return persisted.map(recordToPublicRelease);

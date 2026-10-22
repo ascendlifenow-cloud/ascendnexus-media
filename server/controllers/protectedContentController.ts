@@ -18,6 +18,16 @@ export class ProtectedContentController {
     sendJson(response, result.authorized ? 200 : 403, { success: Boolean(result.authorized), data: result, errors: result.authorized ? undefined : ["Protected content is unavailable."] });
   }
 
+  async authorizeReleaseStream(request: IncomingMessage, response: ServerResponse, releaseSlugOrId: string) {
+    const session = await memberIdentityService.authenticateRequest(request);
+    const body = await parseJsonBody(request).catch(() => ({})) as { playbackContext?: Record<string, unknown> };
+    const result = await protectedContentDeliveryAuthorizationService.authorizeReleaseStream(
+      { type: "member", member: session.member },
+      { releaseSlugOrId, sessionId: session.sessionId, playbackContext: body.playbackContext },
+    );
+    sendJson(response, result.authorized ? 200 : 403, { success: Boolean(result.authorized), data: result, errors: result.authorized ? undefined : [result.errorCode === "PROTECTED_CONTENT_PLAY_ALLOWANCE_USED" ? "Your included full play for this song has been used." : "Protected content is unavailable."] });
+  }
+
   async authorizeDownload(request: IncomingMessage, response: ServerResponse, mediaId: string) {
     const session = await memberIdentityService.authenticateRequest(request);
     const result = await protectedContentDeliveryAuthorizationService.authorizeDownload({ type: "member", member: session.member }, { mediaId, sessionId: session.sessionId });

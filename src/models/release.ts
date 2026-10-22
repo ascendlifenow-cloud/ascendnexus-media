@@ -19,6 +19,8 @@ export interface PublicSongRelease {
   artistId: string;
   title: string;
   slug: string;
+  description?: string;
+  lyrics?: string;
   coverArtUrl?: string;
   coverArtThumbnailUrl?: string;
   coverArtLargeUrl?: string;
@@ -36,4 +38,10 @@ export interface PublicSongRelease {
   featuredEndDate?: string;
   featuredPlacement?: FeaturedReleasePlacement;
   promoImageUrl?: string;
+}
+
+export interface PublicSongDetail {
+  song: PublicSongRelease;
+  artist?: import("./artist").ArtistPublicProfile;
+  moreReleases: PublicSongRelease[];
 }

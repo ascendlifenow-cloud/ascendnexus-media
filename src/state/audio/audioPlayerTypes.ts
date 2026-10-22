@@ -84,6 +84,11 @@ export interface PublicAudioPlayerState {
 }
 
 export interface PublicAudioPlayerContextValue extends PublicAudioPlayerState {
+  queue: Array<{ preview: PublicAudioPreviewContract; release: PublicAudioReleaseSummary }>;
+  enqueue: (preview: PublicAudioPreviewContract, release: PublicAudioReleaseSummary) => void;
+  removeFromQueue: (releaseId: string) => void;
+  clearQueue: () => void;
+  playNext: () => Promise<void>;
   loadPreview: (preview: PublicAudioPreviewContract, release: PublicAudioReleaseSummary, options?: { autoplay?: boolean; sourceContext?: string }) => Promise<void>;
   playPreview: (preview: PublicAudioPreviewContract, release: PublicAudioReleaseSummary, options?: { sourceContext?: string }) => Promise<void>;
   play: () => Promise<void>;
@@ -100,4 +105,3 @@ export interface PublicAudioPlayerContextValue extends PublicAudioPlayerState {
   isActive: (releaseId: string) => boolean;
   getPlaybackState: (releaseId: string) => PublicAudioPlaybackStatus;
 }
-

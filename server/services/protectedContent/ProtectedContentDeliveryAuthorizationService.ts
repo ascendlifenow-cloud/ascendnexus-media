@@ -4,6 +4,8 @@ import { accessAuditService } from "../access/AccessAuditService";
 import { accessPolicyEvaluationService, type AccessSubject } from "../access/AccessPolicyEvaluationService";
 import type { MediaStorageObject } from "../../models/mediaModels";
 import type { MediaDeliveryProfileRecord, ProtectedMediaResourceRecord } from "../../models/protectedContent/ProtectedContentModels";
+import { releaseRepository } from "../../repositories/ReleaseRepository";
+import { effectiveEntitlementService } from "../access/EffectiveEntitlementService";
 
 const nowIso = () => new Date().toISOString();
 
@@ -75,11 +77,47 @@ export class ProtectedContentDeliveryAuthorizationService {
     return this.authorize(subject, { mediaId: input.mediaId, sessionId: input.sessionId, action: "stream", entitlementKey: "audio.stream.full" });
   }
 
+  async authorizeReleaseStream(subject: AccessSubject, input: { releaseSlugOrId: string; sessionId: string; playbackContext?: Record<string, unknown> }) {
+    if (!subject.member) return { authorized: false, safeAccessState: "authentication_required", errorCode: "PROTECTED_CONTENT_AUTHENTICATION_REQUIRED" };
+    const release = (await releaseRepository.findBySlug(input.releaseSlugOrId)) ?? (await releaseRepository.findById(input.releaseSlugOrId));
+    if (!release || release.status !== "published" || release.publicationState !== "published" || !release.publicVisibility) {
+      return { authorized: false, safeAccessState: "unavailable", errorCode: "PROTECTED_CONTENT_UNAVAILABLE" };
+    }
+    const mediaId = typeof release.metadata?.fullSongAssetId === "string" ? release.metadata.fullSongAssetId : "";
+    if (!mediaId) return { authorized: false, safeAccessState: "unavailable", errorCode: "PROTECTED_MEDIA_NOT_READY" };
+
+    const entitlements = await effectiveEntitlementService.getForMember(subject.member);
+    if (entitlements.allowed.includes("audio.stream.full")) {
+      return this.authorize(subject, { mediaId, sessionId: input.sessionId, action: "stream", entitlementKey: "audio.stream.full" });
+    }
+
+    const data = await jsonDatabase.read();
+    const alreadyUsed = data.protectedMediaAuthorizations.some((authorization) =>
+      authorization.memberId === subject.member?.memberId &&
+      authorization.mediaId === mediaId &&
+      authorization.action === "stream" &&
+      authorization.metadata?.allowance === "free_single_full_play" &&
+      authorization.status !== "denied"
+    );
+    if (alreadyUsed) {
+      return { authorized: false, safeAccessState: "upgrade_required", errorCode: "PROTECTED_CONTENT_PLAY_ALLOWANCE_USED" };
+    }
+
+    return this.authorize(subject, {
+      mediaId,
+      sessionId: input.sessionId,
+      action: "stream",
+      entitlementKey: "audio.preview.extended",
+      authorizationEntitlementKey: "audio.stream.full.single_play",
+      metadata: { allowance: "free_single_full_play", releaseId: release.releaseId },
+    });
+  }
+
   async authorizeDownload(subject: AccessSubject, input: { mediaId: string; sessionId: string }) {
     return this.authorize(subject, { mediaId: input.mediaId, sessionId: input.sessionId, action: "download", entitlementKey: "audio.download" });
   }
 
-  private async authorize(subject: AccessSubject, input: { mediaId: string; sessionId: string; action: "stream" | "download"; entitlementKey: string }) {
+  private async authorize(subject: AccessSubject, input: { mediaId: string; sessionId: string; action: "stream" | "download"; entitlementKey: string; authorizationEntitlementKey?: string; metadata?: Record<string, unknown> }) {
     await this.ensureDefaultProfiles();
     const resolved = await this.resolveResource(input.mediaId, input.action);
     if (!resolved || resolved.resource.status !== "ready") {
@@ -108,7 +146,7 @@ export class ProtectedContentDeliveryAuthorizationService {
       resourceType: resolved.resource.contentType,
       resourceId: resolved.resource.contentId,
       action: input.action,
-      entitlementKey: input.entitlementKey,
+      entitlementKey: input.authorizationEntitlementKey ?? input.entitlementKey,
       accessPolicyVersion: resolved.resource.accessPolicyId,
       membershipVersion: subject.member.authorizationVersion ?? 1,
       authorizationVersion: subject.member.authorizationVersion ?? 1,
@@ -120,7 +158,7 @@ export class ProtectedContentDeliveryAuthorizationService {
       sessionIdHash: hashSecret(input.sessionId),
       maxUses: input.action === "download" ? resolved.profile.maxUses ?? 1 : undefined,
       useCount: 0,
-      metadata: { storageObjectId: resolved.storage.storageObjectId, profileKey: resolved.profile.profileKey },
+      metadata: { storageObjectId: resolved.storage.storageObjectId, profileKey: resolved.profile.profileKey, ...input.metadata },
       schemaVersion: 1,
     };
     await jsonDatabase.update((data) => {

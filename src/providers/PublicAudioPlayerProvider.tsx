@@ -35,6 +35,24 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stateRef = useRef<PublicAudioPlayerState>(initialState);
   const [state, setState] = useState<PublicAudioPlayerState>(initialState);
+  const [queue, setQueue] = useState<Array<{ preview: PublicAudioPreviewContract; release: PublicAudioReleaseSummary }>>([]);
+  const queueRef = useRef<Array<{ preview: PublicAudioPreviewContract; release: PublicAudioReleaseSummary }>>([]);
+
+  const updateQueue = useCallback((next: Array<{ preview: PublicAudioPreviewContract; release: PublicAudioReleaseSummary }>) => {
+    queueRef.current = next;
+    setQueue(next);
+  }, []);
+
+  const enqueue = useCallback((preview: PublicAudioPreviewContract, release: PublicAudioReleaseSummary) => {
+    if (queueRef.current.some((item) => item.release.releaseId === release.releaseId)) return;
+    updateQueue([...queueRef.current, { preview, release }]);
+  }, [updateQueue]);
+
+  const removeFromQueue = useCallback((releaseId: string) => {
+    updateQueue(queueRef.current.filter((item) => item.release.releaseId !== releaseId));
+  }, [updateQueue]);
+
+  const clearQueue = useCallback(() => updateQueue([]), [updateQueue]);
 
   const updateState = useCallback((patch: Partial<PublicAudioPlayerState> | ((current: PublicAudioPlayerState) => Partial<PublicAudioPlayerState>)) => {
     const current = stateRef.current;
@@ -167,6 +185,13 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
     await loadPreview(preview, release, { autoplay: true, sourceContext: options.sourceContext ?? "play_preview" });
   }, [loadPreview, play]);
 
+  const playNext = useCallback(async () => {
+    const currentId = stateRef.current.activeRelease?.releaseId;
+    const currentIndex = queueRef.current.findIndex((item) => item.release.releaseId === currentId);
+    const next = queueRef.current[currentIndex >= 0 ? currentIndex + 1 : 0];
+    if (next) await loadPreview(next.preview, next.release, { autoplay: true, sourceContext: "streaming_queue" });
+  }, [loadPreview]);
+
   const pause = useCallback(() => {
     audioRef.current?.pause();
   }, []);
@@ -245,6 +270,7 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
     const setEnded = () => {
       updateState({ status: "ended", currentTime: stateRef.current.duration || 0, lastEvent: "ended" });
       if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
+      void playNext();
     };
     const setError = () => {
       updateState({ status: "error", error: mapMediaError(audio.error, stateRef.current.activeRelease?.releaseId), lastEvent: "error" });
@@ -282,11 +308,16 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       audioRef.current = null;
       clearMediaSession();
     };
-  }, [clearMediaSession, setStatus, updateState]);
+  }, [clearMediaSession, playNext, setStatus, updateState]);
 
   const value = useMemo(
     () => ({
       ...state,
+      queue,
+      enqueue,
+      removeFromQueue,
+      clearQueue,
+      playNext,
       loadPreview,
       playPreview,
       play,
@@ -303,7 +334,7 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       isActive,
       getPlaybackState,
     }),
-    [clear, getPlaybackState, invalidateActiveRelease, isActive, loadPreview, pause, play, playPreview, retry, seek, seekBy, setMuted, setVolume, state, stop, toggle],
+    [clear, clearQueue, enqueue, getPlaybackState, invalidateActiveRelease, isActive, loadPreview, pause, play, playNext, playPreview, queue, removeFromQueue, retry, seek, seekBy, setMuted, setVolume, state, stop, toggle],
   );
 
   return <PublicAudioPlayerContext.Provider value={value}>{children}</PublicAudioPlayerContext.Provider>;

@@ -8,6 +8,7 @@ import { MembershipBadge } from "../../components/authShell/MembershipBadge";
 import { buildMemberNavigation } from "../navigation/memberNavigation";
 import { useMemberPortal } from "../hooks/useMemberPortal";
 import { authenticationShellService } from "../../services/auth/AuthenticationShellService";
+import { PublicGlobalAudioPlayer } from "../../components/audio/PublicAudioPlayer";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${isActive ? "bg-cyanGlow/18 text-white" : "text-white/68 hover:bg-white/8 hover:text-white"}`;
@@ -63,6 +64,7 @@ export function MemberLayout() {
           <Outlet />
         </main>
       </div>
+      <PublicGlobalAudioPlayer />
     </div>
   );
 }

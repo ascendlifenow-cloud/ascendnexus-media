@@ -9,18 +9,9 @@ export const useSongDetail = () => {
     queryKey: ["song-detail", songSlug],
     enabled: Boolean(songSlug),
     queryFn: async () => {
-      const song = await publicMediaApiClient.getRelease(songSlug ?? "");
-      if (!song) {
-        return { song: undefined, artist: undefined, moreReleases: [] };
-      }
-
-      const [artist, moreReleases] = await Promise.all([
-        publicMediaApiClient.listArtists().then((artists) => artists.find((item) => item.artistId === song.artistId)),
-        publicMediaApiClient.listReleases({ artistId: song.artistId }).then((releases) => releases.filter((release) => release.releaseId !== song.releaseId).slice(0, 3)),
-      ]);
-
-      return { song, artist, moreReleases };
+      return (await publicMediaApiClient.getReleaseDetail(songSlug ?? "")) ?? { song: undefined, artist: undefined, moreReleases: [] };
     },
+    staleTime: 5 * 60_000,
   });
 
   return {

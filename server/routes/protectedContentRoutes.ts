@@ -7,6 +7,8 @@ export const handleProtectedContentRoute = async (request: IncomingMessage, resp
 
   const streamAuth = /^\/api\/member\/media\/([^/]+)\/stream-authorize$/.exec(path);
   if (method === "POST" && streamAuth) return protectedContentController.authorizeStream(request, response, decodeURIComponent(streamAuth[1])).then(() => true);
+  const releaseStreamAuth = /^\/api\/member\/releases\/([^/]+)\/stream-authorize$/.exec(path);
+  if (method === "POST" && releaseStreamAuth) return protectedContentController.authorizeReleaseStream(request, response, decodeURIComponent(releaseStreamAuth[1])).then(() => true);
   const downloadAuth = /^\/api\/member\/media\/([^/]+)\/download-authorize$/.exec(path);
   if (method === "POST" && downloadAuth) return protectedContentController.authorizeDownload(request, response, decodeURIComponent(downloadAuth[1])).then(() => true);
 

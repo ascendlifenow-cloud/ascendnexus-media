@@ -70,6 +70,12 @@ export class PublicControllers {
     sendPublicResponse(request, response, publicSuccess(release));
   }
 
+  async releaseDetail(request: IncomingMessage, response: ServerResponse, slug: string) {
+    const detail = await publicContentDeliveryService.getPublicReleaseDetail(slug);
+    if (!detail) throw createPublicError("PUBLIC_RESOURCE_NOT_FOUND", "Public resource was not found.", 404);
+    sendPublicResponse(request, response, publicSuccess(detail), { cacheControl: "public, max-age=300, stale-while-revalidate=600" });
+  }
+
   async gallery(request: IncomingMessage, response: ServerResponse, url: URL) {
     const { page, pageSize } = parsePagination(url);
     parsePublicSort(url, "gallery", "sortOrder");

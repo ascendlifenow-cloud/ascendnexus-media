@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { protectedMediaApiService } from "../../services/ProtectedMediaApiService";
 
-export function MemberProtectedAudioPlayer({ mediaId, title }: { mediaId: string; title: string }) {
+export function MemberProtectedAudioPlayer({ mediaId, releaseSlug, title }: { mediaId?: string; releaseSlug?: string; title: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [source, setSource] = useState("");
   const [status, setStatus] = useState("idle");
@@ -11,7 +11,9 @@ export function MemberProtectedAudioPlayer({ mediaId, title }: { mediaId: string
     setError("");
     setStatus("authorizing");
     try {
-      const authorization = await protectedMediaApiService.authorizeStream(mediaId, { component: "member_protected_audio_player" });
+      const authorization = releaseSlug
+        ? await protectedMediaApiService.authorizeReleaseStream(releaseSlug, { component: "member_protected_audio_player" })
+        : await protectedMediaApiService.authorizeStream(mediaId ?? "", { component: "member_protected_audio_player" });
       if (!authorization.streamEndpoint) throw new Error("No protected stream endpoint returned.");
       setSource(authorization.streamEndpoint);
       setStatus("ready");
@@ -28,10 +30,10 @@ export function MemberProtectedAudioPlayer({ mediaId, title }: { mediaId: string
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-white">{title}</p>
-          <p className="text-xs text-white/50">{status}</p>
+          <p className="text-xs text-white/50">{status === "idle" ? "Members can request a full play. Free accounts include one full play per song." : status}</p>
         </div>
         <button className="rounded-md border border-cyanGlow/40 px-3 py-2 text-sm font-semibold text-cyanGlow" onClick={start} type="button">
-          Authorize stream
+          Play full song
         </button>
       </div>
       {source ? <audio ref={audioRef} className="mt-4 w-full" controls preload="none" src={source} onEnded={() => setSource("")} /> : null}

@@ -295,6 +295,7 @@ export class AdminReleaseService {
       title: record.title,
       slug: record.slug,
       description: record.description,
+      lyrics: record.lyrics,
       coverArtUrl: isPublicSafeUrl(record.coverArtUrl) ? record.coverArtUrl : undefined,
       coverArtThumbnailUrl: isPublicSafeUrl(record.coverArtThumbnailUrl) ? record.coverArtThumbnailUrl : undefined,
       coverArtLargeUrl: isPublicSafeUrl(record.coverArtLargeUrl) ? record.coverArtLargeUrl : undefined,

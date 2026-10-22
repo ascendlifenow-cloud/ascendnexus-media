@@ -42,6 +42,8 @@ export const handlePublicRoute = async (request: IncomingMessage, response: Serv
   if (method === "GET" && path === "/api/public/releases") return publicControllers.releases(request, response, url).then(() => true);
   if (method === "GET" && path === "/api/public/releases/latest") return publicControllers.latestReleases(request, response).then(() => true);
   if (method === "GET" && path === "/api/public/releases/featured") return publicControllers.featuredReleases(request, response).then(() => true);
+  const releaseDetailMatch = /^\/api\/public\/releases\/([^/]+)\/detail$/.exec(path);
+  if (method === "GET" && releaseDetailMatch) return publicControllers.releaseDetail(request, response, releaseDetailMatch[1]).then(() => true);
   const releaseMatch = /^\/api\/public\/releases\/([^/]+)$/.exec(path);
   if (method === "GET" && releaseMatch) return publicControllers.release(request, response, releaseMatch[1]).then(() => true);
   if (method === "GET" && path === "/api/public/gallery") return publicControllers.gallery(request, response, url).then(() => true);

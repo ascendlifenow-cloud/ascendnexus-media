@@ -2,7 +2,7 @@ import type { ArtistPublicProfile } from "../../models/artist";
 import type { PublicGalleryItem } from "../../models/gallery";
 import type { HomepageContent } from "../../models/homepage";
 import type { PublicLandingExperience } from "../../models/publicExperience";
-import type { PublicSongRelease } from "../../models/release";
+import type { PublicSongDetail, PublicSongRelease } from "../../models/release";
 import { ArtistService } from "../ArtistService";
 import { ReleaseService } from "../ReleaseService";
 import { GalleryService } from "../GalleryService";
@@ -159,6 +159,16 @@ export class PublicMediaApiClient {
 
   async getRelease(slug: string): Promise<PublicSongRelease | undefined> {
     return this.get(`/api/public/releases/${encodeURIComponent(slug)}`, () => this.releases.getPublishedReleaseBySlug(slug), true);
+  }
+
+  async getReleaseDetail(slug: string): Promise<PublicSongDetail | undefined> {
+    return this.get(`/api/public/releases/${encodeURIComponent(slug)}/detail`, async () => {
+      const song = await this.releases.getPublishedReleaseBySlug(slug);
+      if (!song) return undefined;
+      const artist = (await this.artists.getPublicArtists()).find((item) => item.artistId === song.artistId);
+      const moreReleases = (await this.releases.getPublishedReleases()).filter((release) => release.artistId === song.artistId && release.releaseId !== song.releaseId).slice(0, 3);
+      return { song, artist, moreReleases };
+    }, true);
   }
 
   async listGallery(filters: Record<string, string | undefined> = {}): Promise<PublicGalleryItem[]> {

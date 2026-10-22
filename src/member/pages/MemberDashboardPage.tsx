@@ -6,9 +6,11 @@ import { Button } from "../../components/ui/Button";
 import { memberEngagementApiService, cardToResource } from "../services/MemberEngagementApiService";
 import type { MemberDashboardContentCard, MemberDashboardPlaylist } from "../services/memberPortalTypes";
 import { useMemberPortal } from "../hooks/useMemberPortal";
+import { usePublicAudioPlayer } from "../../hooks/public";
 import { CardGrid, PageHeader, Panel } from "./memberPageParts";
 
 function StreamingSongList({ title, items, empty, accent }: { title: string; items: MemberDashboardContentCard[]; empty: string; accent: "cyan" | "pink" }) {
+  const player = usePublicAudioPlayer();
   return (
     <section className="min-w-0 border-t border-white/10 pt-4">
       <div className="mb-4 flex items-center gap-3">
@@ -28,7 +30,13 @@ function StreamingSongList({ title, items, empty, accent }: { title: string; ite
               </div>
               <div className="col-span-2 sm:col-span-1">
                 {item.audioPreviewUrl ? (
-                  <AudioPreviewPlayer releaseId={item.contentId} title={item.title} artistName={item.subtitle || "Ascend Nexus Media"} audioPreviewUrl={item.audioPreviewUrl} compact />
+                  <div className="space-y-2">
+                    <AudioPreviewPlayer releaseId={item.contentId} title={item.title} artistName={item.subtitle || "Ascend Nexus Media"} audioPreviewUrl={item.audioPreviewUrl} compact />
+                    <Button type="button" variant="ghost" size="sm" onClick={() => player.enqueue(
+                      { releaseId: item.contentId, url: item.audioPreviewUrl! },
+                      { releaseId: item.contentId, title: item.title, artistName: item.subtitle, coverArtUrl: item.imageUrl },
+                    )}><ListMusic className="h-4 w-4" aria-hidden /> Add to streaming queue</Button>
+                  </div>
                 ) : <Link to={item.href} className="text-sm font-semibold text-cyanGlow">Open song</Link>}
               </div>
             </article>

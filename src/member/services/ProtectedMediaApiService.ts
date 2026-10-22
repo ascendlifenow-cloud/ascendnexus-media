@@ -28,6 +28,14 @@ export const protectedMediaApiService = {
       body: JSON.stringify({ playbackContext }),
     }));
   },
+  async authorizeReleaseStream(releaseSlugOrId: string, playbackContext: Record<string, unknown> = {}) {
+    return parse<ProtectedStreamAuthorization>(await fetch(`/api/member/releases/${encodeURIComponent(releaseSlugOrId)}/stream-authorize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Auth-Scope": "member" },
+      credentials: "include",
+      body: JSON.stringify({ playbackContext }),
+    }));
+  },
   async authorizeDownload(mediaId: string) {
     return parse<ProtectedStreamAuthorization>(await fetch(`/api/member/media/${encodeURIComponent(mediaId)}/download-authorize`, {
       method: "POST",

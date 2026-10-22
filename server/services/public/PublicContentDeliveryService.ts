@@ -58,6 +58,20 @@ export class PublicContentDeliveryService {
     return publicContentCacheService.getOrSet(`public:release:${slug}`, () => publicReleaseService.getPublishedReleaseBySlug(slug), { ttlSeconds: 600, entityType: "release", entityId: slug });
   }
 
+  async getPublicReleaseDetail(slug: string) {
+    validatePublicSlug(slug, "release slug");
+    if (publicContentCacheService.isHidden("release", slug)) return undefined;
+    return publicContentCacheService.getOrSet(`public:release:${slug}:detail`, async () => {
+      const song = await publicReleaseService.getPublishedReleaseBySlug(slug);
+      if (!song) return undefined;
+      const [artist, moreReleases] = await Promise.all([
+        publicArtistService.getPublishedArtistById(song.artistId),
+        publicReleaseService.getLatestReleasesByArtist(song.artistId, 4),
+      ]);
+      return { song, artist, moreReleases: moreReleases.filter((release) => release.releaseId !== song.releaseId).slice(0, 3) };
+    }, { ttlSeconds: 600, entityType: "release", entityId: slug });
+  }
+
   listPublicGalleryItems(filters = {}) {
     return publicContentCacheService.getOrSet(publicContentCacheService.buildCacheKey("gallery:list", "default", filters), () => publicGalleryDeliveryService.listPublishedGalleryItems(filters), { ttlSeconds: 600, entityType: "gallery_item" });
   }

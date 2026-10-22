@@ -1,6 +1,7 @@
 import type { ArtistPublicProfile } from "../models/artist";
 import type { PublicSongRelease } from "../models/release";
 import { RelatedSongCard } from "./songs";
+import { AddReleaseToPlaylistButton } from "../member/components/engagement/AddReleaseToPlaylistButton";
 
 interface MoreFromArtistSectionProps {
   artist?: ArtistPublicProfile;
@@ -19,7 +20,10 @@ export function MoreFromArtistSection({ artist, releases }: MoreFromArtistSectio
         </div>
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {releases.map((release) => (
-            <RelatedSongCard key={release.releaseId} artist={artist} release={release} />
+            <div key={release.releaseId} className="space-y-3">
+              <RelatedSongCard artist={artist} release={release} />
+              <AddReleaseToPlaylistButton release={release} compact />
+            </div>
           ))}
         </div>
       </div>

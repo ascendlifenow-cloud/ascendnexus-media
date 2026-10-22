@@ -1,4 +1,5 @@
-import { RotateCcw, Volume2, VolumeX, X } from "lucide-react";
+import { ListMusic, RotateCcw, Trash2, Volume2, VolumeX, X } from "lucide-react";
+import { useState } from "react";
 import { usePublicAudioPlayer } from "../../hooks/public";
 import type { PublicAudioPreviewContract, PublicAudioReleaseSummary } from "../../state/audio/audioPlayerTypes";
 import { formatAudioTime } from "../../utils/audio/audioTimeUtils";
@@ -93,8 +94,12 @@ export function PublicAudioPlayer({ release, preview, compact, showProgress = tr
 
 export function PublicGlobalAudioPlayer() {
   const player = usePublicAudioPlayer();
-  if (!player.activeRelease || !player.activePreview || player.status === "idle") return null;
-  const duration = player.duration || player.activePreview.durationSeconds || 0;
+  const [queueOpen, setQueueOpen] = useState(false);
+  if ((!player.activeRelease || !player.activePreview || player.status === "idle") && player.queue.length === 0) return null;
+  const activeRelease = player.activeRelease ?? player.queue[0]?.release;
+  const activePreview = player.activePreview ?? player.queue[0]?.preview;
+  if (!activeRelease || !activePreview) return null;
+  const duration = player.duration || activePreview.durationSeconds || 0;
   const isPlaying = player.status === "playing";
   return (
     <aside
@@ -104,17 +109,34 @@ export function PublicGlobalAudioPlayer() {
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
       <div className="flex items-center gap-3">
-        {player.activeRelease.coverArtUrl ? <img src={player.activeRelease.coverArtUrl} alt="" className="h-12 w-12 rounded object-cover" /> : null}
+        {activeRelease.coverArtUrl ? <img src={activeRelease.coverArtUrl} alt="" className="h-12 w-12 rounded object-cover" /> : null}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-bold text-white">{player.activeRelease.title}</p>
-          <p className="truncate text-xs text-white/52">{player.activeRelease.artistName ?? "Ascend Nexus Media"}</p>
+          <p className="truncate text-sm font-bold text-white">{activeRelease.title}</p>
+          <p className="truncate text-xs text-white/52">{activeRelease.artistName ?? "Ascend Nexus Media"}</p>
           <PublicAudioProgress compact currentTime={player.currentTime} duration={duration} bufferedEnd={Math.max(0, ...player.bufferedRanges.map((range) => range.end))} onSeek={player.seek} />
         </div>
-        <AudioPreviewButton isPlaying={isPlaying} isLoading={player.status === "loading" || player.status === "buffering"} isDisabled={false} label={isPlaying ? `Pause preview of ${player.activeRelease.title}` : `Play preview of ${player.activeRelease.title}`} compact onClick={() => void player.toggle()} />
-        <Button type="button" variant="ghost" size="icon" onClick={player.stop} aria-label="Close audio player">
+        <AudioPreviewButton isPlaying={isPlaying} isLoading={player.status === "loading" || player.status === "buffering"} isDisabled={false} label={isPlaying ? `Pause ${activeRelease.title}` : `Play ${activeRelease.title}`} compact onClick={() => player.activeRelease ? void player.toggle() : void player.playPreview(activePreview, activeRelease, { sourceContext: "streaming_queue" })} />
+        <Button type="button" variant="ghost" size="icon" onClick={() => setQueueOpen((value) => !value)} aria-label="Open streaming queue">
+          <ListMusic className="h-4 w-4" aria-hidden="true" />
+        </Button>
+        <Button type="button" variant="ghost" size="icon" onClick={() => { player.stop(); player.clearQueue(); }} aria-label="Close audio player">
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
+      {queueOpen ? (
+        <div className="mt-3 max-h-56 overflow-y-auto border-t border-white/10 pt-2" aria-label="Streaming queue">
+          {player.queue.length ? player.queue.map((item, index) => (
+            <div key={item.release.releaseId} className="flex items-center gap-2 py-2 text-sm">
+              <button type="button" className="min-w-0 flex-1 truncate text-left text-white/76 hover:text-cyanGlow" onClick={() => void player.playPreview(item.preview, item.release, { sourceContext: "streaming_queue" })}>
+                {index + 1}. {item.release.title}
+              </button>
+              <Button type="button" variant="ghost" size="icon" onClick={() => player.removeFromQueue(item.release.releaseId)} aria-label={`Remove ${item.release.title} from queue`}>
+                <Trash2 className="h-4 w-4" aria-hidden="true" />
+              </Button>
+            </div>
+          )) : <p className="py-3 text-sm text-white/48">Add songs to build your streaming queue.</p>}
+        </div>
+      ) : null}
       {player.error ? <p className="mt-2 text-xs text-rose-100" role="status">{player.error.message}</p> : null}
     </aside>
   );
