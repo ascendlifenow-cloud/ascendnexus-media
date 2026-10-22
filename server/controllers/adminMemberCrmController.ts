@@ -5,6 +5,7 @@ import { mediaAuthorizationService } from "../services/media/MediaAuthorizationS
 import type { MemberAccountStatus } from "../models/members/MemberModels";
 import type { MemberModerationAction, MemberSupportStatus } from "../models/memberCrm/MemberCrmModels";
 import { MediaApiError } from "../utils/media/mediaErrorUtils";
+import { memberIdentityService } from "../services/members/MemberIdentityService";
 import {
   memberAdministrationService,
   memberCrmService,
