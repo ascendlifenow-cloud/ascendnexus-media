@@ -5,6 +5,7 @@ import { publicSafeUrl, isPublishedState } from "./publicUrlMapper";
 export const mapArtistRecordToPublicProfile = (artist: ArtistPublicProfile, releases: PublicSongRelease[] = []): ArtistPublicProfile & { latestRelease?: PublicSongRelease; releaseCount?: number } | null => {
   if (artist.status !== "active" || !isPublishedState(artist)) return null;
   const profileImage = publicSafeUrl(artist.profileImage);
+  const profileThumbnailUrl = publicSafeUrl(artist.profileThumbnailUrl);
   const artistReleases = releases.filter((release) => release.artistId === artist.artistId && release.status === "published");
   return {
     artistId: artist.artistId,
@@ -13,6 +14,9 @@ export const mapArtistRecordToPublicProfile = (artist: ArtistPublicProfile, rele
     displayName: artist.displayName,
     bio: artist.bio,
     profileImage: profileImage ?? "",
+    profileThumbnailUrl,
+    profileBannerUrl: publicSafeUrl(artist.profileBannerUrl),
+    publicCharacterArtUrl: publicSafeUrl(artist.publicCharacterArtUrl),
     status: "active",
     sortOrder: artist.sortOrder,
     musicStyle: artist.musicStyle,

@@ -20,6 +20,8 @@ export interface PublicSongRelease {
   title: string;
   slug: string;
   coverArtUrl?: string;
+  coverArtThumbnailUrl?: string;
+  coverArtLargeUrl?: string;
   audioPreviewUrl?: string;
   releaseDate: string;
   genre: string;

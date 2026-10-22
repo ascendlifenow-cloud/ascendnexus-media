@@ -49,7 +49,7 @@ export function ReleaseSongCard({
     return (
       <Card as="article" variant="song" interactive className={cx(variantClasses.compact, className)}>
         <CoverArtImage
-          src={release.coverArtUrl}
+          src={release.coverArtThumbnailUrl ?? release.coverArtUrl}
           title={title}
           artistName={artistName}
           size="thumbnail"
@@ -79,7 +79,7 @@ export function ReleaseSongCard({
     return (
       <Card as="article" variant="feature" className={cx(variantClasses.featured, className)}>
         <CoverArtImage
-          src={release.coverArtUrl}
+          src={release.coverArtLargeUrl ?? release.coverArtUrl}
           title={title}
           artistName={artistName}
           size="feature"
@@ -110,7 +110,7 @@ export function ReleaseSongCard({
     <Card as="article" variant="song" interactive className={cx(variantClasses[variant], className)}>
       <div className="relative">
         <CoverArtImage
-          src={release.coverArtUrl}
+          src={release.coverArtThumbnailUrl ?? release.coverArtUrl}
           title={title}
           artistName={artistName}
           size="card"

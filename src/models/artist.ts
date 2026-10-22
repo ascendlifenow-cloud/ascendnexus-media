@@ -18,6 +18,9 @@ export interface ArtistPublicProfile {
   displayName: string;
   bio: string;
   profileImage: string;
+  profileThumbnailUrl?: string;
+  profileBannerUrl?: string;
+  publicCharacterArtUrl?: string;
   status: ArtistStatus;
   sortOrder: number;
   musicStyle: string;

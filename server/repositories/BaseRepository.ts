@@ -13,8 +13,7 @@ export class BaseRepository<T extends Record<string, unknown>> {
   constructor(private readonly property: keyof MediaDatabaseShape, private readonly idField: keyof T) {}
 
   async list(options: ListOptions<T> = {}): Promise<T[]> {
-    const data = await jsonDatabase.read();
-    let records = [...((data[this.property] as T[]) ?? [])];
+    let records = [...(((await jsonDatabase.listCollection(this.property)) as T[]) ?? [])];
     if (!options.includeArchived) records = records.filter((record) => record.status !== "archived");
     if (!options.includeDeleted) records = records.filter((record) => record.status !== "deleted" && !record.deletedAt);
     if (options.sort) {
@@ -25,36 +24,25 @@ export class BaseRepository<T extends Record<string, unknown>> {
   }
 
   async get(id: string): Promise<T | null> {
-    const data = await jsonDatabase.read();
-    return (((data[this.property] as T[]) ?? []).find((record) => record[this.idField] === id) as T | undefined) ?? null;
+    return (await jsonDatabase.findCollectionRecord(this.property, { [String(this.idField)]: id })) as T | null;
   }
 
   async findBy(field: keyof T, value: unknown): Promise<T | null> {
-    const data = await jsonDatabase.read();
-    return (((data[this.property] as T[]) ?? []).find((record) => record[field] === value) as T | undefined) ?? null;
+    return (await jsonDatabase.findCollectionRecord(this.property, { [String(field)]: value })) as T | null;
   }
 
   async create(record: T): Promise<T> {
-    await jsonDatabase.update((data) => {
-      const records = (data[this.property] as T[]) ?? [];
-      if (records.some((item) => item[this.idField] === record[this.idField])) throw new Error(`Duplicate ${String(this.idField)}.`);
-      records.push(record);
-      (data[this.property] as T[]) = records;
-    });
-    return record;
+    const existing = await this.get(String(record[this.idField]));
+    if (existing) throw new Error(`Duplicate ${String(this.idField)}.`);
+    return (await jsonDatabase.insertCollectionRecord(this.property, record as never)) as T;
   }
 
   async update(id: string, patch: Partial<T>): Promise<T | null> {
-    let updated: T | null = null;
-    await jsonDatabase.update((data) => {
-      const records = (data[this.property] as T[]) ?? [];
-      (data[this.property] as T[]) = records.map((record) => {
-        if (record[this.idField] !== id) return record;
-        updated = { ...record, ...patch, updatedAt: new Date().toISOString() } as T;
-        return updated;
-      });
-    });
-    return updated;
+    return (await jsonDatabase.patchCollectionRecord(
+      this.property,
+      { [String(this.idField)]: id },
+      patch as never,
+    )) as T | null;
   }
 
   async archive(id: string, actorId?: string): Promise<T | null> {

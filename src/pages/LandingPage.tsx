@@ -34,7 +34,7 @@ export function LandingPage() {
         <main className="bg-night text-white">
           <section className="relative overflow-hidden border-b border-white/10 pt-28">
             {data.hero.imageUrl ? (
-              <img src={data.hero.imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-28" />
+              <img src={data.hero.imageUrl} alt="" loading="eager" decoding="async" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-28" />
             ) : null}
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,8,18,0.96),rgba(5,8,18,0.72),rgba(5,8,18,0.88))]" />
             <div className="relative mx-auto flex min-h-[34rem] max-w-7xl items-center px-4 py-16 sm:px-6 lg:px-8">
@@ -150,10 +150,11 @@ function LandingBand({ title, href, disabled, children }: { title: string; href:
 }
 
 function ArtistCard({ card }: { card: PublicLandingArtistCard }) {
+  const profileImage = card.artist.profileThumbnailUrl ?? card.artist.profileImage;
   return (
     <Link to={`/artists/${card.artist.slug}`} className="group block overflow-hidden rounded-md border border-white/10 bg-white/6 transition hover:-translate-y-1 hover:border-cyanGlow/40">
       <div className="aspect-square bg-black/30">
-        {card.artist.profileImage ? <img src={card.artist.profileImage} alt={`${card.artist.displayName} profile artwork`} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : null}
+        {profileImage ? <img src={profileImage} alt={`${card.artist.displayName} profile artwork`} loading="lazy" decoding="async" width="640" height="640" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" /> : null}
       </div>
       <div className="p-4">
         <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-cyanGlow">
@@ -171,7 +172,7 @@ function GalleryCard({ card }: { card: PublicLandingGalleryCard }) {
   const image = card.item.thumbnailUrl ?? card.item.imageUrl;
   return (
     <Link to={`/gallery/${card.item.slug}`} className={cx("group block overflow-hidden rounded-md border border-white/10 bg-white/6 transition hover:-translate-y-1 hover:border-cyanGlow/40", !image && "p-5")}>
-      {image ? <img src={image} alt={card.item.altText || card.item.title} className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105" /> : null}
+      {image ? <img src={image} alt={card.item.altText || card.item.title} loading="lazy" decoding="async" width="800" height="600" className="aspect-[4/3] w-full object-cover transition duration-500 group-hover:scale-105" /> : null}
       <div className="p-4">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/46">{card.item.mediaType.replace(/_/g, " ")}</p>
         <h3 className="mt-2 text-lg font-semibold">{card.item.title}</h3>

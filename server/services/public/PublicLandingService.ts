@@ -22,21 +22,25 @@ export class PublicLandingService {
   }
 
   async buildPublicLandingExperience(): Promise<PublicLandingExperience> {
-    const [site, artists, releases, featuredReleases, gallery] = await Promise.all([
+    const [site, artists, releases, gallery] = await Promise.all([
       publicContentDeliveryService.getPublicSiteConfiguration(),
       publicContentDeliveryService.listPublicArtists(),
       publicContentDeliveryService.listPublicReleases(),
-      publicContentDeliveryService.getFeaturedPublicReleases(),
       publicContentDeliveryService.listPublicGalleryItems(),
     ]);
 
     const releaseCards = this.buildReleaseCards(releases.sort(byDateDesc), artists);
-    const featuredCards = this.buildReleaseCards((featuredReleases.length ? featuredReleases : releases.filter((release) => release.featured)).sort(byDateDesc), artists);
+    const featuredCards = this.buildReleaseCards(
+      releases
+        .filter((release) => release.featured)
+        .sort((left, right) => (left.featuredSortOrder ?? 999) - (right.featuredSortOrder ?? 999) || byDateDesc(left, right)),
+      artists,
+    );
     const featuredArtists = this.buildArtistCards(artists, releases);
     const galleryCards = this.buildGalleryCards(gallery);
     const heroRelease = featuredCards[0]?.release ?? releaseCards[0]?.release;
     const heroArtist = heroRelease ? artists.find((artist) => artist.artistId === heroRelease.artistId) : featuredArtists[0]?.artist;
-    const heroImage = heroRelease?.promoImageUrl ?? heroRelease?.coverArtUrl ?? heroArtist?.profileImage ?? galleryCards[0]?.item.thumbnailUrl ?? galleryCards[0]?.item.imageUrl;
+    const heroImage = heroRelease?.promoImageUrl ?? heroRelease?.coverArtLargeUrl ?? heroRelease?.coverArtUrl ?? heroArtist?.profileBannerUrl ?? heroArtist?.profileImage ?? galleryCards[0]?.item.thumbnailUrl ?? galleryCards[0]?.item.imageUrl;
 
     const payload: PublicLandingExperience = {
       version: "anm-web-110",
