@@ -37,6 +37,11 @@ const envValue = (key: string): string | undefined => {
 export const adminApiBase = () => (envValue("VITE_MEDIA_UPLOAD_API_BASE_URL") ?? "").replace(/\/+$/, "");
 
 const adminUrl = (path: string) => `${adminApiBase()}${path}`;
+const authRequest = (path: string, init?: RequestInit) => fetch(adminUrl(path), {
+  ...init,
+  credentials: "include",
+  signal: AbortSignal.timeout(20_000),
+});
 
 const parse = async <T>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => ({})) as ApiResponse<T>;
@@ -51,18 +56,21 @@ export class AdminAuthApiService {
   }
 
   async login(email: string, password: string): Promise<AdminAuthSession> {
-    const response = await fetch(adminUrl("/api/auth/admin/login"), {
+    const response = await authRequest("/api/auth/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({ email, password }),
     });
     return parse<AdminAuthSession>(response);
   }
 
   async getSession(): Promise<AdminAuthSession> {
-    const response = await fetch(adminUrl("/api/auth/session"), { credentials: "include" });
-    return parse<AdminAuthSession>(response);
+    try {
+      return await parse<AdminAuthSession>(await authRequest("/api/auth/session"));
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === "TimeoutError")) throw error;
+      return parse<AdminAuthSession>(await authRequest("/api/auth/session"));
+    }
   }
 
   async logout(): Promise<void> {

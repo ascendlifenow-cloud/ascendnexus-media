@@ -241,6 +241,8 @@ export interface MediaDatabaseShape {
   developmentSeedRuns: DevelopmentSeedRunRecord[];
 }
 
+type DatabaseCollectionRecord<K extends keyof MediaDatabaseShape> = MediaDatabaseShape[K] extends Array<infer T> ? T : never;
+
 const emptyDatabase = (): MediaDatabaseShape => ({
   mediaAssets: [],
   mediaStorageObjects: [],
@@ -403,6 +405,93 @@ export class JsonDatabase {
 
   async getPersistenceMode(): Promise<"mongodb" | "local_json"> {
     return this.useMongo() ? "mongodb" : "local_json";
+  }
+
+  async listCollection<K extends keyof MediaDatabaseShape>(property: K): Promise<MediaDatabaseShape[K]> {
+    if (!this.useMongo()) return (await this.read())[property];
+    const definition = databaseCollections.find((item) => item.property === property);
+    if (!definition) return [] as unknown as MediaDatabaseShape[K];
+    const db = await databaseConnectionService.getDb();
+    const records = (await db.collection(definition.collectionName).find({}).toArray()).map(stripInternalMongoFields);
+    return records as MediaDatabaseShape[K];
+  }
+
+  async findCollectionRecord<K extends keyof MediaDatabaseShape>(property: K, filter: Record<string, unknown>): Promise<DatabaseCollectionRecord<K> | null> {
+    if (!this.useMongo()) {
+      const records = (await this.read())[property] as DatabaseCollectionRecord<K>[];
+      return records.find((record) => Object.entries(filter).every(([key, value]) => (record as Record<string, unknown>)[key] === value)) ?? null;
+    }
+    const definition = databaseCollections.find((item) => item.property === property);
+    if (!definition) return null;
+    const db = await databaseConnectionService.getDb();
+    const record = await db.collection(definition.collectionName).findOne(filter);
+    return record ? stripInternalMongoFields(record) as DatabaseCollectionRecord<K> : null;
+  }
+
+  async insertCollectionRecord<K extends keyof MediaDatabaseShape>(property: K, record: DatabaseCollectionRecord<K>): Promise<DatabaseCollectionRecord<K>> {
+    if (!this.useMongo()) {
+      await this.update((data) => {
+        (data[property] as DatabaseCollectionRecord<K>[]).push(record);
+      });
+      return record;
+    }
+    const definition = databaseCollections.find((item) => item.property === property);
+    if (!definition) throw new Error(`Unknown database collection: ${String(property)}`);
+    const db = await databaseConnectionService.getDb();
+    const persisted = withDatabaseDefaults(record as Record<string, unknown>);
+    await db.collection(definition.collectionName).insertOne(persisted);
+    return stripInternalMongoFields(persisted) as DatabaseCollectionRecord<K>;
+  }
+
+  async patchCollectionRecord<K extends keyof MediaDatabaseShape>(property: K, filter: Record<string, unknown>, patch: Partial<DatabaseCollectionRecord<K>>): Promise<DatabaseCollectionRecord<K> | null> {
+    const patchEntries = Object.entries(patch as Record<string, unknown>);
+    const nextPatch = Object.fromEntries(patchEntries.filter(([, value]) => value !== undefined));
+    nextPatch.updatedAt = new Date().toISOString();
+    const unset = Object.fromEntries(patchEntries.filter(([, value]) => value === undefined).map(([key]) => [key, ""]));
+    if (!this.useMongo()) {
+      let updated: DatabaseCollectionRecord<K> | null = null;
+      await this.update((data) => {
+        const records = data[property] as DatabaseCollectionRecord<K>[];
+        const record = records.find((item) => Object.entries(filter).every(([key, value]) => (item as Record<string, unknown>)[key] === value));
+        if (record) {
+          Object.assign(record as Record<string, unknown>, nextPatch);
+          for (const key of Object.keys(unset)) delete (record as Record<string, unknown>)[key];
+          updated = record;
+        }
+      });
+      return updated;
+    }
+    const definition = databaseCollections.find((item) => item.property === property);
+    if (!definition) return null;
+    const db = await databaseConnectionService.getDb();
+    const update = Object.keys(unset).length ? { $set: nextPatch, $unset: unset } : { $set: nextPatch };
+    const record = await db.collection(definition.collectionName).findOneAndUpdate(filter, update, { returnDocument: "after" });
+    return record ? stripInternalMongoFields(record) as DatabaseCollectionRecord<K> : null;
+  }
+
+  async patchCollectionRecords<K extends keyof MediaDatabaseShape>(property: K, filter: Record<string, unknown>, patch: Partial<DatabaseCollectionRecord<K>>): Promise<number> {
+    const patchEntries = Object.entries(patch as Record<string, unknown>);
+    const nextPatch = Object.fromEntries(patchEntries.filter(([, value]) => value !== undefined));
+    nextPatch.updatedAt = new Date().toISOString();
+    const unset = Object.fromEntries(patchEntries.filter(([, value]) => value === undefined).map(([key]) => [key, ""]));
+    if (!this.useMongo()) {
+      let count = 0;
+      await this.update((data) => {
+        for (const record of data[property] as DatabaseCollectionRecord<K>[]) {
+          if (Object.entries(filter).every(([key, value]) => (record as Record<string, unknown>)[key] === value)) {
+            Object.assign(record as Record<string, unknown>, nextPatch);
+            for (const key of Object.keys(unset)) delete (record as Record<string, unknown>)[key];
+            count += 1;
+          }
+        }
+      });
+      return count;
+    }
+    const definition = databaseCollections.find((item) => item.property === property);
+    if (!definition) return 0;
+    const db = await databaseConnectionService.getDb();
+    const update = Object.keys(unset).length ? { $set: nextPatch, $unset: unset } : { $set: nextPatch };
+    return (await db.collection(definition.collectionName).updateMany(filter, update)).modifiedCount;
   }
 
   private async readMongo(): Promise<MediaDatabaseShape> {

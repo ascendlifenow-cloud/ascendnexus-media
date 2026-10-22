@@ -69,7 +69,9 @@ export class AuthenticationService {
     if (user.status === "pending" || user.status === "pending_activation") throw new AuthApiError("AUTH_REQUIRED", "Admin account is not active.");
     if (user.status === "disabled" || user.status === "deleted" || user.status === "archived") throw new AuthApiError("AUTH_ACCOUNT_DISABLED", "Admin account is not active.");
     if (user.status === "locked" && (!user.lockedUntil || Date.parse(user.lockedUntil) > Date.now())) throw new AuthApiError("AUTH_ACCOUNT_LOCKED", "Admin account is temporarily locked.");
-    await adminSessionService.touchSession(session.sessionId);
+    if (Date.now() - Date.parse(session.lastSeenAt) >= 60_000) {
+      await adminSessionService.touchSession(session.sessionId);
+    }
     const permissions = authorizationService.getEffectivePermissions(user);
     if (!permissions.includes("admin.access")) throw new AuthApiError("AUTH_PERMISSION_DENIED", "Administrative access is required.");
     return {

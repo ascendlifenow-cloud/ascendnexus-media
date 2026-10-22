@@ -24,24 +24,18 @@ export class AdminSessionService {
       userAgentHash: hashUserAgent(request),
       deviceLabel: getDeviceLabel(request),
     };
-    await jsonDatabase.update((data) => {
-      data.adminSessions.push(session);
-    });
+    await jsonDatabase.insertCollectionRecord("adminSessions", session);
     return { token, session };
   }
 
   async getSessionByToken(token: string): Promise<AdminSession | null> {
     const tokenHash = hashSecret(token);
-    const data = await jsonDatabase.read();
-    return data.adminSessions.find((session) => session.tokenHash === tokenHash) ?? null;
+    return jsonDatabase.findCollectionRecord("adminSessions", { tokenHash });
   }
 
   async touchSession(sessionId: string) {
     const now = new Date().toISOString();
-    await jsonDatabase.update((data) => {
-      const session = data.adminSessions.find((item) => item.sessionId === sessionId);
-      if (session) session.lastSeenAt = now;
-    });
+    await jsonDatabase.patchCollectionRecord("adminSessions", { sessionId }, { lastSeenAt: now });
   }
 
   isSessionUsable(session: AdminSession): boolean {
@@ -53,33 +47,24 @@ export class AdminSessionService {
   }
 
   async revokeSession(sessionId: string, revokedBy?: string, reason = "revoked") {
-    await jsonDatabase.update((data) => {
-      const session = data.adminSessions.find((item) => item.sessionId === sessionId);
-      if (session && session.status === "active") {
-        session.status = "revoked";
-        session.revokedAt = new Date().toISOString();
-        session.revokedBy = revokedBy;
-        session.revocationReason = reason;
-      }
+    await jsonDatabase.patchCollectionRecord("adminSessions", { sessionId, status: "active" }, {
+      status: "revoked",
+      revokedAt: new Date().toISOString(),
+      revokedBy,
+      revocationReason: reason,
     });
   }
 
   async revokeUserSessions(userId: string, revokedBy?: string, reason = "user_sessions_revoked", exceptSessionId?: string) {
-    await jsonDatabase.update((data) => {
-      for (const session of data.adminSessions) {
-        if (session.userId === userId && session.sessionId !== exceptSessionId && session.status === "active") {
-          session.status = "revoked";
-          session.revokedAt = new Date().toISOString();
-          session.revokedBy = revokedBy;
-          session.revocationReason = reason;
-        }
-      }
-    });
+    const sessions = await jsonDatabase.listCollection("adminSessions");
+    await Promise.all(sessions
+      .filter((session) => session.userId === userId && session.sessionId !== exceptSessionId && session.status === "active")
+      .map((session) => this.revokeSession(session.sessionId, revokedBy, reason)));
   }
 
   async listUserSessions(userId: string, currentSessionId?: string): Promise<AdminSessionResponse[]> {
-    const data = await jsonDatabase.read();
-    return data.adminSessions
+    const sessions = await jsonDatabase.listCollection("adminSessions");
+    return sessions
       .filter((session) => session.userId === userId && session.status === "active")
       .map((session) => ({
         sessionId: session.sessionId,

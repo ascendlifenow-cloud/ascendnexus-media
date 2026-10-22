@@ -31,19 +31,17 @@ export class AdminUserService {
   }
 
   async listUsers(): Promise<AdminUserResponse[]> {
-    const data = await jsonDatabase.read();
-    return data.adminUsers.map((user) => this.toResponse(user)).sort((a, b) => a.email.localeCompare(b.email));
+    const users = await jsonDatabase.listCollection("adminUsers");
+    return users.map((user) => this.toResponse(user)).sort((a, b) => a.email.localeCompare(b.email));
   }
 
   async getUserById(userId: string): Promise<AdminUser | null> {
-    const data = await jsonDatabase.read();
-    return data.adminUsers.find((user) => user.userId === userId) ?? null;
+    return jsonDatabase.findCollectionRecord("adminUsers", { userId });
   }
 
   async getUserByEmail(email: string): Promise<AdminUser | null> {
     const normalizedEmail = normalizeEmail(email);
-    const data = await jsonDatabase.read();
-    return data.adminUsers.find((user) => user.normalizedEmail === normalizedEmail) ?? null;
+    return jsonDatabase.findCollectionRecord("adminUsers", { normalizedEmail });
   }
 
   async requireUser(userId: string): Promise<AdminUser> {
@@ -188,27 +186,21 @@ export class AdminUserService {
   }
 
   async recordSuccessfulLogin(userId: string, ipHash?: string): Promise<void> {
-    await jsonDatabase.update((data) => {
-      const user = data.adminUsers.find((item) => item.userId === userId);
-      if (!user) return;
-      user.lastLoginAt = new Date().toISOString();
-      user.lastLoginIpHash = ipHash;
-      user.failedLoginCount = 0;
-      user.lockedUntil = undefined;
-      user.updatedAt = new Date().toISOString();
+    await jsonDatabase.patchCollectionRecord("adminUsers", { userId }, {
+      lastLoginAt: new Date().toISOString(),
+      lastLoginIpHash: ipHash,
+      failedLoginCount: 0,
+      lockedUntil: undefined,
     });
   }
 
   async recordFailedLogin(userId: string): Promise<void> {
-    await jsonDatabase.update((data) => {
-      const user = data.adminUsers.find((item) => item.userId === userId);
-      if (!user) return;
-      user.failedLoginCount += 1;
-      if (user.failedLoginCount >= 8) {
-        user.status = "locked";
-        user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-      }
-      user.updatedAt = new Date().toISOString();
+    const user = await this.getUserById(userId);
+    if (!user) return;
+    const failedLoginCount = user.failedLoginCount + 1;
+    await jsonDatabase.patchCollectionRecord("adminUsers", { userId }, {
+      failedLoginCount,
+      ...(failedLoginCount >= 8 ? { status: "locked" as const, lockedUntil: new Date(Date.now() + 15 * 60 * 1000).toISOString() } : {}),
     });
   }
 }

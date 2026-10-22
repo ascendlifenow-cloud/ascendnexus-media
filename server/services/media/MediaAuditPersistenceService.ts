@@ -13,16 +13,14 @@ export class MediaAuditPersistenceService {
       createdAt: new Date().toISOString(),
       metadata: input.metadata,
     };
-    await jsonDatabase.update((data) => {
-      data.adminAuditEvents.unshift(event);
-      data.adminAuditEvents = data.adminAuditEvents.slice(0, 1000);
-    });
+    await jsonDatabase.insertCollectionRecord("adminAuditEvents", event);
     return event;
   }
 
   async list(): Promise<AdminAuditEvent[]> {
-    const data = await jsonDatabase.read();
-    return data.adminAuditEvents;
+    return (await jsonDatabase.listCollection("adminAuditEvents"))
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .slice(0, 1000);
   }
 }
 
