@@ -125,6 +125,7 @@ const toPublicArtworkItems = async (): Promise<PublicArtworkCollageItem[]> => {
 function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: PublicArtworkCollageItem; priority?: boolean; layoutSeed: number }) {
   const [failed, setFailed] = useState(false);
   const [imageUrl, setImageUrl] = useState(item.imageUrl);
+  const [retryCount, setRetryCount] = useState(0);
   const layoutValue = seededValue(item.id, layoutSeed);
   const marginClass = tileMarginClasses[Math.floor(layoutValue * tileMarginClasses.length)] ?? "mb-4";
   const liftClass = tileLiftClasses[Math.floor(seededValue(`${item.id}:lift`, layoutSeed) * tileLiftClasses.length)] ?? "";
@@ -140,8 +141,19 @@ function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: Publ
             decoding="async"
             className="h-auto w-full object-cover"
             onError={() => {
-              if (item.fallbackImageUrl && imageUrl !== item.fallbackImageUrl) setImageUrl(item.fallbackImageUrl);
-              else setFailed(true);
+              if (retryCount < 2) {
+                const nextRetry = retryCount + 1;
+                setRetryCount(nextRetry);
+                window.setTimeout(() => {
+                  const separator = imageUrl.includes("?") ? "&" : "?";
+                  setImageUrl(`${imageUrl}${separator}anmRetry=${nextRetry}`);
+                }, 450 * nextRetry);
+              } else if (item.fallbackImageUrl && !imageUrl.startsWith(item.fallbackImageUrl)) {
+                setRetryCount(0);
+                setImageUrl(item.fallbackImageUrl);
+              } else {
+                setFailed(true);
+              }
             }}
           />
         ) : (
