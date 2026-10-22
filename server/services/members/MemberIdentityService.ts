@@ -108,7 +108,7 @@ export class MemberIdentityService {
     });
     if (!member) throw new AuthApiError("MEMBER_NOT_FOUND", "Member account was not found.", 404);
     await this.audit("member_verification_completed", member.memberId, "Member email verification completed.");
-    await emailDeliveryService.queueDelivery({
+    void emailDeliveryService.queueDelivery({
       deliveryType: "member_notification",
       recipientCategory: "member",
       recipient: member.email,
@@ -116,6 +116,11 @@ export class MemberIdentityService {
       relatedEntityId: member.memberId,
       templateKey: "member_verification_successful",
       metadata: memberVerificationEmailTemplates.verificationSuccessful({ displayName: member.displayName }),
+    }).catch((error) => {
+      console.error("[member-verification] confirmation email delivery failed", {
+        memberId: member?.memberId,
+        message: error instanceof Error ? error.message : "Unknown email delivery error.",
+      });
     });
     return { verified: true, member: sanitizeMemberAccount(member) };
   }

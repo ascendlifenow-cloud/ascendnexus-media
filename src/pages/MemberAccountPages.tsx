@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { CheckCircle2, CircleAlert, LoaderCircle } from "lucide-react";
 import { RouteMetadata } from "../components/RouteMetadata";
 import { Button } from "../components/ui/Button";
 import { LinkButton } from "../components/ui/LinkButton";
@@ -32,6 +33,7 @@ export function PublicMemberLoginPage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const registered = params.get("registered") === "1";
+  const verified = params.get("verified") === "1";
   const verificationToken = params.get("verificationToken") ?? "";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -58,7 +60,7 @@ export function PublicMemberLoginPage() {
       <RouteMetadata route="login" />
       <AuthShell eyebrow="Member sign in" title="Sign in to Ascend Nexus Media">
         <Status
-          message={registered ? "Your account has been created. Please verify your email before signing in." : undefined}
+          message={verified ? "Your email is verified. You can now sign in." : registered ? "Your account has been created. Please verify your email before signing in." : undefined}
         />
         {verificationToken ? (
           <p className="mt-4 rounded-md border border-amber-300/20 bg-amber-400/10 p-3 text-sm text-amber-100">
@@ -144,17 +146,37 @@ export function PublicRegistrationReadinessPage() {
 
 export function VerifyEmailPage() {
   const [params] = useSearchParams();
-  const [state, setState] = useState("Checking verification token...");
+  const navigate = useNavigate();
+  const token = useMemo(() => params.get("token") ?? "", [params]);
+  const [verificationState, setVerificationState] = useState<"checking" | "verified" | "error">("checking");
+  const [state, setState] = useState("Verifying your email...");
   const [resendEmail, setResendEmail] = useState("");
   const [resendMessage, setResendMessage] = useState("");
   useEffect(() => {
-    const token = params.get("token") ?? "";
+    let active = true;
+    let redirectTimer: number | undefined;
     if (!token) {
+      setVerificationState("error");
       setState("Verification token is missing.");
-      return;
+      return () => undefined;
     }
-    memberAuthApiService.verifyEmail(token).then(() => setState("Email verified. You can now sign in.")).catch((error) => setState(error instanceof Error ? error.message : "Verification failed."));
-  }, [params]);
+    setVerificationState("checking");
+    setState("Verifying your email...");
+    memberAuthApiService.verifyEmail(token).then(() => {
+      if (!active) return;
+      setVerificationState("verified");
+      setState("Email verified. Redirecting you to sign in...");
+      redirectTimer = window.setTimeout(() => navigate("/login?verified=1", { replace: true }), 1600);
+    }).catch((error) => {
+      if (!active) return;
+      setVerificationState("error");
+      setState(error instanceof Error ? error.message : "Verification failed. Request a new email below.");
+    });
+    return () => {
+      active = false;
+      if (redirectTimer) window.clearTimeout(redirectTimer);
+    };
+  }, [navigate, token]);
   const resend = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setResendMessage("");
@@ -163,13 +185,20 @@ export function VerifyEmailPage() {
   };
   return (
     <AuthShell eyebrow="Email verification" title="Verify your email">
-      <Status message={state} />
-      <form className="mt-6 space-y-4 rounded-md border border-white/10 bg-black/20 p-4" onSubmit={resend}>
-        <label className={labelClass}>Resend verification email <span className={fieldHintClass}>Optional</span><input className={inputClass} type="email" value={resendEmail} onChange={(event) => setResendEmail(event.target.value)} placeholder="you@example.com" required /></label>
-        <Button type="submit" variant="secondary">Resend Verification</Button>
-      </form>
-      <Status message={resendMessage} />
-      <div className="mt-6"><LinkButton to="/login" variant="primary">Go to sign in</LinkButton></div>
+      <div className={`flex items-start gap-3 rounded-md border p-4 ${verificationState === "verified" ? "border-emerald-300/20 bg-emerald-500/10 text-emerald-100" : verificationState === "error" ? "border-rose-300/20 bg-rose-500/10 text-rose-100" : "border-cyanGlow/20 bg-cyanGlow/10 text-cyan-50"}`} role={verificationState === "error" ? "alert" : "status"} aria-live="polite">
+        {verificationState === "checking" ? <LoaderCircle className="mt-0.5 shrink-0 animate-spin" size={20} /> : verificationState === "verified" ? <CheckCircle2 className="mt-0.5 shrink-0" size={20} /> : <CircleAlert className="mt-0.5 shrink-0" size={20} />}
+        <div><p className="font-semibold">{verificationState === "checking" ? "Verification in progress" : verificationState === "verified" ? "Verification complete" : "Verification could not be completed"}</p><p className="mt-1 text-sm opacity-80">{state}</p></div>
+      </div>
+      {verificationState === "error" ? (
+        <>
+          <form className="mt-6 space-y-4 rounded-md border border-white/10 bg-black/20 p-4" onSubmit={resend}>
+            <label className={labelClass}>Resend verification email <span className={fieldHintClass}>Optional</span><input className={inputClass} type="email" value={resendEmail} onChange={(event) => setResendEmail(event.target.value)} placeholder="you@example.com" required /></label>
+            <Button type="submit" variant="secondary">Resend Verification</Button>
+          </form>
+          <Status message={resendMessage} />
+        </>
+      ) : null}
+      <div className="mt-6"><LinkButton to="/login" variant="primary">{verificationState === "verified" ? "Continue to sign in" : "Go to sign in"}</LinkButton></div>
     </AuthShell>
   );
 }
