@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { getBackendConfig } from "../config/backendConfig";
 import { memberAuthController } from "../controllers/memberAuthController";
 import { memberIdentityService } from "../services/members/MemberIdentityService";
 
@@ -8,6 +9,18 @@ const wantsMemberSession = (request: IncomingMessage) =>
 export const handleMemberAuthRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
   const method = request.method ?? "GET";
   const path = url.pathname.replace(/\/+$/, "") || "/";
+
+  if (method === "GET" && path === "/verify-email") {
+    const publicAppBaseUrl = getBackendConfig().server.publicAppBaseUrl?.replace(/\/+$/, "");
+    if (publicAppBaseUrl) {
+      const destination = new URL("/verify-email", publicAppBaseUrl);
+      const token = url.searchParams.get("token");
+      if (token) destination.searchParams.set("token", token);
+      response.writeHead(302, { Location: destination.toString(), "Cache-Control": "no-store" });
+      response.end();
+      return true;
+    }
+  }
 
   if (method === "POST" && path === "/api/auth/register") return memberAuthController.register(request, response).then(() => true);
   if (method === "POST" && path === "/api/auth/login") return memberAuthController.login(request, response).then(() => true);

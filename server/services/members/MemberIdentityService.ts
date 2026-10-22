@@ -522,7 +522,7 @@ export class MemberIdentityService {
     const config = getBackendConfig();
     const host = request.headers.host || "localhost";
     const protocol = String(request.headers["x-forwarded-proto"] ?? "").split(",")[0] || (host.includes("localhost") || host.includes("127.0.0.1") ? "http" : "https");
-    const publicAppBaseUrl = (config.app.publicAppBaseUrl || `${protocol}://${host}`).replace(/\/+$/, "");
+    const publicAppBaseUrl = (config.server.publicAppBaseUrl || `${protocol}://${host}`).replace(/\/+$/, "");
     const verificationUrl = `${publicAppBaseUrl}/verify-email?token=${encodeURIComponent(token)}`;
     const template = memberVerificationEmailTemplates.registrationVerification({ displayName: member.displayName, verificationUrl, expiresInHours: 24 });
     return emailDeliveryService.queueDelivery({
