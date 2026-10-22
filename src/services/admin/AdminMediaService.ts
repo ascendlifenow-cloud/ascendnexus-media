@@ -28,8 +28,24 @@ export interface AdminMediaFilters {
   search?: string;
 }
 
+export interface AdminMediaIntakeRecord {
+  intakeId: string;
+  sourceFilename: string;
+  status: string;
+  classification?: string;
+  detectedMimeType?: string;
+  fileSize: number;
+  mediaAssetId?: string;
+  assignmentConfidence?: { overallScore?: number; decision?: string; reasons?: string[] };
+  suggestedMatches?: Array<{ entityType: string; entityId: string; label: string; score: number; reasons?: string[] }>;
+  firstSeenAt: string;
+  updatedAt: string;
+  lastErrorSafeMessage?: string;
+}
+
 export interface AdminMediaService {
   listMediaAssets(filters?: AdminMediaFilters): Promise<ApiResult<MediaAssetRecord[]>>;
+  listMediaIntakeRecords(): Promise<ApiResult<AdminMediaIntakeRecord[]>>;
   getMediaAsset(assetId: string): Promise<ApiResult<MediaAssetRecord>>;
   getMediaAssetPreviewUrl(asset: MediaAssetRecord): Promise<ApiResult<string>>;
   promoteMediaAssetForPublicUse(asset: MediaAssetRecord): Promise<ApiResult<MediaAssetRecord>>;
@@ -67,6 +83,7 @@ interface MediaApiResponse {
   assetId?: string;
   link?: MediaAssetLink;
   updatedEntity?: unknown;
+  intakeRecords?: AdminMediaIntakeRecord[];
   errors?: string[];
   error?: { message?: string };
 }
@@ -176,6 +193,10 @@ export class SeedBackedAdminMediaService implements AdminMediaService {
       .sort((a, b) => (a.sortOrder ?? Number.POSITIVE_INFINITY) - (b.sortOrder ?? Number.POSITIVE_INFINITY));
 
     return createApiSuccess(items);
+  }
+
+  async listMediaIntakeRecords(): Promise<ApiResult<AdminMediaIntakeRecord[]>> {
+    return createApiSuccess([]);
   }
 
   async getMediaAsset(assetId: string): Promise<ApiResult<MediaAssetRecord>> {
@@ -310,6 +331,10 @@ export class ApiBackedAdminMediaService implements AdminMediaService {
       payload.mediaAssets ?? payload.assets ?? (Array.isArray(payload.data) ? payload.data : undefined));
   }
 
+  listMediaIntakeRecords(): Promise<ApiResult<AdminMediaIntakeRecord[]>> {
+    return mediaRequest("/api/admin/media/intake/records?limit=1000", { headers: headers() }, (payload) => payload.intakeRecords);
+  }
+
   getMediaAsset(assetId: string): Promise<ApiResult<MediaAssetRecord>> {
     return mediaRequest(`/api/admin/media/assets/${encodeURIComponent(assetId)}`, { headers: headers() }, (payload) =>
       payload.mediaAsset ?? payload.asset ?? (!Array.isArray(payload.data) ? payload.data : undefined));
@@ -317,7 +342,7 @@ export class ApiBackedAdminMediaService implements AdminMediaService {
 
   async getMediaAssetPreviewUrl(asset: MediaAssetRecord): Promise<ApiResult<string>> {
     const storageObjectId = getAssetStorageObjectId(asset);
-    if (isBrowserPreviewUrl(asset.url) && !isPrivateStorageReference(asset.url)) return createApiSuccess(asset.url);
+    if (!storageObjectId && isBrowserPreviewUrl(asset.url) && !isPrivateStorageReference(asset.url)) return createApiSuccess(asset.url);
     const fallbackContentUrl = storageObjectId
       ? adminApiUrl(`/api/admin/media/storage/objects/${encodeURIComponent(storageObjectId)}/content`)
       : undefined;
@@ -327,10 +352,14 @@ export class ApiBackedAdminMediaService implements AdminMediaService {
       headers: headers(),
     }, (payload) => ({ signedUrl: typeof (payload as MediaApiResponse & { signedUrl?: unknown }).signedUrl === "string" ? (payload as MediaApiResponse & { signedUrl: string }).signedUrl : undefined }));
 
-    if (!response.ok) return fallbackContentUrl ? createApiSuccess(fallbackContentUrl) : toError(response.error.message, response.error.status);
+    if (!response.ok) {
+      return isBrowserPreviewUrl(asset.url) && !isPrivateStorageReference(asset.url)
+        ? createApiSuccess(asset.url)
+        : fallbackContentUrl ? createApiSuccess(fallbackContentUrl) : toError(response.error.message, response.error.status);
+    }
 
     const signedUrl = response.data.signedUrl;
-    if (!signedUrl) return fallbackContentUrl ? createApiSuccess(fallbackContentUrl) : toError("Media preview URL was not available.");
+    if (!signedUrl) return isBrowserPreviewUrl(asset.url) ? createApiSuccess(asset.url) : fallbackContentUrl ? createApiSuccess(fallbackContentUrl) : toError("Media preview URL was not available.");
     if (signedUrl.includes("/api/admin/media/storage/signed-url")) {
       return fallbackContentUrl ? createApiSuccess(fallbackContentUrl) : toError("Local media preview stream was not available.");
     }

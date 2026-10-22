@@ -63,6 +63,7 @@ import {
 import { AdminAuthProvider } from "../admin/auth/AdminAuthProvider";
 import { RequirePermission } from "../admin/auth/RequirePermission";
 import { AdminProtectedRoute } from "../admin/routes/AdminProtectedRoute";
+import { AdminRouteErrorBoundary } from "../admin/components/AdminRouteErrorBoundary";
 import { PublicPageLoader } from "../components/loading";
 import { RouteTransitionWrapper } from "../components/layout/RouteTransitionWrapper";
 import { PublicShell } from "../components/public/PublicShell";
@@ -144,6 +145,7 @@ export function AppRouter() {
     return (
       <Suspense fallback={<PublicPageLoader />}>
         <AdminAuthProvider>
+          <AdminRouteErrorBoundary routeKey={location.pathname}>
           <Routes>
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin/forgot-password" element={<AdminForgotPasswordPage />} />
@@ -288,6 +290,7 @@ export function AppRouter() {
               <Route path="*" element={<Navigate to="/admin/dashboard" replace />} />
             </Route>
           </Routes>
+          </AdminRouteErrorBoundary>
         </AdminAuthProvider>
       </Suspense>
     );

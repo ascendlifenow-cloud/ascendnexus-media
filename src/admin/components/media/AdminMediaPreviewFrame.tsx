@@ -10,14 +10,16 @@ import { getMediaAssetPreviewType } from "../../utils/adminMediaUtils";
 interface AdminMediaPreviewFrameProps {
   asset: MediaAssetRecord;
   compact?: boolean;
+  gallery?: boolean;
 }
 
 const isBrowserLoadableImageUrl = (value: string | null | undefined): value is string =>
   Boolean(value && (value.startsWith("/") || value.startsWith("http://") || value.startsWith("https://") || value.startsWith("data:image/")));
 
-export function AdminMediaPreviewFrame({ asset, compact = false }: AdminMediaPreviewFrameProps) {
+export function AdminMediaPreviewFrame({ asset, compact = false, gallery = false }: AdminMediaPreviewFrameProps) {
   const [adminPreviewUrl, setAdminPreviewUrl] = useState<string | undefined>();
   const [previewError, setPreviewError] = useState<string | undefined>();
+  const [imageFailed, setImageFailed] = useState(false);
   const previewType = getMediaAssetPreviewType(asset);
   const src = asset.thumbnailUrl || asset.url || "";
   const sizeClass = compact ? "min-h-44" : "min-h-72";
@@ -27,6 +29,7 @@ export function AdminMediaPreviewFrame({ asset, compact = false }: AdminMediaPre
     let active = true;
     setAdminPreviewUrl(undefined);
     setPreviewError(undefined);
+    setImageFailed(false);
     if (!isAudioAsset && previewType !== "image") return;
     void adminMediaService.getMediaAssetPreviewUrl(asset).then((result) => {
       if (!active) return;
@@ -40,6 +43,24 @@ export function AdminMediaPreviewFrame({ asset, compact = false }: AdminMediaPre
       active = false;
     };
   }, [asset, isAudioAsset, previewType]);
+
+  if (gallery) {
+    const imageSrc = isBrowserLoadableImageUrl(adminPreviewUrl || src) ? adminPreviewUrl || src : undefined;
+    const Icon = isAudioAsset ? FileAudio2 : previewType === "image" ? FileImage : FileQuestion;
+    return (
+      <div className="relative aspect-square w-full overflow-hidden bg-black/35">
+        {previewType === "image" && imageSrc && !imageFailed ? (
+          <img src={imageSrc} alt={asset.altText || asset.title} onError={() => setImageFailed(true)} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.035] group-focus-within:scale-[1.035]" loading="lazy" decoding="async" />
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_50%_30%,rgba(240,178,122,0.14),transparent_60%)] text-center">
+            <Icon className="h-12 w-12 text-anm-gold" aria-hidden />
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-white/58">{isAudioAsset ? "Audio" : previewType === "image" ? "Image" : "Media"}</span>
+            {previewError ? <span className="max-w-[80%] text-xs text-white/42">Preview unavailable</span> : null}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (compact) {
     const imageSrc = isBrowserLoadableImageUrl(adminPreviewUrl || src) ? adminPreviewUrl || src : undefined;

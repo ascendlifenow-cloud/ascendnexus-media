@@ -9,6 +9,7 @@ import type {
 import type { ApiResult } from "../api/httpClient";
 import { createApiError, createApiSuccess } from "../api/httpClient";
 import { adminMediaService, recordMediaAuditEvent } from "../admin";
+import type { AdminMediaIntakeRecord } from "../admin/AdminMediaService";
 import { dispatchMediaAssignmentChanged } from "./MediaAssignmentEvents";
 import { mediaAssetLinkingService } from "./MediaAssetLinkingService";
 import {
@@ -38,6 +39,34 @@ const mergeMetadata = (
   patch: Record<string, MediaAssetMetadataValue>,
 ) => ({ ...(current ?? {}), ...patch });
 
+const activeIntakeStatuses = new Set([
+  "discovered",
+  "waiting_for_stability",
+  "ready",
+  "validating",
+  "classified",
+  "matching",
+  "auto_assignment_pending",
+  "processing",
+  "assignment_pending",
+  "review_required",
+  "failed",
+]);
+
+const intakeMetadata = (record: AdminMediaIntakeRecord): Record<string, MediaAssetMetadataValue> => ({
+  intakeId: record.intakeId,
+  intakeStatus: record.status,
+  intakeClassification: record.classification ?? null,
+  originalFileName: record.sourceFilename,
+  intakeLastError: record.lastErrorSafeMessage ?? null,
+  intakeSuggestedMatches: record.suggestedMatches?.map((match) => ({
+    entityType: match.entityType,
+    entityId: match.entityId,
+    label: match.label,
+    score: match.score,
+  })) ?? [],
+});
+
 export class MediaAssignmentReviewService {
   private reviewItems = new Map<string, MediaAssignmentReviewItem>();
   private removedAssetIds = new Set<string>();
@@ -55,18 +84,37 @@ export class MediaAssignmentReviewService {
   }
 
   async buildReviewQueueFromMediaAssets(): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
-    const assets = await adminMediaService.listMediaAssets();
+    const [assets, intakeRecords] = await Promise.all([
+      adminMediaService.listMediaAssets(),
+      adminMediaService.listMediaIntakeRecords(),
+    ]);
     if (!assets.ok) return createApiError(assets.error.code, assets.error.message, assets.error.status);
+    const records = intakeRecords.ok ? intakeRecords.data : [];
+    const activeIntakeByAssetId = new Map(
+      records
+        .filter((record) => record.mediaAssetId && activeIntakeStatuses.has(record.status))
+        .map((record) => [record.mediaAssetId as string, record]),
+    );
     const activeAssets = assets.data.filter((asset) => !this.removedAssetIds.has(asset.assetId));
-    const included = activeAssets.filter(shouldIncludeAssetInReviewQueue);
+    const included = activeAssets
+      .filter((asset) => shouldIncludeAssetInReviewQueue(asset) || activeIntakeByAssetId.has(asset.assetId))
+      .map((asset) => {
+        const intake = activeIntakeByAssetId.get(asset.assetId);
+        return intake ? { ...asset, metadata: mergeMetadata(asset.metadata, intakeMetadata(intake)) } : asset;
+      });
     const currentAssetIds = new Set(activeAssets.map((asset) => asset.assetId));
     included.forEach((asset) => {
       const existing = this.reviewItems.get(`media-review-${asset.assetId}`);
       if (existing && existing.status !== "pending" && existing.status !== "in_review") return;
+      const built = buildReviewItemFromMediaAsset(asset);
+      const intake = activeIntakeByAssetId.get(asset.assetId);
       this.reviewItems.set(`media-review-${asset.assetId}`, {
-        ...buildReviewItemFromMediaAsset(asset),
-        status: existing?.status ?? buildReviewItemFromMediaAsset(asset).status,
-        assignmentState: existing?.assignmentState ?? buildReviewItemFromMediaAsset(asset).assignmentState,
+        ...built,
+        status: existing?.status ?? built.status,
+        assignmentState: existing?.assignmentState ?? built.assignmentState,
+        confidence: intake?.assignmentConfidence?.overallScore ?? built.confidence,
+        reason: intake?.lastErrorSafeMessage || (intake ? `Intake status: ${intake.status.replace(/_/g, " ")}. ${built.reason}` : built.reason),
+        metadata: intake ? mergeMetadata(built.metadata, intakeMetadata(intake)) : built.metadata,
       });
     });
     for (const [reviewItemId, item] of this.reviewItems) {

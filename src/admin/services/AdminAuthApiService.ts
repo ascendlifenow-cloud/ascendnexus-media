@@ -40,16 +40,32 @@ const adminUrl = (path: string) => `${adminApiBase()}${path}`;
 const authRequest = (path: string, init?: RequestInit) => fetch(adminUrl(path), {
   ...init,
   credentials: "include",
-  signal: AbortSignal.timeout(20_000),
+  signal: AbortSignal.timeout(12_000),
 });
+
+export class AdminAuthRequestError extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+    this.name = "AdminAuthRequestError";
+  }
+}
 
 const parse = async <T>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => ({})) as ApiResponse<T>;
-  if (!response.ok || payload.success === false) throw new Error(payload.errors?.join(" ") || `Admin request failed with ${response.status}.`);
+  if (!response.ok || payload.success === false) {
+    throw new AdminAuthRequestError(payload.errors?.join(" ") || `Admin request failed with ${response.status}.`, response.status);
+  }
   return payload.data as T;
 };
 
 export class AdminAuthApiService {
+  private cachedSession: AdminAuthSession | null = null;
+  private sessionRequest: Promise<AdminAuthSession> | null = null;
+
+  getCachedSession(): AdminAuthSession | null {
+    return this.cachedSession;
+  }
+
   async getAvailability(): Promise<{ available: boolean; temporarilyUnavailable: boolean; setupIncomplete: boolean; mfaRequiredByPolicy: boolean }> {
     const response = await fetch(adminUrl("/api/auth/admin/availability"), { credentials: "include" });
     return parse(response);
@@ -61,20 +77,37 @@ export class AdminAuthApiService {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    return parse<AdminAuthSession>(response);
+    const session = await parse<AdminAuthSession>(response);
+    this.cachedSession = session;
+    return session;
   }
 
   async getSession(): Promise<AdminAuthSession> {
-    try {
-      return await parse<AdminAuthSession>(await authRequest("/api/auth/session"));
-    } catch (error) {
-      if (!(error instanceof DOMException && error.name === "TimeoutError")) throw error;
-      return parse<AdminAuthSession>(await authRequest("/api/auth/session"));
-    }
+    if (this.sessionRequest) return this.sessionRequest;
+    this.sessionRequest = (async () => {
+      try {
+        const session = await parse<AdminAuthSession>(await authRequest("/api/auth/session"));
+        this.cachedSession = session;
+        return session;
+      } catch (error) {
+        if (error instanceof AdminAuthRequestError && (error.status === 401 || error.status === 403)) {
+          this.cachedSession = null;
+        }
+        throw error;
+      } finally {
+        this.sessionRequest = null;
+      }
+    })();
+    return this.sessionRequest;
   }
 
   async logout(): Promise<void> {
-    await fetch(adminUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
+    try {
+      await fetch(adminUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
+    } finally {
+      this.cachedSession = null;
+      this.sessionRequest = null;
+    }
   }
 
   async requestPasswordReset(email: string): Promise<{ accepted: true; resetToken?: string }> {

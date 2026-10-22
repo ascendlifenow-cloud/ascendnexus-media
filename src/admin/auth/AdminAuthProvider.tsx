@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { adminAuthApiService, type AdminAuthSession } from "../services/AdminAuthApiService";
+import { AdminAuthRequestError, adminAuthApiService, type AdminAuthSession } from "../services/AdminAuthApiService";
 import { AdminAuthContext } from "./AdminAuthContext";
 
 interface AdminAuthProviderProps {
@@ -7,14 +7,16 @@ interface AdminAuthProviderProps {
 }
 
 export function AdminAuthProvider({ children }: AdminAuthProviderProps) {
-  const [session, setSession] = useState<AdminAuthSession | null>(null);
-  const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">("loading");
+  const initialSession = adminAuthApiService.getCachedSession();
+  const [session, setSession] = useState<AdminAuthSession | null>(initialSession);
+  const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">(initialSession ? "authenticated" : "loading");
   const [error, setError] = useState<string | null>(null);
   const requestVersion = useRef(0);
 
   const refresh = useCallback(async () => {
     const version = ++requestVersion.current;
-    setStatus("loading");
+    const currentSession = adminAuthApiService.getCachedSession();
+    if (!currentSession) setStatus("loading");
     setError(null);
     try {
       const next = await adminAuthApiService.getSession();
@@ -23,6 +25,13 @@ export function AdminAuthProvider({ children }: AdminAuthProviderProps) {
       setStatus("authenticated");
     } catch (err) {
       if (version !== requestVersion.current) return;
+      const isAuthorizationFailure = err instanceof AdminAuthRequestError && (err.status === 401 || err.status === 403);
+      if (currentSession && !isAuthorizationFailure) {
+        setSession(currentSession);
+        setStatus("authenticated");
+        setError("The admin session could not be refreshed. Existing access remains available while the connection recovers.");
+        return;
+      }
       setSession(null);
       setStatus("unauthenticated");
       setError(err instanceof Error ? err.message : "Admin session check failed.");

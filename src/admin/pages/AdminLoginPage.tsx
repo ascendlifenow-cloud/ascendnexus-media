@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useLocation, useSearchParams } from "react-router-dom";
 import { LogIn } from "lucide-react";
 import { BrandLogo } from "../../components/BrandLogo";
 import { Button } from "../../components/ui/Button";
@@ -11,7 +11,6 @@ export function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
   const safeReturnTo = (value: string | null | undefined) => {
@@ -27,7 +26,6 @@ export function AdminLoginPage() {
     setLoginError(null);
     try {
       await login(email, password);
-      navigate(from, { replace: true });
     } catch (err) {
       setLoginError(err instanceof Error ? err.message : "Admin login failed.");
     }
