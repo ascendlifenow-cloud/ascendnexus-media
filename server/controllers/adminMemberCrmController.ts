@@ -79,6 +79,11 @@ export class AdminMemberCrmController {
       sendJson(response, 200, { success: true, data: await memberIdentityService.adminResendVerification(memberId, request, auth.userId) });
     } catch (error) {
       if (error instanceof MediaApiError) throw error;
+      console.error("[member-verification] admin resend failed before provider response", {
+        memberId,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        message: error instanceof Error ? error.message : "Unknown verification delivery error.",
+      });
       throw new MediaApiError("MEMBER_VERIFICATION_SEND_FAILED", "Verification email could not be sent. Check the API email configuration and provider logs.", 500, "email");
     }
   }

@@ -76,7 +76,10 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
     setError("");
     try {
       const result = await adminMemberCrmApiService.resendVerification(activeMemberId);
-      if (!result.accepted) throw new Error(result.errorCode ? `Email delivery failed (${result.errorCode}).` : "Email provider did not accept the verification message.");
+      if (!result.accepted) {
+        const detail = result.errorMessage || "Email provider did not accept the verification message.";
+        throw new Error(result.errorCode ? `${detail} (${result.errorCode})` : detail);
+      }
       setVerificationMessage(result.status === "sent" || result.status === "delivered" ? "Verification email sent." : "Verification email queued.");
       await refreshDetail();
     } catch (err) {

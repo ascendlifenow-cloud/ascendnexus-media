@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getBackendConfig } from "../../config/backendConfig";
 import type { EmailDeliveryRecord } from "../../models/email/EmailDeliveryRecordModel";
 import { emailDeliveryRepository } from "../../repositories/EmailDeliveryRepository";
-import { emailProviderDeliveryService } from "./EmailProviderDeliveryService";
+import { EmailProviderRequestError, emailProviderDeliveryService } from "./EmailProviderDeliveryService";
 
 export interface QueueEmailDeliveryInput {
   deliveryType: NonNullable<EmailDeliveryRecord["deliveryType"]>;
@@ -58,22 +58,33 @@ export class EmailDeliveryService {
     try {
       const result = await emailProviderDeliveryService.send({ recipient: input.recipient, subject, text, html });
       const sentAt = new Date().toISOString();
-      return await emailDeliveryRepository.update(record.emailDeliveryId, {
+      const updated = await emailDeliveryRepository.update(record.emailDeliveryId, {
         status: "sent",
         sentAt,
         providerMessageId: result.providerMessageId,
         lastErrorCode: undefined,
         lastErrorMessageSafe: undefined,
-      }) as EmailDeliveryRecord;
+      }) as EmailDeliveryRecord | null;
+      return updated ?? { ...record, status: "sent", sentAt, providerMessageId: result.providerMessageId, attempts: 1 };
     } catch (error) {
       const failedAt = new Date().toISOString();
-      const code = error instanceof Error ? error.message.split(":")[0] : "EMAIL_DELIVERY_FAILED";
-      return await emailDeliveryRepository.update(record.emailDeliveryId, {
+      const code = error instanceof EmailProviderRequestError
+        ? error.code
+        : error instanceof Error
+          ? error.message.split(":")[0]
+          : "EMAIL_DELIVERY_FAILED";
+      const safeMessage = error instanceof EmailProviderRequestError
+        ? error.safeProviderMessage
+        : error instanceof Error && ["EMAIL_API_KEY_REQUIRED", "EMAIL_FROM_ADDRESS_REQUIRED", "EMAIL_PROVIDER_UNAVAILABLE", "EMAIL_CONTENT_REQUIRED"].includes(error.message)
+          ? error.message
+          : "Email delivery failed. Check provider configuration and delivery logs.";
+      const updated = await emailDeliveryRepository.update(record.emailDeliveryId, {
         status: "failed",
         failedAt,
         lastErrorCode: code,
-        lastErrorMessageSafe: "Email delivery failed. Check provider configuration and delivery logs.",
-      }) as EmailDeliveryRecord;
+        lastErrorMessageSafe: safeMessage,
+      }) as EmailDeliveryRecord | null;
+      return updated ?? { ...record, status: "failed", failedAt, lastErrorCode: code, lastErrorMessageSafe: safeMessage, attempts: 1 };
     }
   }
 
@@ -81,7 +92,7 @@ export class EmailDeliveryService {
     const config = getBackendConfig();
     const records = await emailDeliveryRepository.list({ includeArchived: true });
     return {
-      emailProviderAvailable: config.email.enabled && config.email.provider !== "disabled" && Boolean(config.email.fromAddress),
+      emailProviderAvailable: config.email.enabled && config.email.provider !== "disabled" && Boolean(config.email.fromAddress) && Boolean(config.email.apiKey),
       emailQueueAvailable: true,
       emailWorkerAvailable: false,
       pendingDeliveryCount: records.filter((record) => record.status === "queued" || record.status === "retrying").length,

@@ -12,6 +12,20 @@ export interface EmailProviderResult {
   providerMessageId?: string;
 }
 
+export class EmailProviderRequestError extends Error {
+  readonly code: string;
+
+  constructor(
+    readonly provider: EmailProviderName,
+    readonly status: number,
+    readonly safeProviderMessage: string,
+  ) {
+    super(safeProviderMessage);
+    this.name = "EmailProviderRequestError";
+    this.code = `EMAIL_PROVIDER_REJECTED_${provider.toUpperCase()}_${status}`;
+  }
+}
+
 const responseMessageId = (response: Response, payload?: Record<string, unknown>) =>
   String(payload?.id ?? payload?.MessageID ?? response.headers.get("x-message-id") ?? "").trim() || undefined;
 
@@ -75,7 +89,14 @@ export class EmailProviderDeliveryService {
       signal: AbortSignal.timeout(15_000),
     });
     const payload = await response.json().catch(() => undefined) as Record<string, unknown> | undefined;
-    if (!response.ok) throw new Error(`EMAIL_PROVIDER_REJECTED:${provider}:${response.status}`);
+    if (!response.ok) {
+      const providerMessage = [payload?.message, payload?.error, payload?.name]
+        .find((value) => typeof value === "string" && value.trim()) as string | undefined;
+      const safeMessage = providerMessage
+        ? providerMessage.replace(/re_[A-Za-z0-9_-]+/g, "[redacted]").slice(0, 300)
+        : `${provider} rejected the email request with status ${response.status}.`;
+      throw new EmailProviderRequestError(provider, response.status, safeMessage);
+    }
     return { providerMessageId: responseMessageId(response, payload) };
   }
 

@@ -374,6 +374,7 @@ export class MemberIdentityService {
       provider: delivery.provider,
       sentAt: delivery.sentAt,
       errorCode: delivery.lastErrorCode,
+      errorMessage: delivery.lastErrorMessageSafe,
     };
   }
 
