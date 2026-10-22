@@ -5,6 +5,7 @@ import { AddReleaseToPlaylistButton } from "../../member/components/engagement/A
 import { Button } from "../ui/Button";
 import { LinkButton } from "../ui/LinkButton";
 import { cx } from "../../utils/format";
+import { ActionTooltip } from "../ui/ActionTooltip";
 
 export interface SongPlaybackActionRelease {
   releaseId: string;
@@ -41,8 +42,7 @@ export function SongPlaybackActions({ release, compact = false, className, onPre
     coverArtUrl: release.coverArtThumbnailUrl ?? release.coverArtUrl,
     release: release.release,
   };
-  const size = compact ? "sm" as const : "lg" as const;
-  const controlClass = compact ? "min-w-0 justify-center" : "min-w-0 justify-center sm:flex-1";
+  const controlClass = "group/action relative shrink-0";
 
   const togglePreview = async () => {
     if (!preview) return;
@@ -56,21 +56,23 @@ export function SongPlaybackActions({ release, compact = false, className, onPre
   };
 
   return (
-    <div className={cx("grid grid-cols-2 gap-2 sm:flex sm:flex-wrap", className)} role="group" aria-label={`Actions for ${release.title}`}>
-      <Button type="button" variant="secondary" size={size} className={controlClass} disabled={!preview} onClick={addToQueue} title="Add to streaming queue">
-        <ListMusic className="h-4 w-4 shrink-0" aria-hidden="true" /> <span className="truncate">Queue</span>
+    <div className={cx("flex flex-wrap items-center gap-2", className)} role="group" aria-label={`Actions for ${release.title}`}>
+      <Button type="button" variant="secondary" size="icon" className={controlClass} disabled={!preview} onClick={addToQueue} aria-label="Add to streaming queue">
+        <ListMusic className="h-4 w-4" aria-hidden="true" />
+        <ActionTooltip label="Add to streaming queue" />
       </Button>
       <AddReleaseToPlaylistButton release={release} compact={compact} className={controlClass} />
       {release.slug ? (
-        <LinkButton to={`/songs/${release.slug}`} variant="secondary" size={size} className={controlClass} aria-label={`Open song details for ${release.title}`} onClick={onDetails}>
-          <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" /> <span className="truncate">Details</span>
+        <LinkButton to={`/songs/${release.slug}`} variant="secondary" size="icon" className={controlClass} aria-label={`Open song details for ${release.title}`} onClick={onDetails}>
+          <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          <ActionTooltip label="Song details" />
         </LinkButton>
       ) : (
-        <Button type="button" variant="disabled" size={size} className={controlClass} disabled><ExternalLink className="h-4 w-4" aria-hidden="true" /> Details</Button>
+        <Button type="button" variant="disabled" size="icon" className={controlClass} disabled aria-label="Song details unavailable"><ExternalLink className="h-4 w-4" aria-hidden="true" /><ActionTooltip label="Song details unavailable" /></Button>
       )}
-      <Button type="button" variant="primary" size={size} className={controlClass} disabled={!preview} onClick={() => void togglePreview()} aria-label={previewAvailable ? `${playing ? "Pause" : "Play"} 30 second preview of ${release.title}` : `Preview unavailable for ${release.title}`}>
-        {playing ? <Pause className="h-4 w-4 shrink-0" aria-hidden="true" /> : <Play className="h-4 w-4 shrink-0" aria-hidden="true" />}
-        <span className="truncate">{playing ? "Pause" : "Preview 30s"}</span>
+      <Button type="button" variant="primary" size="icon" className={controlClass} disabled={!preview} onClick={() => void togglePreview()} aria-label={previewAvailable ? `${playing ? "Pause" : "Play"} 30 second preview of ${release.title}` : `Preview unavailable for ${release.title}`}>
+        {playing ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+        <ActionTooltip label={previewAvailable ? (playing ? "Pause preview" : "Preview 30 seconds") : "Preview unavailable"} />
       </Button>
     </div>
   );

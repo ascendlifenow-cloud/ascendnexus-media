@@ -1,5 +1,6 @@
 import { ListMusic, RotateCcw, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { usePublicAudioPlayer } from "../../hooks/public";
 import type { PublicAudioPreviewContract, PublicAudioReleaseSummary } from "../../state/audio/audioPlayerTypes";
 import { formatAudioTime } from "../../utils/audio/audioTimeUtils";
@@ -101,9 +102,10 @@ export function PublicGlobalAudioPlayer() {
   if (!activeRelease || !activePreview) return null;
   const duration = player.duration || activePreview.durationSeconds || 0;
   const isPlaying = player.status === "playing";
-  return (
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <aside
-      className="fixed inset-x-3 bottom-3 z-[60] rounded-md border border-white/12 bg-anm-bg/94 p-3 shadow-2xl backdrop-blur-xl sm:left-auto sm:w-[30rem]"
+      className="fixed bottom-3 left-3 right-3 z-[100] rounded-md border border-white/12 bg-anm-bg/94 p-3 shadow-2xl backdrop-blur-xl sm:left-auto sm:w-[30rem]"
       role="region"
       aria-label="Global audio preview player"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
@@ -138,6 +140,7 @@ export function PublicGlobalAudioPlayer() {
         </div>
       ) : null}
       {player.error ? <p className="mt-2 text-xs text-rose-100" role="status">{player.error.message}</p> : null}
-    </aside>
+    </aside>,
+    document.body,
   );
 }

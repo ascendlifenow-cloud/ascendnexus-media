@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "../../../components/ui/Button";
 import { memberEngagementApiService } from "../../services/MemberEngagementApiService";
+import { ActionTooltip } from "../../../components/ui/ActionTooltip";
 
 interface PlaylistSummary { playlistId: string; name: string; items?: unknown[] }
 export interface PlaylistReleaseReference {
@@ -53,10 +54,10 @@ export function AddReleaseToPlaylistButton({ release, compact = false, className
   };
 
   return (
-    <div className={`relative ${compact ? "" : "sm:flex-1"}`}>
-      <Button type="button" variant="secondary" size={compact ? "sm" : "lg"} className={`w-full ${className ?? ""}`} onClick={() => void toggle()} disabled={loading}>
+    <div className="group/action relative shrink-0">
+      <Button type="button" variant="secondary" size="icon" className={className} onClick={() => void toggle()} disabled={loading} aria-label={loading ? "Loading playlists" : "Add to playlist"}>
         <ListPlus className="h-4 w-4" aria-hidden="true" />
-        {loading ? "Loading" : "Playlist"}
+        <ActionTooltip label={loading ? "Loading playlists" : "Add to playlist"} />
       </Button>
       {open ? (
         <div className="absolute left-0 top-full z-30 mt-2 min-w-64 rounded-md border border-white/15 bg-night p-2 shadow-2xl">
