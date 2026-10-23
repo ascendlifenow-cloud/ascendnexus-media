@@ -68,7 +68,7 @@ export function AdminAuthProvider({ children }: AdminAuthProviderProps) {
   }, []);
 
   const value = useMemo(() => {
-    const permissions = new Set(session?.permissions ?? session?.user.permissions ?? []);
+    const permissions = new Set(session?.permissions ?? session?.user?.permissions ?? []);
     return {
       session,
       status,

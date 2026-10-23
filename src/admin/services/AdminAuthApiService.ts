@@ -58,6 +58,13 @@ const parse = async <T>(response: Response): Promise<T> => {
   return payload.data as T;
 };
 
+const validateAdminSession = (session: AdminAuthSession): AdminAuthSession => {
+  if (!session?.user || !Array.isArray(session.user.roles) || !Array.isArray(session.permissions)) {
+    throw new AdminAuthRequestError("The server returned an invalid admin session.", 401);
+  }
+  return session;
+};
+
 export class AdminAuthApiService {
   private cachedSession: AdminAuthSession | null = null;
   private sessionRequest: Promise<AdminAuthSession> | null = null;
@@ -77,7 +84,7 @@ export class AdminAuthApiService {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    const session = await parse<AdminAuthSession>(response);
+    const session = validateAdminSession(await parse<AdminAuthSession>(response));
     this.cachedSession = session;
     return session;
   }
@@ -86,7 +93,7 @@ export class AdminAuthApiService {
     if (this.sessionRequest) return this.sessionRequest;
     this.sessionRequest = (async () => {
       try {
-        const session = await parse<AdminAuthSession>(await authRequest("/api/auth/session"));
+        const session = validateAdminSession(await parse<AdminAuthSession>(await authRequest("/api/admin/auth/session")));
         this.cachedSession = session;
         return session;
       } catch (error) {
@@ -103,7 +110,7 @@ export class AdminAuthApiService {
 
   async logout(): Promise<void> {
     try {
-      await fetch(adminUrl("/api/auth/logout"), { method: "POST", credentials: "include" });
+      await fetch(adminUrl("/api/admin/auth/logout"), { method: "POST", credentials: "include" });
     } finally {
       this.cachedSession = null;
       this.sessionRequest = null;
