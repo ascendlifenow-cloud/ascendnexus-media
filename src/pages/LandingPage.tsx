@@ -10,9 +10,11 @@ import { LinkButton } from "../components/ui/LinkButton";
 import { usePublicLanding } from "../hooks/public";
 import type { PublicLandingArtistCard, PublicLandingGalleryCard } from "../models/publicExperience";
 import { cx } from "../utils/format";
+import { useImageRecovery } from "../hooks/media/useImageRecovery";
 
 export function LandingPage() {
   const { data, isLoading, isError, isFetching, refetch } = usePublicLanding();
+  const heroImage = useImageRecovery(data?.hero.imageUrl);
 
   return (
     <>
@@ -37,8 +39,8 @@ export function LandingPage() {
       {data ? (
         <main className="bg-night text-white">
           <section className="relative overflow-hidden border-b border-white/10 pt-28">
-            {data.hero.imageUrl ? (
-              <img src={data.hero.imageUrl} alt="" loading="eager" decoding="async" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-28" />
+            {heroImage.source && !heroImage.exhausted ? (
+              <img key={heroImage.imageKey} src={heroImage.source} onError={heroImage.recover} alt="" loading="eager" decoding="async" fetchPriority="high" className="absolute inset-0 h-full w-full object-cover opacity-28" />
             ) : null}
             <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(5,8,18,0.96),rgba(5,8,18,0.72),rgba(5,8,18,0.88))]" />
             <div className="relative mx-auto flex min-h-[34rem] max-w-7xl items-center px-4 py-16 sm:px-6 lg:px-8">

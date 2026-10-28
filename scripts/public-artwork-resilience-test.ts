@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
 import { loadArtworkSources, publicJsonRequest } from "../src/services/public/publicJsonRequest";
+import { retryPublicImage } from "../src/hooks/media/useImageRecovery";
+
+assert.equal(retryPublicImage("https://media.example/public/cover.png"), "https://media.example/public/cover.png?anmImageRetry=1");
+for (const source of ["https://media.example/private/cover.png", "https://media.example/public/cover.png?signature=secret", "/api/member/media/stream/reference", "/assets/fallback.png"]) {
+  assert.equal(retryPublicImage(source), source);
+}
 
 const unavailable = async (): Promise<string[]> => { throw new Error("Unavailable"); };
 const partial = await loadArtworkSources(async () => ["artist"], async () => ["cover"], unavailable);
