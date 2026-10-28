@@ -62,6 +62,19 @@ const getOriginalFileName = (asset: MediaAssetRecord): string => {
 const slugish = (value: string): string => normalizeSearch(value).replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
 export const getMediaAssignmentSuggestion = (asset: MediaAssetRecord): MediaAssignmentSuggestion => {
+  const reconciliation = asset.metadata?.libraryReconciliation;
+  if (reconciliation && typeof reconciliation === "object" && !Array.isArray(reconciliation)) {
+    const record = reconciliation as Record<string, unknown>;
+    const target = record.target as Record<string, unknown> | undefined;
+    const validField = target && ["coverArtUrl", "audioPreviewUrl", "fullSongUrl", "profileImage", "characterArtUrl", "profileBannerUrl"].includes(String(target.fieldKey));
+    if (typeof record.reason === "string") return {
+      suggestedEntityType: validField && ["artist", "release"].includes(String(target.entityType)) ? target.entityType as MediaAssetLinkEntityType : undefined,
+      suggestedEntityId: validField && typeof target.entityId === "string" ? target.entityId : undefined,
+      suggestedFieldKey: validField ? target.fieldKey as MediaAssetLinkFieldKey : undefined,
+      confidence: typeof record.score === "number" ? record.score : 0,
+      reason: record.reason,
+    };
+  }
   const source = slugish(`${getOriginalFileName(asset)} ${asset.title} ${asset.assetType}`);
   if (asset.assetType === "cover_art" || source.includes("cover")) {
     return {
