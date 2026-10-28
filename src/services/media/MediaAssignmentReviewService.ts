@@ -10,7 +10,7 @@ import type { ApiResult } from "../api/httpClient";
 import { createApiError, createApiSuccess } from "../api/httpClient";
 import { adminMediaService, recordMediaAuditEvent } from "../admin";
 import type { AdminMediaIntakeRecord } from "../admin/AdminMediaService";
-import { dispatchMediaAssignmentChanged } from "./MediaAssignmentEvents";
+import { dispatchMediaAssignmentChanged, dispatchMediaReviewCountChanged } from "./MediaAssignmentEvents";
 import { mediaAssetLinkingService } from "./MediaAssetLinkingService";
 import {
   buildReviewItemFromMediaAsset,
@@ -124,6 +124,7 @@ export class MediaAssignmentReviewService {
         this.reviewItems.delete(reviewItemId);
       }
     }
+    dispatchMediaReviewCountChanged(this.reviewItems.values());
     this.recordReviewAudit("media_review_queue_refreshed", "media-review-queue", "Media assignment review queue refreshed", { totalItems: this.reviewItems.size });
     return createApiSuccess([...this.reviewItems.values()]);
   }
@@ -184,6 +185,7 @@ export class MediaAssignmentReviewService {
     if (!deleteResult.ok) return createApiError(deleteResult.error.code, deleteResult.error.message, deleteResult.error.status);
     this.removedAssetIds.add(item.assetId);
     this.reviewItems.delete(reviewItemId);
+    dispatchMediaReviewCountChanged(this.reviewItems.values());
     this.recordReviewAudit("media_review_item_hard_deleted", item.assetId, `Hard deleted uploaded asset "${item.asset.title}" from media review`);
     return createApiSuccess({ reviewItemId, assetId: item.assetId });
   }
@@ -193,6 +195,14 @@ export class MediaAssignmentReviewService {
     for (const [reviewItemId, item] of this.reviewItems) {
       if (item.assetId === assetId) this.reviewItems.delete(reviewItemId);
     }
+    dispatchMediaReviewCountChanged(this.reviewItems.values());
+  }
+
+  resolveAssignedAsset(assetId: string): void {
+    for (const [id, item] of this.reviewItems) {
+      if (item.assetId === assetId) this.reviewItems.set(id, { ...item, status: "resolved", assignmentState: "assigned" });
+    }
+    dispatchMediaReviewCountChanged(this.reviewItems.values());
   }
 
   async bulkDeleteReviewItems(reviewItemIds: string[]): Promise<ApiResult<Array<{ reviewItemId: string; assetId: string }>>> {
@@ -292,6 +302,7 @@ export class MediaAssignmentReviewService {
     if (!current) return createApiError("not_found", "Review item was not found.", 404);
     const updated: MediaAssignmentReviewItem = { ...current, ...patch, updatedAt: nowIso() };
     this.reviewItems.set(reviewItemId, updated);
+    dispatchMediaReviewCountChanged(this.reviewItems.values());
     return createApiSuccess(updated);
   }
 
