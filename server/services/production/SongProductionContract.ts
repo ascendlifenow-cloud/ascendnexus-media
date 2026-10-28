@@ -30,6 +30,7 @@ export interface SongProductionPackage {
 export const countProductionCharacters = (text: string) => Array.from(text).length;
 
 const canonical = (value: unknown): string => {
+  if (value instanceof Date) return JSON.stringify(value.toISOString());
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value !== null && typeof value === "object") {
     return `{${Object.entries(value).filter(([, item]) => item !== undefined).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`).join(",")}}`;
@@ -37,7 +38,8 @@ const canonical = (value: unknown): string => {
   return JSON.stringify(value);
 };
 
-export const productionBundleHash = (bundle: SongProductionPackage) => createHash("sha256").update(canonical(bundle), "utf8").digest("hex");
+export const productionValueHash = (value: unknown) => createHash("sha256").update(canonical(value), "utf8").digest("hex");
+export const productionBundleHash = (bundle: SongProductionPackage) => productionValueHash(bundle);
 
 export function validateSongProductionPackage(bundle: SongProductionPackage) {
   const errors: string[] = [];

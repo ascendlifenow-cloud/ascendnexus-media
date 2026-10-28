@@ -9,7 +9,8 @@ Object.assign(process.env, { NODE_ENV: "test", APP_ENV: "test", MONGODB_URI: "",
 const { jsonDatabase } = await import("../server/services/media/JsonDatabase");
 const { applyProductionFinalAudio } = await import("../server/services/production/ProductionFinalAudioService");
 const { buildProductionReviewSnapshot, assertProductionReleaseAllowed, assertProductionAssetAllowed } = await import("../server/services/production/ProductionReleaseGate");
-const { validateSongProductionPackage } = await import("../server/services/production/SongProductionContract");
+const { validateSongProductionPackage, productionValueHash } = await import("../server/services/production/SongProductionContract");
+assert.notEqual(productionValueHash(new Date("2026-10-27T00:00:00Z")), productionValueHash(new Date("2026-10-28T00:00:00Z")));
 const { authenticationService } = await import("../server/services/auth/AuthenticationService");
 const { handleAdminReleaseRoute } = await import("../server/routes/adminReleaseRoutes");
 const { sendSafeError } = await import("../server/middleware/mediaErrorMiddleware");
@@ -21,6 +22,7 @@ const server = createServer(async (request, response) => {
   } catch (error) { sendSafeError(response, error); }
 });
 const authenticate = authenticationService.authenticateRequest;
+const originalOwner = process.env.ANMX_PRODUCTION_OWNER_USER_ID;
 try {
   const fixture = structuredClone(await jsonDatabase.read());
   const now = "2026-10-27T12:00:00.000Z";
@@ -32,7 +34,7 @@ try {
     fixture.mediaStorageObjects.push({ storageObjectId: `storage-${id}`, assetId: id, provider: "local", storagePath: `private/${id}`, fileName: id, originalFileName: id, mimeType, fileExtension: "wav", fileSizeBytes: 100, mediaCategory: assetType === "full_song" ? "audio" : "image", assetType, accessLevel: "admin_only", status: "ready", checksum: checksum.repeat(64), uploadedAt: now });
   }
   fixture.mediaAssetLinks.push({ linkId: "art-link", assetId: "art", entityType: "release", entityId: "release", fieldKey: "coverArt", status: "active", createdAt: now });
-  const hash = (data: typeof fixture) => buildProductionReviewSnapshot(data.releaseRecords[0], data, null).bundleHash;
+  const hash = (data: typeof fixture) => buildProductionReviewSnapshot(data.releaseRecords[0], data, data.artistRecords.find((artist) => artist.artistId === data.releaseRecords[0].artistId)).bundleHash;
   const input = { assetId: "audio", expectedBundleHash: hash(fixture), requestId: "request-001" };
   const selected = structuredClone(fixture);
   assert.deepEqual(applyProductionFinalAudio(selected, "release", input, "admin", now), { revision: 2, reused: false });
@@ -158,20 +160,76 @@ try {
   const { backendStorageProviderRegistry } = await import("../server/storage/StorageProviderRegistry");
   const originalProvider = backendStorageProviderRegistry.getActiveProvider;
   const originalFetch = globalThis.fetch;
+  await jsonDatabase.insertCollectionRecord("artistRecords", { artistId: "fixture-artist", name: "Synthetic artist", status: "draft", metadata: { profileVersion: "fixture-only" } } as never);
+  await jsonDatabase.insertCollectionRecord("adminAuditEvents", { auditEventId: "fixture-art-enrollment", entityType: "media_asset", entityId: "art", action: "production_asset_enrolled", summary: "Synthetic fixture only", createdAt: now });
   await jsonDatabase.patchCollectionRecord("mediaStorageObjects", { storageObjectId: object.storageObjectId }, { provider: "r2" });
   const remote = await authorizeProductionAudition("release", { expectedBundleHash: hash(await jsonDatabase.read()) }, actor);
   try {
     backendStorageProviderRegistry.getActiveProvider = () => ({ getProviderName: () => "r2", getSignedUrl: async () => "https://storage.example.invalid/private?signature=SYNTHETIC_ONLY" }) as never;
     globalThis.fetch = async () => new Response(wav, { status: 200 });
     assert.ok((await readProductionAudition("release", remote.reference, actor)).bytes.equals(wav));
+    await acknowledgeProductionAudio("release", { expectedBundleHash: hash(await jsonDatabase.read()), reference: remote.reference, confirmed: true }, actor);
     globalThis.fetch = async () => { throw new Error("SYNTHETIC_ONLY signed origin failure"); };
     await assert.rejects(() => readProductionAudition("release", remote.reference, actor), (error: Error) => !error.message.includes("SYNTHETIC_ONLY") && /unavailable/.test(error.message));
   } finally { globalThis.fetch = originalFetch; backendStorageProviderRegistry.getActiveProvider = originalProvider; }
+  const { approveProductionRelease, productionApprovalSummary } = await import("../server/services/production/ProductionReleaseGate");
+  delete process.env.ANMX_PRODUCTION_OWNER_USER_ID;
+  assert.equal((await productionApprovalSummary("release", "admin")).canApprove, false);
+  await assert.rejects(async () => approveProductionRelease("release", "admin", hash(await jsonDatabase.read()), true), /configured production owner/);
+  process.env.ANMX_PRODUCTION_OWNER_USER_ID = "admin";
+  const ready = await productionApprovalSummary("release", "admin");
+  assert.deepEqual(ready.blockers, []);
+  assert.equal(ready.canApprove, true);
+  await assert.rejects(() => approveProductionRelease("release", "other-admin", ready.bundleHash, true), /configured production owner/);
+  await assert.rejects(() => approveProductionRelease("release", "admin", ready.bundleHash, false), /Explicit confirmation/);
+  await assert.rejects(() => approveProductionRelease("release", "admin", "0".repeat(64), true), /release changed/i);
+  assert.deepEqual(await approveProductionRelease("release", "admin", ready.bundleHash, true), { approved: true, reused: false });
+  assert.deepEqual(await approveProductionRelease("release", "admin", ready.bundleHash, true), { approved: true, reused: true });
+  assert.equal((await productionApprovalSummary("release", "admin")).approved, true);
+  await assert.rejects(() => assertProductionReleaseAllowed("release"), /execution is locked/);
+  authenticationService.authenticateRequest = async () => ({ user: { userId: "admin" }, sessionId: actor.sessionId, permissions: ["releases.read", "media.read", "releases.publish"] }) as never;
+  const summaryResponse = await fetch(`${base}/production-approval-summary`);
+  assert.equal(summaryResponse.status, 200);
+  assert.equal(summaryResponse.headers.get("cache-control"), "private, no-store");
+  const summaryText = await summaryResponse.text();
+  assert.ok(!/storagePath|private\/|signedUrl|sessionHash/.test(summaryText));
+  const confirmedApproval = await fetch(`${base}/production-approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bundleHash: ready.bundleHash, confirmed: true }) });
+  assert.equal(confirmedApproval.status, 200);
+  assert.equal((await confirmedApproval.json() as { data: { reused: boolean } }).data.reused, true);
+  authenticationService.authenticateRequest = async () => ({ user: { userId: "admin" }, sessionId: actor.sessionId, permissions: ["releases.read", "media.read"] }) as never;
+  assert.equal((await fetch(`${base}/production-approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bundleHash: ready.bundleHash, confirmed: true }) })).status, 403);
+  authenticationService.authenticateRequest = async () => ({ user: { userId: "other-admin" }, sessionId: "other-session", permissions: ["releases.read", "media.read", "releases.publish"] }) as never;
+  assert.equal((await fetch(`${base}/production-approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bundleHash: ready.bundleHash, confirmed: true }) })).status, 403);
+  const orderOnly = structuredClone(await jsonDatabase.read());
+  orderOnly.mediaAssets.reverse(); orderOnly.mediaStorageObjects.reverse();
+  assert.equal(hash(orderOnly), ready.bundleHash, "Database enumeration order must not invalidate a bundle");
+  const archived = structuredClone(orderOnly);
+  archived.mediaStorageObjects.find((item) => item.assetId === upload.mediaAsset!.assetId)!.status = "archived";
+  assert.notEqual(hash(archived), ready.bundleHash, "Storage status changes must invalidate approval even without a timestamp update");
+  const extra = structuredClone(orderOnly);
+  extra.mediaAssetLinks.push({ linkId: "unmanifested", assetId: "unmanifested-asset", entityType: "release", entityId: "release", fieldKey: "coverArt", status: "active", createdAt: now });
+  const extraReview = buildProductionReviewSnapshot(extra.releaseRecords[0], extra, extra.artistRecords[0]);
+  assert.ok(extraReview.approval.blockers.some((issue) => issue.includes("Every active media association")));
+  assert.equal(extraReview.approval.status, "pending");
+  for (const status of ["quarantined", "failed", "ignored", "superseded"] as const) {
+    const quarantined = structuredClone(orderOnly);
+    quarantined.mediaIntakeRecords.push({ intakeId: "fixture-intake", mediaAssetId: upload.mediaAsset!.assetId, status } as never);
+    const blockedReview = buildProductionReviewSnapshot(quarantined.releaseRecords[0], quarantined, quarantined.artistRecords[0]);
+    assert.notEqual(blockedReview.bundleHash, ready.bundleHash);
+    assert.equal(blockedReview.approval.status, "pending");
+    assert.ok(blockedReview.approval.blockers.some((issue) => issue.includes("quarantined or unavailable")));
+  }
+  await jsonDatabase.patchCollectionRecord("releaseRecords", { releaseId: "release" }, { description: "Material metadata change" });
+  assert.equal((await productionApprovalSummary("release", "admin")).approved, false);
+  await assert.rejects(() => approveProductionRelease("release", "admin", ready.bundleHash, true), /release changed/i);
   authenticationService.authenticateRequest = authenticate;
   assert.equal((await fetch(`${base}/production-audition?reference=${authorization.reference}`)).status, 401);
-  console.log("Private production audio tests passed: upload, selection, revisions, safe retries, RBAC, checksum-verified audition bytes, session binding, read limits, expiry, explicit revision acknowledgement and publication lock. Synthetic fixtures only; no real song was auditioned or approved.");
+  assert.equal((await fetch(`${base}/production-approval-summary`)).status, 401);
+  console.log("Private production review tests passed: upload, audition, session binding, owner-only explicit approval, safe retries, storage/metadata invalidation, safe summary and continuing execution lock. Synthetic fixtures only; no real song was auditioned or approved.");
 } finally {
   authenticationService.authenticateRequest = authenticate;
+  if (originalOwner === undefined) delete process.env.ANMX_PRODUCTION_OWNER_USER_ID;
+  else process.env.ANMX_PRODUCTION_OWNER_USER_ID = originalOwner;
   if (server.listening) await new Promise<void>((resolve) => server.close(() => resolve()));
   await rm(root, { recursive: true, force: true });
 }

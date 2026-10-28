@@ -1,27 +1,13 @@
 import { createHash } from "node:crypto";
 import { jsonDatabase, type MediaDatabaseShape } from "../media/JsonDatabase";
-import type { MediaAsset, MediaStorageObject } from "../../models/mediaModels";
 import { MediaApiError } from "../../utils/media/mediaErrorUtils";
 import { buildProductionReviewSnapshot } from "./ProductionReleaseGate";
 import { validateSongProductionPackage, type SongProductionPackage } from "./SongProductionContract";
-import { mediaBackendConfig } from "../../config/mediaBackendConfig";
+import { privateProductionAudio } from "./ProductionMediaValidation";
+export { privateProductionAudio } from "./ProductionMediaValidation";
 
 const invalid = () => new MediaApiError("PRODUCTION_AUDIO_INVALID", "Select an available private full-song audio candidate.", 409, "validation");
 const conflict = () => new MediaApiError("PRODUCTION_REVISION_CHANGED", "The release changed. Refresh the review before selecting audio.", 409, "validation");
-const audioTypes = new Set(["audio/wav", "audio/x-wav", "audio/wave", "audio/mpeg", "audio/mp3", "audio/flac", "audio/x-flac", "audio/aac", "audio/mp4", "audio/ogg"]);
-
-export function privateProductionAudio(asset: MediaAsset, objects: MediaStorageObject[], links: MediaDatabaseShape["mediaAssetLinks"], releaseId: string) {
-  const storage = objects.filter((item) => item.assetId === asset.assetId && !["deleted", "archived"].includes(item.status));
-  if (asset.assetType !== "full_song" || asset.status !== "draft" || asset.metadata?.deletedAt || asset.thumbnailUrl || asset.largeUrl) return null;
-  if (storage.length !== 1) return null;
-  const object = storage[0];
-  // Existing uploads use the private object key as their internal asset locator.
-  if (asset.url && asset.url !== object.storagePath) return null;
-  const privatePrefix = `${mediaBackendConfig.privatePrefix.replace(/^\/+|\/+$/g, "")}/`;
-  if (!["ready", "uploaded"].includes(object.status) || !["private", "admin_only", "signed"].includes(object.accessLevel) || object.publicUrl || object.signedUrl || !object.storagePath.startsWith(privatePrefix) || /(?:^|\/)\.\.(?:\/|$)|\\/.test(object.storagePath) || !audioTypes.has(object.mimeType) || !/^[a-f0-9]{64}$/.test(object.checksum ?? "") || !Number.isSafeInteger(object.fileSizeBytes) || object.fileSizeBytes <= 0) return null;
-  if (links.some((link) => link.assetId === asset.assetId && link.status === "active" && !(link.entityType === "release" && link.entityId === releaseId && ["fullSongAssetId", "fullSongUrl"].includes(link.fieldKey)))) return null;
-  return object;
-}
 
 function requireDraft(data: MediaDatabaseShape, releaseId: string) {
   const release = data.releaseRecords.find((item) => item.releaseId === releaseId);

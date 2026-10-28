@@ -4,6 +4,8 @@ Updated 2026-10-27. These are coordinated specialist assignments, not continuous
 
 ## ANMX-AGENT-003
 
+Owner-review follow-on: Lorentz implemented the exact-bundle summary/confirmation panel, coordinator integrated owner-only idempotent approval and fingerprint v2 with stricter readiness checks. Synthetic tests exercise positive review approval while proving public execution remains locked. No real/staging owner approval is granted. See `docs/ANMX-exact-bundle-owner-approval.md`.
+
 Audition follow-on: Singer delivered the memory-only private audition UI; coordinator implemented session/revision-bound byte verification and explicit audio-review audit evidence. Synthetic WAV tests cover the bounded reviewer flow, not real song audition. Managed publication remains locked. See `docs/ANMX-private-audition-review.md` for operational limits and current verification scope.
 
 Private-audio follow-on: Ramanujan delivered the candidate-picker interface, coordinator implemented revision-bound private association/manifest updates and tests, and Sartre independently reviewed the boundary. Real upload plumbing was tested with a tiny synthetic WAV in a temporary local database. This is not a real song recording or audition. The owner must still supply the final recording; audition and exact-bundle approval/execution remain separate work. See `docs/ANMX-private-final-audio-ingestion.md`.

@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { adminReleaseController } from "../controllers/adminReleaseController";
 import { mediaAuthorizationService } from "../services/media/MediaAuthorizationService";
-import { productionReviewSnapshot, approveProductionRelease } from "../services/production/ProductionReleaseGate";
+import { productionReviewSnapshot, approveProductionRelease, productionApprovalSummary } from "../services/production/ProductionReleaseGate";
 import { sendJson } from "../middleware/mediaErrorMiddleware";
 import { parseJsonBody } from "../middleware/adminMediaUploadMiddleware";
 import { authenticationService } from "../services/auth/AuthenticationService";
@@ -73,13 +73,19 @@ export const handleAdminReleaseRoute = async (request: IncomingMessage, response
     sendJson(response, 200, { success: true, data: await productionReviewSnapshot(releaseId) }, { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
     return true;
   }
-  if (action === "production-approve" && method === "POST") {
-    await authenticationService.authenticateRequest(request);
-    const auth = await mediaAuthorizationService.authenticate(request);
-    mediaAuthorizationService.requirePermission(auth, "releases.publish");
-    const body = await parseJsonBody(request) as Record<string, unknown>;
-    const approval = await approveProductionRelease(releaseId, auth.userId ?? auth.adminId, body.bundleHash);
-    sendJson(response, 200, { success: true, data: approval });
+  if ((action === "production-approve" && method === "POST") || (action === "production-approval-summary" && method === "GET")) {
+    const auth = await authenticationService.authenticateRequest(request);
+    const permissions = { ...auth, adminId: auth.user.userId };
+    mediaAuthorizationService.requirePermission(permissions, "releases.read");
+    mediaAuthorizationService.requirePermission(permissions, "media.read");
+    let data;
+    if (method === "POST") {
+      mediaAuthorizationService.requirePermission(permissions, "releases.publish");
+      const body = await parseJsonBody(request) as Record<string, unknown>;
+      if (!body || typeof body !== "object" || Array.isArray(body) || Object.keys(body).some((key) => !["bundleHash", "confirmed"].includes(key))) throw new Error("Invalid approval request.");
+      data = await approveProductionRelease(releaseId, auth.user.userId, body.bundleHash, body.confirmed === true);
+    } else data = await productionApprovalSummary(releaseId, auth.user.userId);
+    sendJson(response, 200, { success: true, data }, { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
     return true;
   }
   if (!action && method === "GET") return adminReleaseController.get(request, response, releaseId).then(() => true);
