@@ -13,7 +13,7 @@ import type {
   MediaAssetLinkIntendedUse,
 } from "../../models/media";
 import { validateMediaAssetRecord } from "../../utils/admin/adminValidation";
-import { isSafePublicMediaUrl } from "../../utils/media/publicSafeUrlUtils";
+import { getPublicSafeMediaUrl, isSafePublicMediaUrl } from "../../utils/media/publicSafeUrlUtils";
 import type { ApiResult } from "../api/httpClient";
 import { createApiError, createApiSuccess } from "../api/httpClient";
 import { recordMediaAuditEvent } from "./AdminAuditService";
@@ -342,6 +342,8 @@ export class ApiBackedAdminMediaService implements AdminMediaService {
 
   async getMediaAssetPreviewUrl(asset: MediaAssetRecord): Promise<ApiResult<string>> {
     const storageObjectId = getAssetStorageObjectId(asset);
+    const publicPreviewUrl = getPublicSafeMediaUrl(asset);
+    if (publicPreviewUrl) return createApiSuccess(publicPreviewUrl);
     if (!storageObjectId && isBrowserPreviewUrl(asset.url) && !isPrivateStorageReference(asset.url)) return createApiSuccess(asset.url);
     const fallbackContentUrl = storageObjectId
       ? adminApiUrl(`/api/admin/media/storage/objects/${encodeURIComponent(storageObjectId)}/content`)

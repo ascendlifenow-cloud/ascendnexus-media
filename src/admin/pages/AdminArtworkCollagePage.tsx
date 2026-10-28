@@ -8,6 +8,7 @@ import { useAdminMediaAssets } from "../../hooks/admin/useAdminContent";
 import type { MediaAssetRecord, MediaAssetType } from "../../models/admin";
 import { adminMediaService } from "../../services/admin";
 import { formatMediaAssetType, getMediaAssetPreviewType } from "../utils/adminMediaUtils";
+import { useImageRecovery } from "../../hooks/media/useImageRecovery";
 
 const adminArtworkCollageMetadata = {
   title: "Artwork Collage | Ascend Nexus Media Admin",
@@ -54,6 +55,7 @@ function ArtworkCollageTile({ asset, priority = false, layoutSeed }: { asset: Me
   const [failed, setFailed] = useState(false);
   const tileRef = useRef<HTMLDivElement | null>(null);
   const [nearViewport, setNearViewport] = useState(priority);
+  const recovery = useImageRecovery(previewUrl);
 
   useEffect(() => {
     if (nearViewport || !tileRef.current) return;
@@ -90,20 +92,21 @@ function ArtworkCollageTile({ asset, priority = false, layoutSeed }: { asset: Me
   return (
     <article className={`group break-inside-avoid overflow-hidden rounded-md border border-white/10 bg-[#130f18]/92 shadow-[0_18px_55px_rgba(0,0,0,0.28)] transition duration-200 hover:-translate-y-1 hover:border-anm-cyan/45 hover:shadow-[0_24px_80px_rgba(39,245,255,0.12)] motion-reduce:transform-none ${marginClass} ${liftClass}`}>
       <div ref={tileRef} className={`relative min-h-52 bg-gradient-to-br ${getTileTone(asset.assetType)}`}>
-        {previewUrl && !failed ? (
+        {recovery.source && !failed && !recovery.exhausted ? (
           <img
-            src={previewUrl}
+            key={recovery.imageKey}
+            src={recovery.source}
             alt={asset.altText || asset.title || assetLabel}
             loading={priority ? "eager" : "lazy"}
             decoding="async"
             className="h-auto w-full object-cover"
-            onError={() => setFailed(true)}
+            onError={recovery.recover}
           />
         ) : (
           <div className="flex min-h-64 flex-col items-center justify-center gap-3 p-5 text-center">
             <ImageOff className="h-8 w-8 text-white/38" aria-hidden />
             <p className="max-w-56 text-sm font-semibold text-white/72">{asset.title || "Artwork preview unavailable"}</p>
-            <p className="text-xs text-white/42">{failed ? "Preview could not be resolved." : "Loading artwork preview."}</p>
+            <p className="text-xs text-white/42">{failed || recovery.exhausted ? "Preview could not be resolved." : "Loading artwork preview."}</p>
           </div>
         )}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/72 via-black/28 to-transparent p-3 opacity-0 transition group-hover:opacity-100">
