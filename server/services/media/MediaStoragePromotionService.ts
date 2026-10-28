@@ -7,6 +7,8 @@ import { mediaAssetPersistenceService } from "./MediaAssetPersistenceService";
 import { mediaStoragePersistenceService } from "./MediaStoragePersistenceService";
 import { mediaStoragePathService } from "./MediaStoragePathService";
 import { mediaCdnService } from "./MediaCdnService";
+import { jsonDatabase } from "./JsonDatabase";
+import { assertProductionReleaseAllowed } from "../production/ProductionReleaseGate";
 
 export interface StoragePromotionOptions {
   actorId?: string;
@@ -18,6 +20,8 @@ export class MediaStoragePromotionService {
   async promoteStorageObjectToPublic(storageObjectId: string, options: StoragePromotionOptions = {}) {
     const storageObject = await mediaStoragePersistenceService.get(storageObjectId);
     if (!storageObject) throw new MediaApiError("MEDIA_UPLOAD_NOT_FOUND", "Storage object was not found.", 404, "database");
+    const links = (await jsonDatabase.listCollection("mediaAssetLinks")).filter((link) => link.assetId === storageObject.assetId && link.status === "active");
+    for (const link of links) await assertProductionReleaseAllowed(link.entityId);
     if (storageObject.assetType === "full_song" && !options.forceFullSongPublic) {
       throw new MediaApiError("MEDIA_PERMISSION_DENIED", "Full song assets cannot be promoted to public storage by default.", 403, "storage");
     }

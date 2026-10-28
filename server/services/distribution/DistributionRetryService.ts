@@ -1,6 +1,7 @@
 import { distributionJobRepository, platformUploadRepository } from "../../repositories/operations/OperationsRepository";
 import { platformConnectorRegistry } from "./PlatformConnectorRegistry";
 import { nowIso } from "./distributionShared";
+import { assertProductionReleaseAllowed } from "../production/ProductionReleaseGate";
 
 const nonRetryable = ["permission denied", "invalid metadata", "missing media", "deleted release", "revoked credentials"];
 
@@ -14,6 +15,9 @@ export class DistributionRetryService {
     const uploads = (await platformUploadRepository.list({ includeArchived: true })).filter((upload) => ["failed", "retrying"].includes(upload.status) && upload.retryable);
     const retried = [];
     for (const upload of uploads) {
+      const job = await distributionJobRepository.get(upload.distributionJobId);
+      if (!job) continue;
+      await assertProductionReleaseAllowed(job.entityId);
       const connector = platformConnectorRegistry.getConnector(upload.platform);
       const result = await connector.retry({ platformId: upload.platformId, uploadId: upload.uploadId });
       const next = await platformUploadRepository.update(upload.uploadId, {

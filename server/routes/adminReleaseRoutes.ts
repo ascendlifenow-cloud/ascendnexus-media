@@ -1,5 +1,10 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { adminReleaseController } from "../controllers/adminReleaseController";
+import { mediaAuthorizationService } from "../services/media/MediaAuthorizationService";
+import { productionReviewSnapshot, approveProductionRelease } from "../services/production/ProductionReleaseGate";
+import { sendJson } from "../middleware/mediaErrorMiddleware";
+import { parseJsonBody } from "../middleware/adminMediaUploadMiddleware";
+import { authenticationService } from "../services/auth/AuthenticationService";
 
 export const handleAdminReleaseRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
   const method = request.method ?? "GET";
@@ -10,6 +15,23 @@ export const handleAdminReleaseRoute = async (request: IncomingMessage, response
   if (!match) return false;
   const releaseId = decodeURIComponent(match[1]);
   const action = match[2];
+  if (action === "production-preview" && method === "GET") {
+    const auth = await mediaAuthorizationService.authenticate(request);
+    mediaAuthorizationService.requirePermission(auth, "releases.read");
+    response.setHeader("Cache-Control", "private, no-store");
+    response.setHeader("X-Robots-Tag", "noindex, nofollow");
+    sendJson(response, 200, { success: true, data: await productionReviewSnapshot(releaseId) }, { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
+    return true;
+  }
+  if (action === "production-approve" && method === "POST") {
+    await authenticationService.authenticateRequest(request);
+    const auth = await mediaAuthorizationService.authenticate(request);
+    mediaAuthorizationService.requirePermission(auth, "releases.publish");
+    const body = await parseJsonBody(request) as Record<string, unknown>;
+    const approval = await approveProductionRelease(releaseId, auth.userId ?? auth.adminId, body.bundleHash);
+    sendJson(response, 200, { success: true, data: approval });
+    return true;
+  }
   if (!action && method === "GET") return adminReleaseController.get(request, response, releaseId).then(() => true);
   if (!action && method === "PATCH") return adminReleaseController.update(request, response, releaseId).then(() => true);
   if (!action && method === "DELETE") return adminReleaseController.delete(request, response, releaseId).then(() => true);

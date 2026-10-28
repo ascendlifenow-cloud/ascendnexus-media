@@ -27,3 +27,6 @@ screenlog.*
 credentials.json
 .tmp/
 server/uploads/tmp/**
+
+# Unapproved creative packages must not enter the public source repository.
+production/**

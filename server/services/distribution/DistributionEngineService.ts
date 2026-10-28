@@ -12,6 +12,7 @@ import { platformAnalyticsCollector } from "./PlatformAnalyticsCollector";
 import { distributionRetryService } from "./DistributionRetryService";
 import { distributionAuditService } from "./DistributionAuditService";
 import { asDestinations, asRecord, asString, buildDistributionPipeline, id, nowIso } from "./distributionShared";
+import { assertProductionReleaseAllowed } from "../production/ProductionReleaseGate";
 
 export class DistributionEngineService {
   async createJob(payload: unknown, actorId: string): Promise<DistributionJobRecord> {
@@ -51,6 +52,7 @@ export class DistributionEngineService {
   async runJob(distributionJobId: string, actorId = "system") {
     const job = await distributionJobRepository.get(distributionJobId);
     if (!job) throw new Error("Distribution job not found.");
+    await assertProductionReleaseAllowed(job.entityId);
     await distributionJobRepository.update(distributionJobId, { status: "running", queueName: "media_transformation" });
     const blockers: string[] = [];
     const warnings: string[] = [];

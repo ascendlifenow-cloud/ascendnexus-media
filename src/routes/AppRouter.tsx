@@ -1,6 +1,7 @@
 import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AdminLayout } from "../admin/layout/AdminLayout";
+import { AdminProductionWorkspacePage } from "../admin/pages/AdminProductionWorkspacePage";
 import {
   AdminAccessDeniedPage,
   AdminAccessManagementPage,
@@ -228,6 +229,8 @@ export function AppRouter() {
               <Route path="artists/:artistId/edit" element={<RequirePermission permission="artists.update"><AdminArtistFormPage /></RequirePermission>} />
               <Route path="artists/:artistId/intelligence" element={<RequirePermission permission="intelligence.read"><AdminIntelligencePage focus="artist-intelligence" /></RequirePermission>} />
               <Route path="releases" element={<RequirePermission permission="releases.read"><AdminReleasesPage /></RequirePermission>} />
+              <Route path="production" element={<RequirePermission permission="releases.read"><AdminProductionWorkspacePage /></RequirePermission>} />
+              <Route path="production/:releaseId" element={<RequirePermission permission="releases.read"><AdminProductionWorkspacePage /></RequirePermission>} />
               <Route path="releases/new" element={<RequirePermission permission="releases.create"><AdminReleaseFormPage /></RequirePermission>} />
               <Route path="releases/:releaseId/edit" element={<RequirePermission permission="releases.update"><AdminReleaseFormPage /></RequirePermission>} />
               <Route path="media" element={<RequirePermission permission="media.read"><AdminMediaPage /></RequirePermission>} />

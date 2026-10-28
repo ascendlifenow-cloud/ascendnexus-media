@@ -9,6 +9,7 @@ import { publicContentCacheService } from "../public/PublicContentCacheService";
 import { adminArtistService } from "../artists/AdminArtistService";
 import { releaseSlugService } from "./ReleaseSlugService";
 import { releaseValidationService } from "./ReleaseValidationService";
+import { assertProductionReleaseAllowed } from "../production/ProductionReleaseGate";
 
 type ReleasePayload = Partial<SongReleaseRecord> & {
   seoMetadata?: Record<string, unknown>;
@@ -182,6 +183,7 @@ export class AdminReleaseService {
   }
 
   async publishRelease(releaseId: string, actorId?: string) {
+    await assertProductionReleaseAllowed(releaseId);
     const release = await releaseRepository.findById(releaseId);
     if (!release) return null;
     await this.publishReadyArtistDependency(release, actorId);

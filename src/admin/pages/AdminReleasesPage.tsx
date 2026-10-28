@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, Plus } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { PublicLoadingErrorState } from "../../components/fallback";
 import { GridSkeleton } from "../../components/loading";
 import { SEOHead } from "../../components/SEOHead";
@@ -92,6 +92,7 @@ export function AdminReleasesPage() {
   return (
     <div className="grid gap-6">
       <SEOHead metadata={adminReleasesMetadata} disableSocial />
+      <Link to="/admin/production" className="justify-self-start text-sm font-semibold text-anm-blue">Production Workspace</Link>
       <AdminPageHeader
         title="Release Management"
         description="Manage Ascend Nexus Media song releases, publishing status, cover art, audio previews, external links, featured placement, and public visibility."

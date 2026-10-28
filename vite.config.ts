@@ -24,6 +24,9 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5303,
     strictPort: true,
+    fs: {
+      deny: [".env", ".env.*", "*.{crt,pem}", "**/.git/**", "**/production/**", "**/server/data/**", "**/server/uploads/media/private/**"],
+    },
     proxy: {
       "/api": {
         target: mediaApiTarget,
