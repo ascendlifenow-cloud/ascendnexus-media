@@ -6,6 +6,7 @@ import type { MemberAccountStatus } from "../models/members/MemberModels";
 import type { MemberModerationAction, MemberSupportStatus } from "../models/memberCrm/MemberCrmModels";
 import { MediaApiError } from "../utils/media/mediaErrorUtils";
 import { memberIdentityService } from "../services/members/MemberIdentityService";
+import { membershipCatalogService } from "../services/membership/MembershipCatalogService";
 import {
   memberAdministrationService,
   memberCrmService,
@@ -59,7 +60,16 @@ export class AdminMemberCrmController {
   async grantMembership(request: IncomingMessage, response: ServerResponse, memberId: string) {
     const auth = await this.auth(request, "users.manage");
     const body = await parseJsonBody(request) as { tierKey?: string };
-    sendJson(response, 200, { success: true, data: await memberAdministrationService.grantMembership(memberId, body.tierKey ?? "free", auth.userId) });
+    if (!body || typeof body !== "object" || Array.isArray(body) || typeof body.tierKey !== "string" || Object.keys(body).some((key) => key !== "tierKey")) throw new MediaApiError("MEMBER_TIER_INVALID", "Select a membership tier.", 400, "validation");
+    sendJson(response, 200, { success: true, data: await memberAdministrationService.grantMembership(memberId, body.tierKey, auth.userId) }, { "Cache-Control": "private, no-store" });
+  }
+
+  async membershipOptions(request: IncomingMessage, response: ServerResponse) {
+    await this.auth(request, "users.read");
+    const catalog = await membershipCatalogService.getCatalog();
+    const tiers = catalog.tiers.filter((tier) => tier.status === "active" && !tier.isStaffTier && ["free", "premium", "supporter", "vip"].includes(tier.tierKey))
+      .sort((a, b) => a.rank - b.rank).map((tier) => ({ tierKey: tier.tierKey, name: tier.name }));
+    sendJson(response, 200, { success: true, data: tiers }, { "Cache-Control": "private, no-store" });
   }
 
   async revokeMembership(request: IncomingMessage, response: ServerResponse, memberId: string) {

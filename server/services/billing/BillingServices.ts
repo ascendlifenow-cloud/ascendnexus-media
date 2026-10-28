@@ -54,20 +54,20 @@ export class StripeProvider implements PaymentProviderAdapter {
   provider: BillingProviderKey = "stripe";
 
   async createCheckoutSession(input: { memberId: string; plan: BillingPlanRecord; coupon?: CouponRecord }) {
-    const configured = Boolean(process.env.STRIPE_SECRET_KEY && input.plan.providerPriceId);
+    // No provider API call is implemented; configuration alone is not a checkout.
     return {
       providerCheckoutSessionId: `stripe-checkout-${Date.now()}-${randomUUID().slice(0, 8)}`,
-      checkoutUrl: configured ? `https://checkout.stripe.com/c/pay/${input.plan.providerPriceId}` : undefined,
-      status: configured ? "pending" as const : "provider_configuration_required" as const,
-      safeMessage: configured ? "Stripe checkout session prepared." : "Stripe checkout requires STRIPE_SECRET_KEY and a provider price ID.",
+      checkoutUrl: undefined,
+      status: "provider_configuration_required" as const,
+      safeMessage: "Automatic checkout is unavailable until the Stripe integration is implemented and verified. Contact support for membership access.",
     };
   }
 
   async verifyWebhook(input: { signature?: string; payload: Record<string, unknown> }) {
-    const configured = Boolean(process.env.STRIPE_WEBHOOK_SECRET);
     const providerEventId = String(input.payload.id ?? `stripe-local-${Date.now()}`);
     const eventType = String(input.payload.type ?? input.payload.eventType ?? "unknown");
-    return { verified: configured ? Boolean(input.signature) : input.payload.testMode === true, providerEventId, eventType };
+    // Fail closed until raw-body signature verification and Stripe event mapping exist.
+    return { verified: false, providerEventId, eventType };
   }
 
   async getHealth() {
@@ -75,7 +75,7 @@ export class StripeProvider implements PaymentProviderAdapter {
       provider: this.provider,
       configured: Boolean(process.env.STRIPE_SECRET_KEY),
       webhookSecretConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      mode: process.env.STRIPE_SECRET_KEY ? "stripe_ready" : "configuration_required",
+      mode: "integration_required",
     };
   }
 }
@@ -92,7 +92,7 @@ export class ManualBillingProvider implements PaymentProviderAdapter {
   }
 
   async verifyWebhook(input: { payload: Record<string, unknown> }) {
-    return { verified: input.payload.testMode === true, providerEventId: String(input.payload.id ?? `manual-${Date.now()}`), eventType: String(input.payload.type ?? input.payload.eventType ?? "manual.event") };
+    return { verified: false, providerEventId: String(input.payload.id ?? `manual-${Date.now()}`), eventType: String(input.payload.type ?? input.payload.eventType ?? "manual.event") };
   }
 
   async getHealth() {

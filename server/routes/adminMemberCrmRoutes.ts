@@ -4,6 +4,7 @@ import { adminMemberCrmController } from "../controllers/adminMemberCrmControlle
 export const handleAdminMemberCrmRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
   const method = request.method ?? "GET";
   const path = url.pathname.replace(/\/+$/, "") || "/";
+  if (method === "GET" && path === "/api/admin/member-membership-options") return adminMemberCrmController.membershipOptions(request, response).then(() => true);
 
   if (method === "GET" && (path === "/api/admin/member-crm" || path === "/api/admin/member-search")) return (path.endsWith("search") ? adminMemberCrmController.search(request, response, url) : adminMemberCrmController.dashboard(request, response)).then(() => true);
   if (method === "GET" && path === "/api/admin/member-health") return adminMemberCrmController.health(request, response).then(() => true);

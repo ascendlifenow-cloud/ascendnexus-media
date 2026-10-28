@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { LoaderCircle, MailCheck, RefreshCw, Search, ShieldAlert, UserRound } from "lucide-react";
 import { adminMemberCrmApiService } from "../services/AdminMemberCrmApiService";
+import { adminApiBase } from "../services/AdminAuthApiService";
 
 export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "health" | "audit" | "security" | "support" | "risk" | "moderation" | "sessions" | "subscriptions" | "entitlements" | "activity" | "notifications" }) {
   const params = useParams();
@@ -15,6 +16,10 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
   const [verificationSending, setVerificationSending] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState(params.memberId ?? "");
   const [detailLoading, setDetailLoading] = useState(false);
+  const [tiers, setTiers] = useState<Array<{ tierKey: string; name: string }>>([]);
+  const [tierKey, setTierKey] = useState("");
+  const [tierSaving, setTierSaving] = useState(false);
+  const [tierMessage, setTierMessage] = useState("");
   const detailRequestRef = useRef(0);
   const activeMemberId = selectedMemberId;
 
@@ -33,6 +38,9 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
   useEffect(() => {
     const controller = new AbortController();
     load(controller.signal);
+    void fetch(`${adminApiBase()}/api/admin/member-membership-options`, { credentials: "include", cache: "no-store", signal: controller.signal })
+      .then(async (response) => { const payload = await response.json(); if (!response.ok || !Array.isArray(payload.data)) throw new Error("Membership options unavailable"); setTiers(payload.data); })
+      .catch((err) => { if (err.name !== "AbortError") setError("Membership options could not load. Refresh to retry."); });
     if (params.memberId) void selectMember(params.memberId);
     return () => controller.abort();
   }, [params.memberId]);
@@ -44,6 +52,8 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
     setDetail(null);
     setError("");
     setVerificationMessage("");
+    setTierKey("");
+    setTierMessage("");
     try {
       const nextDetail = await adminMemberCrmApiService.detail(memberId);
       if (requestId === detailRequestRef.current) setDetail(nextDetail);
@@ -155,13 +165,32 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
                         {verificationSending ? "Sending..." : "Resend Verification"}
                       </button>
                     ) : null}
-                    <button className="rounded-md border border-white/10 px-3 py-2 text-sm text-white hover:bg-white/8" onClick={() => adminMemberCrmApiService.grantMembership(String(member.memberId), "premium").then(refreshDetail)}>Grant Premium</button>
+                    <form className="flex flex-wrap items-center gap-2" onSubmit={async (event) => {
+                      event.preventDefault();
+                      if (!tierKey || tierSaving) return;
+                      const target = String(member.memberId);
+                      const requestVersion = detailRequestRef.current;
+                      setTierSaving(true); setError(""); setTierMessage("");
+                      try {
+                        await adminMemberCrmApiService.grantMembership(target, tierKey);
+                        if (detailRequestRef.current === requestVersion) { await refreshDetail(); setTierMessage("Membership updated. Existing media authorizations revoked."); load(); }
+                      } catch (err) { setError(err instanceof Error ? err.message : "Membership update failed."); }
+                      finally { setTierSaving(false); }
+                    }}>
+                      <select aria-label="Membership type" value={tierKey} onChange={(event) => setTierKey(event.target.value)} disabled={tierSaving}
+                        className="min-h-10 rounded-md border border-white/20 bg-black px-3 text-white">
+                        <option value="">Select membership</option>{tiers.map((tier) => <option key={tier.tierKey} value={tier.tierKey}>{tier.name}</option>)}
+                      </select>
+                      <button type="submit" disabled={!tierKey || tierSaving || String(member.status) === "Deleted"} className="inline-flex min-h-10 items-center gap-2 rounded-md border border-white/20 px-3 text-white disabled:opacity-50">
+                        {tierSaving ? <LoaderCircle size={16} className="animate-spin" /> : null}{tierSaving ? "Updating..." : "Set membership"}</button>
+                    </form>
                     <button className="rounded-md border border-white/10 px-3 py-2 text-sm text-white hover:bg-white/8" onClick={() => adminMemberCrmApiService.revokeSessions(String(member.memberId)).then(refreshDetail)}>Revoke Sessions</button>
                     <button className="rounded-md border border-amber-300/20 px-3 py-2 text-sm text-amber-100 hover:bg-amber-500/10" onClick={suspend}>Suspend</button>
                     <button className="rounded-md border border-cyanGlow/20 px-3 py-2 text-sm text-cyan-50 hover:bg-cyanGlow/10" onClick={restore}>Restore</button>
                   </div>
                 </div>
                 {verificationMessage ? <p className="mt-4 rounded-md border border-emerald-300/20 bg-emerald-500/10 p-3 text-sm text-emerald-100" role="status">{verificationMessage}</p> : null}
+                {tierMessage ? <p className="mt-3 text-emerald-200" role="status">{tierMessage}</p> : null}
               </section>
 
               <section className="grid gap-4 lg:grid-cols-3">
