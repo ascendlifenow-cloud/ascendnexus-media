@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ImageOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PublicLoadingErrorState } from "../../components/fallback";
@@ -52,8 +52,23 @@ const tileLiftClasses = ["", "translate-y-1", "-translate-y-1", "translate-y-2"]
 function ArtworkCollageTile({ asset, priority = false, layoutSeed }: { asset: MediaAssetRecord; priority?: boolean; layoutSeed: number }) {
   const [previewUrl, setPreviewUrl] = useState<string | undefined>();
   const [failed, setFailed] = useState(false);
+  const tileRef = useRef<HTMLDivElement | null>(null);
+  const [nearViewport, setNearViewport] = useState(priority);
 
   useEffect(() => {
+    if (nearViewport || !tileRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) {
+        setNearViewport(true);
+        observer.disconnect();
+      }
+    }, { rootMargin: "320px" });
+    observer.observe(tileRef.current);
+    return () => observer.disconnect();
+  }, [nearViewport]);
+
+  useEffect(() => {
+    if (!nearViewport) return;
     let active = true;
     setPreviewUrl(undefined);
     setFailed(false);
@@ -61,11 +76,11 @@ function ArtworkCollageTile({ asset, priority = false, layoutSeed }: { asset: Me
       if (!active) return;
       if (result.ok) setPreviewUrl(result.data);
       else setFailed(true);
-    });
+    }).catch(() => { if (active) setFailed(true); });
     return () => {
       active = false;
     };
-  }, [asset]);
+  }, [asset, nearViewport]);
 
   const assetLabel = formatMediaAssetType(asset.assetType);
   const layoutValue = seededValue(asset.assetId, layoutSeed);
@@ -74,7 +89,7 @@ function ArtworkCollageTile({ asset, priority = false, layoutSeed }: { asset: Me
 
   return (
     <article className={`group break-inside-avoid overflow-hidden rounded-md border border-white/10 bg-[#130f18]/92 shadow-[0_18px_55px_rgba(0,0,0,0.28)] transition duration-200 hover:-translate-y-1 hover:border-anm-cyan/45 hover:shadow-[0_24px_80px_rgba(39,245,255,0.12)] motion-reduce:transform-none ${marginClass} ${liftClass}`}>
-      <div className={`relative min-h-52 bg-gradient-to-br ${getTileTone(asset.assetType)}`}>
+      <div ref={tileRef} className={`relative min-h-52 bg-gradient-to-br ${getTileTone(asset.assetType)}`}>
         {previewUrl && !failed ? (
           <img
             src={previewUrl}
@@ -108,6 +123,7 @@ export function AdminArtworkCollagePage() {
   const artworkAssets = useMemo(
     () =>
       assets
+        .filter((asset) => asset.status !== "archived" && !asset.metadata?.deletedAt)
         .filter((asset) => artworkTypes.includes(asset.assetType) || getMediaAssetPreviewType(asset) === "image")
         .sort((left, right) => {
           const leftRandom = seededValue(left.assetId, layoutSeed);

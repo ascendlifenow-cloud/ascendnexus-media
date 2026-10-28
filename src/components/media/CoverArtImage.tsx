@@ -18,9 +18,11 @@ import { getImageDerivativeUrl } from "../../utils/media/imageDerivativeUtils";
 import { CoverArtFallback } from "./CoverArtFallback";
 import { CoverArtFrame } from "./CoverArtFrame";
 import { CoverArtLightboxReadyWrapper } from "./CoverArtLightboxReadyWrapper";
+import { useImageRecovery } from "../../hooks/media/useImageRecovery";
 
 interface CoverArtImageProps {
   src?: string;
+  fallbackSrc?: string;
   alt?: string;
   title?: string;
   artistName?: string;
@@ -48,6 +50,7 @@ const preferredCoverDerivativeTypes: Record<CoverArtSize, Array<ImageDerivative[
 
 export function CoverArtImage({
   src,
+  fallbackSrc,
   alt,
   title,
   artistName,
@@ -64,13 +67,14 @@ export function CoverArtImage({
   onLoad,
   onError,
 }: CoverArtImageProps) {
-  const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const cdnAssetUrl = mediaAsset ? mediaCdnService.buildImageCdnUrl(mediaAsset, { derivativeType: preferredCoverDerivativeTypes[size][0], ...cdnOptions }) : undefined;
   const preferredSrc = cdnAssetUrl?.publicUrl ?? getImageDerivativeUrl(derivatives, preferredCoverDerivativeTypes[size], src);
+  const recovery = useImageRecovery(preferredSrc, fallbackSrc ?? src);
+  const hasError = recovery.exhausted;
   const responsiveSources = mediaAsset ? mediaCdnService.getResponsiveImageSources(mediaAsset, { derivativeType: preferredCoverDerivativeTypes[size][0], ...cdnOptions }) : [];
-  const shouldUseImage = isValidCoverArtUrl(preferredSrc) && !hasError;
-  const imageSrc = shouldUseImage ? getCoverArtUrl(preferredSrc) : getCoverArtFallback();
+  const shouldUseImage = isValidCoverArtUrl(recovery.source) && !hasError;
+  const imageSrc = shouldUseImage ? getCoverArtUrl(recovery.source) : getCoverArtFallback();
   const srcSet = responsiveSources.length ? responsiveSources.map((source) => `${source.src} ${source.width}w`).join(", ") : undefined;
   const resolvedAlt = alt ?? getCoverArtAlt(title, artistName);
   const isFallback = !shouldUseImage;
@@ -78,7 +82,6 @@ export function CoverArtImage({
   const fetchPriorityAttributes = { fetchpriority: priority ? "high" : "auto" } as unknown as ImgHTMLAttributes<HTMLImageElement>;
 
   useEffect(() => {
-    setHasError(false);
     setIsLoaded(false);
   }, [preferredSrc]);
 
@@ -87,8 +90,9 @@ export function CoverArtImage({
       <CoverArtFrame size={size} rounded={rounded} aspectRatio={aspectRatio} className={className}>
         {!isLoaded ? <ImageSkeleton aspectRatio={aspectRatio} rounded={rounded} className="absolute inset-0 h-full" /> : null}
         <img
+          key={recovery.imageKey}
           src={imageSrc}
-          srcSet={srcSet}
+          srcSet={recovery.source === preferredSrc && !hasError ? srcSet : undefined}
           alt={resolvedAlt}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
@@ -103,7 +107,7 @@ export function CoverArtImage({
           }}
           onError={() => {
             if (!hasError) {
-              setHasError(true);
+              recovery.recover();
               setIsLoaded(false);
               onError?.();
               if (import.meta.env.DEV) {

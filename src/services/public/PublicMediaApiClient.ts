@@ -8,6 +8,7 @@ import { ReleaseService } from "../ReleaseService";
 import { GalleryService } from "../GalleryService";
 import { HomepageService } from "../HomepageService";
 import { PublicSearchService } from "../PublicSearchService";
+import { publicJsonRequest } from "./publicJsonRequest";
 
 interface PublicPaginationMeta {
   page: number;
@@ -230,10 +231,8 @@ export class PublicMediaApiClient {
   }
 
   private async fetchPublic<T>(path: string, allowUndefined = false): Promise<PublicApiResponse<T> | undefined> {
-    const response = await fetch(publicRequestUrl(path));
-    if (response.status === 404 && allowUndefined) return undefined;
-    if (!response.ok) throw new Error(`Public API request failed: ${response.status}`);
-    const payload = await response.json() as PublicApiResponse<T>;
+    const payload = await publicJsonRequest<PublicApiResponse<T>>(publicRequestUrl(path), allowUndefined);
+    if (!payload) return undefined;
     if (!payload.success) throw new Error(payload.errors?.[0] ?? "Public API request failed.");
     return payload;
   }

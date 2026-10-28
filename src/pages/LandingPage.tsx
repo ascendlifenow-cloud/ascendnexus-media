@@ -12,7 +12,7 @@ import type { PublicLandingArtistCard, PublicLandingGalleryCard } from "../model
 import { cx } from "../utils/format";
 
 export function LandingPage() {
-  const { data, isLoading, isError } = usePublicLanding();
+  const { data, isLoading, isError, isFetching, refetch } = usePublicLanding();
 
   return (
     <>
@@ -28,6 +28,9 @@ export function LandingPage() {
         <section className="bg-night py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <EmptyState title="The public experience could not load" message="Please refresh the page to try again." />
+            <button type="button" onClick={() => void refetch()} disabled={isFetching} className="mt-4 rounded-md border border-white/30 px-4 py-2 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyanGlow disabled:opacity-50">
+              {isFetching ? "Retrying..." : "Try again"}
+            </button>
           </div>
         </section>
       ) : null}
@@ -157,6 +160,7 @@ function ArtistCard({ card }: { card: PublicLandingArtistCard }) {
       <div className="aspect-square bg-black/30">
         <ArtistProfileImage
           src={profileImage}
+          fallbackSrc={card.artist.profileImage}
           artistName={card.artist.name}
           displayName={card.artist.displayName}
           size="card"

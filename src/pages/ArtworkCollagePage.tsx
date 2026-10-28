@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, ImageOff } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { PublicLoadingErrorState } from "../components/fallback";
 import { GridSkeleton } from "../components/loading";
 import { SEOHead } from "../components/SEOHead";
 import type { GalleryMediaType } from "../models/gallery";
 import { publicMediaApiClient } from "../services/public/PublicMediaApiClient";
 import { isSafePublicMediaUrl } from "../utils/media/publicSafeUrlUtils";
+import { loadArtworkSources } from "../services/public/publicJsonRequest";
 
 interface PublicArtworkCollageItem {
   id: string;
@@ -51,12 +52,12 @@ const getTileTone = (type: PublicArtworkCollageItem["type"]): string => {
   return "from-emerald-400/18 via-white/[0.04] to-anm-purple/16";
 };
 
-const toPublicArtworkItems = async (): Promise<PublicArtworkCollageItem[]> => {
-  const [artists, releases, gallery] = await Promise.all([
-    publicMediaApiClient.listArtists(),
-    publicMediaApiClient.listReleases(),
-    publicMediaApiClient.listGallery(),
-  ]);
+const toPublicArtworkItems = async () => {
+  const { artists, releases, gallery, partial } = await loadArtworkSources(
+    () => publicMediaApiClient.listArtists(),
+    () => publicMediaApiClient.listReleases(),
+    () => publicMediaApiClient.listGallery(),
+  );
 
   const items: PublicArtworkCollageItem[] = [];
   const seen = new Set<string>();
@@ -119,13 +120,20 @@ const toPublicArtworkItems = async (): Promise<PublicArtworkCollageItem[]> => {
     });
   });
 
-  return items;
+  return { items, partial };
 };
 
 function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: PublicArtworkCollageItem; priority?: boolean; layoutSeed: number }) {
   const [failed, setFailed] = useState(false);
   const [imageUrl, setImageUrl] = useState(item.imageUrl);
   const [retryCount, setRetryCount] = useState(0);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    setImageUrl(item.imageUrl);
+    setFailed(false);
+    setRetryCount(0);
+    return () => clearTimeout(retryTimer.current);
+  }, [item.imageUrl]);
   const layoutValue = seededValue(item.id, layoutSeed);
   const marginClass = tileMarginClasses[Math.floor(layoutValue * tileMarginClasses.length)] ?? "mb-4";
   const liftClass = tileLiftClasses[Math.floor(seededValue(`${item.id}:lift`, layoutSeed) * tileLiftClasses.length)] ?? "";
@@ -144,7 +152,7 @@ function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: Publ
               if (retryCount < 2) {
                 const nextRetry = retryCount + 1;
                 setRetryCount(nextRetry);
-                window.setTimeout(() => {
+                retryTimer.current = setTimeout(() => {
                   const separator = imageUrl.includes("?") ? "&" : "?";
                   setImageUrl(`${imageUrl}${separator}anmRetry=${nextRetry}`);
                 }, 450 * nextRetry);
@@ -174,6 +182,8 @@ function ArtworkCollageTile({ item, priority = false, layoutSeed }: { item: Publ
 
 export function ArtworkCollagePage() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const isMember = pathname.startsWith("/member/");
   const [layoutSeed] = useState(() => Math.random());
   const [visibleCount, setVisibleCount] = useState(12);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
@@ -185,7 +195,7 @@ export function ArtworkCollagePage() {
 
   const artworkItems = useMemo(
     () =>
-      [...(artworkQuery.data ?? [])].sort((left, right) => {
+      [...(artworkQuery.data?.items ?? [])].sort((left, right) => {
         const leftRandom = seededValue(left.id, layoutSeed);
         const rightRandom = seededValue(right.id, layoutSeed);
         return leftRandom - rightRandom;
@@ -216,9 +226,13 @@ export function ArtworkCollagePage() {
 
   return (
     <div className="min-h-screen overflow-y-auto bg-[#07050a] text-white">
-      <SEOHead metadata={artworkCollageMetadata} />
+      <SEOHead metadata={{ ...artworkCollageMetadata, noIndex: isMember }} disableSocial={isMember} />
 
       <div className="min-h-screen px-2 py-2 sm:px-3 sm:py-3">
+        {artworkQuery.data?.partial || artworkQuery.isError ? <div role="status" className="p-3 text-sm text-white/80">
+          {artworkQuery.data?.partial ? "Some artwork is temporarily unavailable." : "Artwork could not be loaded."}
+          <button type="button" disabled={artworkQuery.isFetching} onClick={() => void artworkQuery.refetch()} className="ml-3 underline disabled:opacity-50">{artworkQuery.isFetching ? "Retrying..." : "Try again"}</button>
+        </div> : null}
         {artworkQuery.isLoading ? <GridSkeleton itemCount={16} variant="block" columns="sm:grid-cols-2 xl:grid-cols-5" /> : null}
         {artworkQuery.isError ? <div className="flex min-h-screen items-center justify-center"><PublicLoadingErrorState /></div> : null}
 

@@ -19,9 +19,11 @@ import { ArtistImageFallback } from "./ArtistImageFallback";
 import { ArtistImageFrame } from "./ArtistImageFrame";
 import { ArtistImageGalleryReadyWrapper } from "./ArtistImageGalleryReadyWrapper";
 import { ImageSkeleton } from "../loading/ImageSkeleton";
+import { useImageRecovery } from "../../hooks/media/useImageRecovery";
 
 interface ArtistProfileImageProps {
   src?: string;
+  fallbackSrc?: string;
   alt?: string;
   artistName: string;
   displayName?: string;
@@ -50,6 +52,7 @@ const preferredArtistDerivativeTypes: Record<ArtistImageSize, Array<ImageDerivat
 
 export function ArtistProfileImage({
   src,
+  fallbackSrc,
   alt,
   artistName,
   displayName,
@@ -66,13 +69,14 @@ export function ArtistProfileImage({
   onLoad,
   onError,
 }: ArtistProfileImageProps) {
-  const [hasError, setHasError] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const cdnAssetUrl = mediaAsset ? mediaCdnService.buildImageCdnUrl(mediaAsset, { derivativeType: preferredArtistDerivativeTypes[size][0], ...cdnOptions }) : undefined;
   const preferredSrc = cdnAssetUrl?.publicUrl ?? getImageDerivativeUrl(derivatives, preferredArtistDerivativeTypes[size], src);
+  const recovery = useImageRecovery(preferredSrc, fallbackSrc ?? src);
+  const hasError = recovery.exhausted;
   const responsiveSources = mediaAsset ? mediaCdnService.getResponsiveImageSources(mediaAsset, { derivativeType: preferredArtistDerivativeTypes[size][0], ...cdnOptions }) : [];
-  const shouldUseImage = isValidArtistImageUrl(preferredSrc) && !hasError;
-  const imageSrc = shouldUseImage ? getArtistImageUrl(preferredSrc) : getArtistImageFallback();
+  const shouldUseImage = isValidArtistImageUrl(recovery.source) && !hasError;
+  const imageSrc = shouldUseImage ? getArtistImageUrl(recovery.source) : getArtistImageFallback();
   const srcSet = responsiveSources.length ? responsiveSources.map((source) => `${source.src} ${source.width}w`).join(", ") : undefined;
   const resolvedAlt = alt ?? getArtistImageAlt(displayName, artistName);
   const isFallback = !shouldUseImage;
@@ -88,7 +92,6 @@ export function ArtistProfileImage({
   const fetchPriorityAttributes = { fetchpriority: priority ? "high" : "auto" } as unknown as ImgHTMLAttributes<HTMLImageElement>;
 
   useEffect(() => {
-    setHasError(false);
     setIsLoaded(false);
   }, [preferredSrc]);
 
@@ -97,8 +100,9 @@ export function ArtistProfileImage({
       <ArtistImageFrame size={size} shape={shape} aspectRatio={aspectRatio} className={className}>
         {!isLoaded ? <ImageSkeleton aspectRatio={aspectRatio} rounded={shape !== "square"} className="absolute inset-0 h-full" /> : null}
         <img
+          key={recovery.imageKey}
           src={imageSrc}
-          srcSet={srcSet}
+          srcSet={recovery.source === preferredSrc && !hasError ? srcSet : undefined}
           alt={resolvedAlt}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
@@ -113,7 +117,7 @@ export function ArtistProfileImage({
           }}
           onError={() => {
             if (!hasError) {
-              setHasError(true);
+              recovery.recover();
               setIsLoaded(false);
               onError?.();
               if (import.meta.env.DEV) {
