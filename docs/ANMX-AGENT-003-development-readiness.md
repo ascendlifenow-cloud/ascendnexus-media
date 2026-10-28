@@ -63,6 +63,8 @@ The artist identity comes from retrieved SONG CREATION context, but no approved 
 
 Read-back verification checks exact package text, authoritative artist mapping, manifest/link reconciliation, remote cover bytes and privacy. Optional `--enroll-assets` appends only the managed asset protection event. It does not upload, republish or rewrite existing catalog records. Earlier insert-only transfer still needs a generalized transactional ingestion replacement before broader use.
 
+The staging browser exposed failed direct signed-cover rendering. The private preview now requests an authenticated admin image endpoint requiring both release and media read permissions. It resolves the draft's active cover, permits only private ready image storage, caps reads at 20 MB and verifies exact manifest SHA-256 before returning private/no-store image bytes. Signing stays server-side. The client uses credentialed CORS fetch and an in-memory blob URL revoked on cleanup; restrictive cross-origin resource policy is preserved. Local storage remains supported. This is an admin review endpoint, not member playback or public media delivery.
+
 ## Testing Checklist for Staging
 
 1. Open `/admin/agents`: verify real assignment records, team/status filters, selected details, report timestamps, blockers, Refresh and history. Empty filters must show an honest empty state.
@@ -76,6 +78,7 @@ Read-back verification checks exact package text, authoritative artist mapping, 
 ```sh
 npm run test:agent-status
 npm run test:agent-operator-safety
+npm run test:private-production-cover
 node --import tsx scripts/song-production-contract-test.ts
 node --import tsx scripts/validate-song-production.ts production/anmx-002/package.json
 npm run typecheck

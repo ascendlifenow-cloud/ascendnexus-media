@@ -6,6 +6,7 @@
   "scripts": {
     "test:agent-status": "node --import tsx scripts/agent-status-test.ts",
     "test:agent-operator-safety": "node --import tsx scripts/agent-operator-safety-test.ts",
+    "test:private-production-cover": "node --import tsx scripts/private-production-cover-test.ts",
     "agents:report": "node --import tsx scripts/report-agent-status.ts",
     "production:verify-private-staging": "node --import tsx scripts/verify-private-production-staging.ts",
     "media-library:reconcile": "node --import tsx scripts/media-library-reconcile.ts",

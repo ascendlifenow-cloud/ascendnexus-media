@@ -5,6 +5,8 @@ import { productionReviewSnapshot, approveProductionRelease } from "../services/
 import { sendJson } from "../middleware/mediaErrorMiddleware";
 import { parseJsonBody } from "../middleware/adminMediaUploadMiddleware";
 import { authenticationService } from "../services/auth/AuthenticationService";
+import { readPrivateProductionCover } from "../services/production/PrivateProductionCoverService";
+import { buildCorsHeaders, buildSecurityHeaders } from "../utils/security/securityHeaderUtils";
 
 export const handleAdminReleaseRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
   const method = request.method ?? "GET";
@@ -15,6 +17,15 @@ export const handleAdminReleaseRoute = async (request: IncomingMessage, response
   if (!match) return false;
   const releaseId = decodeURIComponent(match[1]);
   const action = match[2];
+  if (action === "production-cover" && method === "GET") {
+    const auth = await mediaAuthorizationService.authenticate(request);
+    mediaAuthorizationService.requirePermission(auth, "releases.read");
+    mediaAuthorizationService.requirePermission(auth, "media.read");
+    const cover = await readPrivateProductionCover(releaseId);
+    response.writeHead(200, { ...buildSecurityHeaders(request), ...buildCorsHeaders(request), "Content-Type": cover.mimeType, "Content-Length": cover.bytes.length, "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow", "X-Content-Type-Options": "nosniff" });
+    response.end(cover.bytes);
+    return true;
+  }
   if (action === "production-preview" && method === "GET") {
     const auth = await mediaAuthorizationService.authenticate(request);
     mediaAuthorizationService.requirePermission(auth, "releases.read");
