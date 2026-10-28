@@ -6,6 +6,7 @@ import { adminApiBase } from "../services/AdminAuthApiService";
 import { SEOHead } from "../../components/SEOHead";
 import { useImageRecovery } from "../../hooks/media/useImageRecovery";
 import { ProductionFinalAudioPanel } from "../components/production/ProductionFinalAudioPanel";
+import { ProductionAuditionPanel } from "../components/production/ProductionAuditionPanel";
 interface ProductionSummary {
   masterPrompt: string;
   styles: string[];
@@ -16,6 +17,7 @@ interface Review {
   release: { title: string; lyrics?: string; metadata?: { productionPackage?: ProductionSummary; productionValidation?: { counts: { lyrics: number; styles: number[] } } } };
   assets: { assetId: string; role: string }[];
   bundleHash: string;
+  audioReview?: { available: boolean; reviewed: boolean };
   approval: { status: string; blockers: string[]; publicActionsAllowed: boolean };
 }
 
@@ -72,6 +74,7 @@ export function AdminProductionWorkspacePage() {
         <div><span className="text-amber-200">Private · Approval pending</span><h2 className="mt-3 text-2xl font-semibold text-white">{review.data.release.title}</h2><p className="mt-3 text-white/70">Lyrics: {counts?.lyrics ?? "Unvalidated"} characters · Styles: {counts?.styles.join(" / ") ?? "Unvalidated"}</p><ul className="mt-4 list-disc pl-5 text-white/70">{review.data.approval.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul><p className="mt-4 text-white/70">Nothing is scheduled for publication. Artwork remains a review candidate.</p><p className="mt-4 break-all text-xs text-white/50">Bundle: {review.data.bundleHash}</p><Link className="mt-4 inline-block text-anm-blue" to={`/admin/releases/${releaseId}/edit`}>Edit release</Link></div>
       </section>
       {releaseId ? <ProductionFinalAudioPanel releaseId={releaseId} bundleHash={review.data.bundleHash} onSaved={() => { void review.refetch(); }} /> : null}
+      {releaseId ? <ProductionAuditionPanel releaseId={releaseId} bundleHash={review.data.bundleHash} available={review.data.audioReview?.available ?? false} reviewed={review.data.audioReview?.reviewed ?? false} onReviewed={() => { void review.refetch(); }} /> : null}
       <section className="border-t border-white/15 pt-5"><h2 className="text-lg font-semibold text-white">Production Documents</h2><details className="py-3"><summary>Lyrics</summary><pre className="mt-3 whitespace-pre-wrap font-sans text-sm text-white/80">{review.data.release.lyrics}</pre></details><details className="py-3"><summary>Master Song Creation Prompt</summary><pre className="mt-3 whitespace-pre-wrap font-sans text-sm text-white/80">{bundle?.masterPrompt}</pre></details>{bundle?.styles.map((style, index) => <details key={index} className="py-3"><summary>Style {index + 1}</summary><p className="mt-3 whitespace-pre-wrap text-sm text-white/80">{style}</p></details>)}</section>
       <section className="border-t border-white/15 pt-5"><h2 className="text-lg font-semibold text-white">Destination Copy · Pending Approval</h2>{bundle?.destinations.map((destination) => <details key={destination.platform} className="py-3"><summary>{destination.platform}</summary><p className="mt-3 whitespace-pre-wrap text-white/75">{destination.copy}</p></details>)}</section>
     </> : null}

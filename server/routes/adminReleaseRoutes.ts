@@ -8,6 +8,7 @@ import { authenticationService } from "../services/auth/AuthenticationService";
 import { readPrivateProductionCover } from "../services/production/PrivateProductionCoverService";
 import { buildCorsHeaders, buildSecurityHeaders } from "../utils/security/securityHeaderUtils";
 import { listProductionAudioCandidates, selectProductionFinalAudio } from "../services/production/ProductionFinalAudioService";
+import { authorizeProductionAudition, readProductionAudition, checkProductionAudition, acknowledgeProductionAudio } from "../services/production/ProductionAuditionService";
 
 export const handleAdminReleaseRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
   const method = request.method ?? "GET";
@@ -18,6 +19,30 @@ export const handleAdminReleaseRoute = async (request: IncomingMessage, response
   if (!match) return false;
   const releaseId = decodeURIComponent(match[1]);
   const action = match[2];
+  if ((action === "production-audition" && ["GET", "POST"].includes(method)) || (["production-audition-check", "production-audio-review"].includes(action ?? "") && method === "POST")) {
+    const auth = await authenticationService.authenticateRequest(request);
+    const permissionContext = { ...auth, adminId: auth.user.userId };
+    mediaAuthorizationService.requirePermission(permissionContext, "releases.read");
+    mediaAuthorizationService.requirePermission(permissionContext, "media.read");
+    if (action === "production-audio-review") mediaAuthorizationService.requirePermission(permissionContext, "releases.update");
+    const actor = { userId: auth.user.userId, sessionId: auth.sessionId ?? "" };
+    const headers = { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" };
+    if (method === "GET") {
+      const audio = await readProductionAudition(releaseId, url.searchParams.get("reference") ?? "", actor);
+      const current = await authenticationService.authenticateRequest(request);
+      if (current.user.userId !== actor.userId || current.sessionId !== actor.sessionId) throw new Error("Admin session changed.");
+      const freshPermissions = { ...current, adminId: current.user.userId };
+      mediaAuthorizationService.requirePermission(freshPermissions, "releases.read");
+      mediaAuthorizationService.requirePermission(freshPermissions, "media.read");
+      response.writeHead(200, { ...buildSecurityHeaders(request), ...buildCorsHeaders(request), ...headers, "Content-Type": audio.mimeType, "Content-Length": audio.bytes.length, "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer" });
+      response.end(audio.bytes);
+    } else {
+      const body = await parseJsonBody(request);
+      const data = action === "production-audition" ? await authorizeProductionAudition(releaseId, body, actor) : action === "production-audio-review" ? await acknowledgeProductionAudio(releaseId, body, actor) : await checkProductionAudition(releaseId, body, actor);
+      sendJson(response, 200, { success: true, data }, headers);
+    }
+    return true;
+  }
   if ((action === "production-audio-candidates" && method === "GET") || (action === "production-final-audio" && method === "POST")) {
     // Real admin identity is mandatory, even when local legacy media bypass is enabled.
     const auth = await authenticationService.authenticateRequest(request);

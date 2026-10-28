@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createServer } from "node:http";
@@ -105,7 +105,71 @@ try {
   const uploadedData = await jsonDatabase.read();
   const uploadedInput = { assetId: upload.mediaAsset!.assetId, expectedBundleHash: hash(uploadedData), requestId: "actual-upload-fixture" };
   assert.equal((await fetch(`${base}/production-final-audio`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(uploadedInput) })).status, 200);
-  console.log("Final-audio candidate tests passed: revision, manifest, replacement, retries, stale rejection, private storage, safe DTOs, RBAC, origin protection and publication lock. Synthetic fixtures only; no recording was generated or auditioned.");
+  const { authorizeProductionAudition, readProductionAudition, checkProductionAudition, acknowledgeProductionAudio } = await import("../server/services/production/ProductionAuditionService");
+  const actor = { userId: "admin", sessionId: "test-audition-session" };
+  const auditionInput = { expectedBundleHash: hash(await jsonDatabase.read()) };
+  const authorization = await authorizeProductionAudition("release", auditionInput, actor);
+  const ack = { ...auditionInput, reference: authorization.reference, confirmed: true };
+  await assert.rejects(() => acknowledgeProductionAudio("release", ack, actor), /unavailable/);
+  await assert.rejects(() => readProductionAudition("release", authorization.reference, { ...actor, sessionId: "other-session" }), /unavailable/);
+  await assert.rejects(() => readProductionAudition("release", authorization.reference, { ...actor, userId: "other-admin" }), /unavailable/);
+  const object = (await jsonDatabase.read()).mediaStorageObjects.find((item) => item.assetId === upload.mediaAsset!.assetId)!;
+  await writeFile(join(root, object.storagePath), Buffer.alloc(wav.length));
+  await assert.rejects(() => readProductionAudition("release", authorization.reference, actor), /unavailable/);
+  await writeFile(join(root, object.storagePath), wav);
+  const audioBytes = await readProductionAudition("release", authorization.reference, actor);
+  assert.ok(audioBytes.bytes.equals(wav));
+  assert.equal(audioBytes.mimeType, "audio/wav");
+  await assert.rejects(() => readProductionAudition("release", authorization.reference, actor), /unavailable/);
+  assert.deepEqual(await acknowledgeProductionAudio("release", ack, actor), { reviewed: true, reused: false });
+  assert.equal((await acknowledgeProductionAudio("release", ack, actor)).reused, true);
+  assert.equal((await checkProductionAudition("release", { ...auditionInput, reference: authorization.reference }, actor)).valid, true);
+  assert.equal(buildProductionReviewSnapshot((await jsonDatabase.read()).releaseRecords[0], await jsonDatabase.read(), null).audioReview.reviewed, true);
+  await assert.rejects(() => assertProductionReleaseAllowed("release"), /awaiting owner review/);
+  // Full API path requires a real session context, serves only verified bytes and no storage URL.
+  authenticationService.authenticateRequest = async () => ({ user: { userId: "admin" }, sessionId: actor.sessionId, permissions: ["releases.read", "media.read", "releases.update"] }) as never;
+  const httpAuthorization = await (await fetch(`${base}/production-audition`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(auditionInput) })).json() as { data: { reference: string } };
+  const httpAudio = await fetch(`${base}/production-audition?reference=${httpAuthorization.data.reference}`);
+  assert.equal(httpAudio.status, 200);
+  assert.equal(httpAudio.headers.get("cache-control"), "private, no-store");
+  assert.equal(httpAudio.headers.get("x-robots-tag"), "noindex, nofollow");
+  assert.equal(httpAudio.headers.get("content-type"), "audio/wav");
+  assert.ok(Buffer.from(await httpAudio.arrayBuffer()).equals(wav));
+  let authChecks = 0;
+  authenticationService.authenticateRequest = async () => ({ user: { userId: "admin" }, sessionId: actor.sessionId, permissions: ++authChecks === 1 ? ["releases.read", "media.read"] : ["admin.access"] }) as never;
+  const lostPermission = await fetch(`${base}/production-audition?reference=${httpAuthorization.data.reference}`);
+  assert.equal(lostPermission.status, 403, "Losing read permission during byte fetch must prevent delivery");
+  assert.match(lostPermission.headers.get("content-type") ?? "", /json/);
+  authenticationService.authenticateRequest = async () => ({ user: { userId: "admin" }, sessionId: actor.sessionId, permissions: ["releases.read", "media.read", "releases.update"] }) as never;
+  await jsonDatabase.update((data) => {
+    const event = data.adminAuditEvents.find((item) => item.auditEventId === httpAuthorization.data.reference)!;
+    event.metadata!.expiresAt = "invalid-date";
+  });
+  await assert.rejects(() => checkProductionAudition("release", { ...auditionInput, reference: httpAuthorization.data.reference }, actor), /unavailable/);
+  await jsonDatabase.update((data) => {
+    const release = data.releaseRecords[0];
+    const packet = release.metadata!.productionPackage as { revision: number };
+    packet.revision++;
+    release.metadata!.productionAudioReview = "auditioned";
+  });
+  const changed = await jsonDatabase.read();
+  assert.equal(buildProductionReviewSnapshot(changed.releaseRecords[0], changed, null).audioReview.reviewed, false, "Mutable metadata cannot assert review of a different revision");
+  await assert.rejects(() => checkProductionAudition("release", { ...auditionInput, reference: authorization.reference }, actor), /unavailable/);
+  const { backendStorageProviderRegistry } = await import("../server/storage/StorageProviderRegistry");
+  const originalProvider = backendStorageProviderRegistry.getActiveProvider;
+  const originalFetch = globalThis.fetch;
+  await jsonDatabase.patchCollectionRecord("mediaStorageObjects", { storageObjectId: object.storageObjectId }, { provider: "r2" });
+  const remote = await authorizeProductionAudition("release", { expectedBundleHash: hash(await jsonDatabase.read()) }, actor);
+  try {
+    backendStorageProviderRegistry.getActiveProvider = () => ({ getProviderName: () => "r2", getSignedUrl: async () => "https://storage.example.invalid/private?signature=SYNTHETIC_ONLY" }) as never;
+    globalThis.fetch = async () => new Response(wav, { status: 200 });
+    assert.ok((await readProductionAudition("release", remote.reference, actor)).bytes.equals(wav));
+    globalThis.fetch = async () => { throw new Error("SYNTHETIC_ONLY signed origin failure"); };
+    await assert.rejects(() => readProductionAudition("release", remote.reference, actor), (error: Error) => !error.message.includes("SYNTHETIC_ONLY") && /unavailable/.test(error.message));
+  } finally { globalThis.fetch = originalFetch; backendStorageProviderRegistry.getActiveProvider = originalProvider; }
+  authenticationService.authenticateRequest = authenticate;
+  assert.equal((await fetch(`${base}/production-audition?reference=${authorization.reference}`)).status, 401);
+  console.log("Private production audio tests passed: upload, selection, revisions, safe retries, RBAC, checksum-verified audition bytes, session binding, read limits, expiry, explicit revision acknowledgement and publication lock. Synthetic fixtures only; no real song was auditioned or approved.");
 } finally {
   authenticationService.authenticateRequest = authenticate;
   if (server.listening) await new Promise<void>((resolve) => server.close(() => resolve()));

@@ -10,7 +10,7 @@ const invalid = () => new MediaApiError("PRODUCTION_AUDIO_INVALID", "Select an a
 const conflict = () => new MediaApiError("PRODUCTION_REVISION_CHANGED", "The release changed. Refresh the review before selecting audio.", 409, "validation");
 const audioTypes = new Set(["audio/wav", "audio/x-wav", "audio/wave", "audio/mpeg", "audio/mp3", "audio/flac", "audio/x-flac", "audio/aac", "audio/mp4", "audio/ogg"]);
 
-function privateAudio(asset: MediaAsset, objects: MediaStorageObject[], links: MediaDatabaseShape["mediaAssetLinks"], releaseId: string) {
+export function privateProductionAudio(asset: MediaAsset, objects: MediaStorageObject[], links: MediaDatabaseShape["mediaAssetLinks"], releaseId: string) {
   const storage = objects.filter((item) => item.assetId === asset.assetId && !["deleted", "archived"].includes(item.status));
   if (asset.assetType !== "full_song" || asset.status !== "draft" || asset.metadata?.deletedAt || asset.thumbnailUrl || asset.largeUrl) return null;
   if (storage.length !== 1) return null;
@@ -44,7 +44,7 @@ export function applyProductionFinalAudio(data: MediaDatabaseShape, releaseId: s
   }
   if (snapshot.bundleHash !== body.expectedBundleHash) throw conflict();
   const asset = data.mediaAssets.find((item) => item.assetId === body.assetId);
-  const storage = asset && privateAudio(asset, data.mediaStorageObjects, data.mediaAssetLinks, releaseId);
+  const storage = asset && privateProductionAudio(asset, data.mediaStorageObjects, data.mediaAssetLinks, releaseId);
   if (!asset || !storage) throw invalid();
   if (data.mediaIntakeRecords.some((item) => item.mediaAssetId === asset.assetId && ["quarantined", "failed", "ignored", "superseded"].includes(item.status))) throw invalid();
   const saved = release.metadata?.productionPackage as SongProductionPackage | undefined;
@@ -98,7 +98,7 @@ export async function listProductionAudioCandidates(releaseId: string) {
   requireDraft({ releaseRecords, adminAuditEvents } as MediaDatabaseShape, releaseId);
   const items = [...mediaAssets].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).flatMap((asset) => {
     if (mediaIntakeRecords.some((item) => item.mediaAssetId === asset.assetId && ["quarantined", "failed", "ignored", "superseded"].includes(item.status))) return [];
-    const object = privateAudio(asset, mediaStorageObjects, mediaAssetLinks, releaseId);
+    const object = privateProductionAudio(asset, mediaStorageObjects, mediaAssetLinks, releaseId);
     return object ? [{ assetId: asset.assetId, title: asset.title, mimeType: object.mimeType, fileSizeBytes: object.fileSizeBytes }] : [];
   }).slice(0, 100);
   return { items, limit: 100 };

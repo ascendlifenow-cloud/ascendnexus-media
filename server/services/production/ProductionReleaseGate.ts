@@ -5,6 +5,7 @@ import type { ArtistRecord } from "../../models/artists/ArtistModel";
 import { MediaApiError } from "../../utils/media/mediaErrorUtils";
 import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceService";
 import { validateSongProductionPackage, type SongProductionPackage } from "./SongProductionContract";
+import { productionAudioIdentity } from "./ProductionAudioIdentity";
 
 export async function assertProductionAssetAllowed(assetId: string) {
   const enrollment = await jsonDatabase.findCollectionRecord("adminAuditEvents", { action: "production_asset_enrolled", entityId: assetId });
@@ -52,8 +53,12 @@ export function buildProductionReviewSnapshot(release: SongReleaseRecord, data: 
   const audioAsset = data.mediaAssets.find((asset) => asset.assetId === audio?.assetId && asset.assetType === "full_song" && !["deleted", "archived"].includes(asset.status));
   const audioStorage = data.mediaStorageObjects.find((object) => object.assetId === audioAsset?.assetId && object.accessLevel !== "public" && object.checksum && ["ready", "uploaded"].includes(object.status));
   const blockers: string[] = [];
+  const savedPackage = release.metadata?.productionPackage as SongProductionPackage | undefined;
+  let audioIdentity: string | null = null;
+  try { if (savedPackage && audioStorage) audioIdentity = productionAudioIdentity(savedPackage, audioStorage.storageObjectId); } catch { /* Invalid packages fail validation below. */ }
+  const audioReviewed = Boolean(audioIdentity && data.adminAuditEvents.some((event) => event.action === "production_audio_reviewed" && event.entityId === releaseId && event.metadata?.audioIdentity === audioIdentity));
   if (!audioAsset || !audioStorage) blockers.push("Final audio has not been produced or ingested.");
-  else if (release.metadata?.productionAudioReview !== "auditioned") blockers.push("Final audio candidate requires audition and review.");
+  else if (!audioReviewed) blockers.push("Final audio candidate requires audition and review.");
   try {
     const saved = release.metadata?.productionPackage as SongProductionPackage;
     const validation = validateSongProductionPackage({ ...saved, title: release.title, lyrics: release.lyrics ?? "", artistId: release.artistId });
@@ -67,7 +72,7 @@ export function buildProductionReviewSnapshot(release: SongReleaseRecord, data: 
   } catch { blockers.push("Production package is missing or invalid."); }
   const approved = data.adminAuditEvents.some((event) => event.action === "production_bundle_approved" && event.entityId === releaseId && event.actorId === process.env.ANMX_PRODUCTION_OWNER_USER_ID && event.metadata?.bundleHash === bundleHash);
   if (!approved) blockers.unshift("Owner release approval has not been granted.");
-  return { release, assets, bundleHash, approval: { status: approved && !blockers.length ? "review_approved" : "pending", publicActionsAllowed: false, executionStatus: "locked_pending_transactional_executor", blockers } };
+  return { release, assets, bundleHash, audioReview: { available: Boolean(audioAsset && audioStorage && audioIdentity), reviewed: audioReviewed }, approval: { status: approved && !blockers.length ? "review_approved" : "pending", publicActionsAllowed: false, executionStatus: "locked_pending_transactional_executor", blockers } };
 }
 
 export async function approveProductionRelease(releaseId: string, actorId: string, expectedBundleHash: unknown) {

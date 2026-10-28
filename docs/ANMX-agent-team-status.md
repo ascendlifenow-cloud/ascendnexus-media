@@ -4,6 +4,8 @@ Updated 2026-10-27. These are coordinated specialist assignments, not continuous
 
 ## ANMX-AGENT-003
 
+Audition follow-on: Singer delivered the memory-only private audition UI; coordinator implemented session/revision-bound byte verification and explicit audio-review audit evidence. Synthetic WAV tests cover the bounded reviewer flow, not real song audition. Managed publication remains locked. See `docs/ANMX-private-audition-review.md` for operational limits and current verification scope.
+
 Private-audio follow-on: Ramanujan delivered the candidate-picker interface, coordinator implemented revision-bound private association/manifest updates and tests, and Sartre independently reviewed the boundary. Real upload plumbing was tested with a tiny synthetic WAV in a temporary local database. This is not a real song recording or audition. The owner must still supply the final recording; audition and exact-bundle approval/execution remain separate work. See `docs/ANMX-private-final-audio-ingestion.md`.
 
 Follow-on engineering increment: legacy Mongo `update()` now writes only changed records inside a transaction and rejects stale snapshots. Deterministic tests plus an isolated real staging transaction/rollback test passed without modifying application records. Independent review and deployment results are recorded separately; this does not enable public release execution. See `docs/ANMX-database-mutation-safety.md`.

@@ -42,8 +42,10 @@ Do not attach unrelated catalog audio merely to clear a blocker. The Spare Key C
 
 ## Remaining work
 
-Private, range-capable audition in the review workspace; exact-audio audition acknowledgement; approved artist/reference brief; complete bundle approval UX; tested transactional publication executor and distribution adapters. This increment enables none of those public actions and does not represent billing or third-party generation as connected.
+The follow-on bounded private audition and exact-audio acknowledgement implementation is described in `docs/ANMX-private-audition-review.md`. Network range streaming remains separate; the reviewer utility uses verified, bounded blobs. Approved artist/reference brief, complete bundle approval UX, tested transactional publication executor and distribution adapters remain outstanding. No public action or third-party generation is enabled.
 
 ## Staging rollout status
 
 Code commits `b5809d9` and `b5b4e8e` were pushed to main. At the post-push check, staging readiness remained healthy, but the new candidate endpoint still returned 404 and the public shell referenced the older `index-D9bCW3wM.js` bundle. No GitHub build/check records were available for this commit. Therefore deployment and deployed-picker verification are pending, not completed. Operator redeployment of the existing Render API and Cloudflare frontend was requested. The existing staging production draft was not assigned any audio. The owner confirmed no final recording is available yet and asked to continue the review-workflow buildout.
+
+After the owner completed redeployment, a subsequent staging check confirmed the newer `index-CjoOzk4u.js` shell, candidate endpoint 401 when signed out, restored admin session and functional candidate shelf with zero eligible candidates. The private release remained 404 publicly and its bundle hash was unchanged. No staging audio was selected. The automated private-cover read discrepancy persisted and was not represented as an artwork pass.
