@@ -6,7 +6,6 @@ import {
   billingHealthService,
   billingPlanService,
   billingService,
-  billingWebhookService,
   couponService,
   giftMembershipService,
   paymentProviderService,
@@ -16,6 +15,8 @@ import {
   subscriptionService,
 } from "../services/billing/BillingServices";
 import type { BillingProviderKey } from "../models/billing/BillingModels";
+import { stripeBillingService } from "../services/billing/StripeBillingService";
+import { AuthApiError } from "../utils/auth/authErrorUtils";
 
 export class AdminBillingController {
   private async auth(request: IncomingMessage, permission: "users.read" | "users.manage" = "users.read") {
@@ -95,11 +96,17 @@ export class AdminBillingController {
   }
 
   async webhook(request: IncomingMessage, response: ServerResponse, provider: BillingProviderKey) {
-    const body = await parseJsonBody(request) as Record<string, unknown>;
-    const signature = String(request.headers["stripe-signature"] ?? request.headers["x-billing-signature"] ?? "");
-    sendJson(response, 200, { success: true, data: await billingWebhookService.process(provider, body, signature) });
+    if (provider !== "stripe") throw new AuthApiError("BILLING_WEBHOOK_UNSUPPORTED", "Billing webhook provider is not supported.", 400);
+    const chunks: Buffer[] = [];
+    let bytes = 0;
+    for await (const chunk of request) {
+      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      bytes += buffer.length;
+      if (bytes > 1024 * 1024) throw new AuthApiError("BILLING_WEBHOOK_TOO_LARGE", "Webhook payload exceeds the allowed size.", 413);
+      chunks.push(buffer);
+    }
+    sendJson(response, 200, { success: true, data: await stripeBillingService.webhook(Buffer.concat(chunks), String(request.headers["stripe-signature"] ?? "")) }, { "Cache-Control": "private, no-store" });
   }
 }
 
 export const adminBillingController = new AdminBillingController();
-

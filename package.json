@@ -387,6 +387,7 @@
     "member-crm:support-test": "node scripts/run-cached-tsx.mjs scripts/member-crm-verify.mjs --command=support-test",
     "member-crm:risk-test": "node scripts/run-cached-tsx.mjs scripts/member-crm-verify.mjs --command=risk-test",
     "member-crm:moderation-test": "node scripts/run-cached-tsx.mjs scripts/member-crm-verify.mjs --command=moderation-test",
+    "test:stripe-billing": "node --import tsx scripts/stripe-billing-test.ts",
     "billing:health": "node scripts/run-cached-tsx.mjs scripts/billing-verify.mjs --command=health",
     "billing:verify": "node scripts/run-cached-tsx.mjs scripts/billing-verify.mjs --command=verify",
     "billing:checkout-test": "node scripts/run-cached-tsx.mjs scripts/billing-verify.mjs --command=checkout-test",
@@ -453,6 +454,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
+    "stripe": "^23.0.1",
     "tsx": "^4.23.15",
     "zustand": "^5.0.2"
   },

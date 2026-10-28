@@ -1,5 +1,5 @@
 import type { MemberMembershipAssignmentRecord, MembershipAssignmentSource } from "../../models/membership/MembershipAccessModels";
-import { jsonDatabase } from "../media/JsonDatabase";
+import { jsonDatabase, type MediaDatabaseShape } from "../media/JsonDatabase";
 import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceService";
 import { membershipCatalogService } from "./MembershipCatalogService";
 import { AuthApiError } from "../../utils/auth/authErrorUtils";
@@ -15,6 +15,14 @@ export class MembershipAssignmentService {
     const now = new Date().toISOString();
     let assignment: MemberMembershipAssignmentRecord | undefined;
     await jsonDatabase.update((data) => {
+      assignment = this.applyTierAssignment(data, memberId, tierId, source, endsAt, now);
+    });
+    await mediaAuditPersistenceService.record("member_tier_assigned", `Assigned member tier ${tierId}.`, { actorId, entityType: "member_account", entityId: memberId, metadata: { tierId, source } });
+    return assignment!;
+  }
+
+  // Shared by verified billing updates so membership and the provider receipt commit together.
+  applyTierAssignment(data: MediaDatabaseShape, memberId: string, tierId: string, source: MembershipAssignmentSource, endsAt?: string, now = new Date().toISOString()) {
       const member = data.memberAccounts.find((item) => item.memberId === memberId);
       const tier = data.membershipTiers.find((item) => item.tierId === tierId);
       if (!member || member.status === "Deleted") throw new AuthApiError("MEMBER_NOT_FOUND", "Member account was not found.", 404);
@@ -27,7 +35,7 @@ export class MembershipAssignmentService {
           existing.updatedAt = now;
         }
       }
-      assignment = {
+      const assignment: MemberMembershipAssignmentRecord = {
         assignmentId: `assignment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         memberId,
         tierId,
@@ -46,9 +54,7 @@ export class MembershipAssignmentService {
         member.metadata = { ...(member.metadata ?? {}), authorizationVersion: this.nextVersion(member.metadata?.authorizationVersion) };
       }
       this.revokeMedia(data, memberId, now);
-    });
-    await mediaAuditPersistenceService.record("member_tier_assigned", `Assigned member tier ${tierId}.`, { actorId, entityType: "member_account", entityId: memberId, metadata: { tierId, source } });
-    return assignment!;
+      return assignment;
   }
 
   async suspendMembership(memberId: string, reason: string, actorId = "system") {

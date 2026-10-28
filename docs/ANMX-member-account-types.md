@@ -1,5 +1,10 @@
 # Member Account Types
 
+Follow-on: the Stripe sandbox integration is now implemented with hosted Checkout,
+SDK-verified webhooks and provider-backed customer portal management. Account setup
+and real staging payment tests remain pending. See [Stripe setup](ANMX-stripe-setup.md).
+The payment-blocker section below records the earlier audit finding.
+
 ## Assignment Paths
 
 - Public registration creates a pending-verification account with Free membership.

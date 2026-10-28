@@ -10,6 +10,7 @@ export const handleBillingRoute = async (request: IncomingMessage, response: Ser
   if (method === "GET" && path === "/api/member/billing/plans") return memberBillingController.plans(request, response).then(() => true);
   if (method === "POST" && path === "/api/member/billing/checkout") return memberBillingController.checkout(request, response).then(() => true);
   if (method === "POST" && path === "/api/member/billing/cancel") return memberBillingController.cancel(request, response).then(() => true);
+  if (method === "POST" && path === "/api/member/billing/portal") return memberBillingController.cancel(request, response).then(() => true);
   if (method === "GET" && (path === "/api/member/invoices" || path === "/api/member/receipts")) return memberBillingController.invoices(request, response).then(() => true);
   if (method === "GET" && (path === "/api/member/payment-methods" || path === "/api/member/billing/history")) return memberBillingController.payments(request, response).then(() => true);
   if (method === "POST" && path === "/api/member/billing/gifts/redeem") return memberBillingController.redeemGift(request, response).then(() => true);

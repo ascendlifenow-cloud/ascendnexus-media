@@ -1,6 +1,14 @@
 # Agent teams and delivery policy
 
-Updated 2026-10-27. These are coordinated specialist assignments, not continuously running autonomous services.
+Updated 2026-10-28. These are coordinated specialist assignments, not continuously running autonomous services.
+
+Stripe engineering increment: coordinator implemented hosted Checkout, SDK raw-body
+verification, paid-through membership synchronization and provider portal handling.
+Sagan independently reviewed payment bypasses and event timing; fixes include manual
+override precedence, renewal preservation, detached mutations, current-customer
+binding and pending subscription protection. Isolated tests run without real Stripe
+requests. Stripe account creation and staging test payments remain owner dependencies;
+live billing is not enabled. See `docs/ANMX-stripe-setup.md`.
 
 ## ANMX-AGENT-003
 

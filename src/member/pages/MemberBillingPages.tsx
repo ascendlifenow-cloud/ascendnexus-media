@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { CreditCard, FileText, Gift, History, RefreshCw } from "lucide-react";
 import { memberBillingApiService } from "../services/MemberBillingApiService";
 
 export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "subscription" | "payment-methods" | "invoices" | "receipts" | "cancel" | "upgrade" | "downgrade" | "history" }) {
   const [overview, setOverview] = useState<Record<string, unknown> | null>(null);
-  const [couponCode, setCouponCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const checkoutRequests = useRef<Record<string, string>>({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
@@ -21,29 +22,38 @@ export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "
   const invoices = (overview?.invoices as Array<Record<string, unknown>> | undefined) ?? [];
   const payments = (overview?.payments as Array<Record<string, unknown>> | undefined) ?? [];
   const current = overview?.currentSubscription as Record<string, unknown> | undefined;
+  const stripe = overview?.stripe as { enabled?: boolean; mode?: string; configuredPlans?: string[] } | undefined;
 
   const checkout = async (planKey: string) => {
+    if (busy) return;
+    setBusy(true);
     setError("");
     setMessage("");
     try {
-      const result = await memberBillingApiService.checkout(planKey, couponCode || undefined);
+      const requestId = checkoutRequests.current[planKey] ??= crypto.randomUUID();
+      const result = await memberBillingApiService.checkout(planKey, requestId);
+      const target = new URL(String(result.checkoutUrl));
+      if (target.protocol !== "https:" || target.hostname !== "checkout.stripe.com" || target.username || target.password) throw new Error("Checkout destination was not accepted.");
       setMessage(String(result.safeMessage ?? "Checkout session created."));
-      await memberBillingApiService.overview().then(setOverview);
+      window.location.assign(target.href);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Checkout failed.");
-    }
+    } finally { setBusy(false); }
   };
 
   const cancel = async () => {
+    if (busy) return;
+    setBusy(true);
     setError("");
     setMessage("");
     try {
-      await memberBillingApiService.cancel();
-      setMessage("Subscription cancellation recorded.");
-      load();
+      const result = await memberBillingApiService.cancel();
+      const target = new URL(String(result.portalUrl));
+      if (target.protocol !== "https:" || target.hostname !== "billing.stripe.com" || target.username || target.password) throw new Error("Billing destination was not accepted.");
+      window.location.assign(target.href);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Cancellation failed.");
-    }
+    } finally { setBusy(false); }
   };
 
   return (
@@ -59,6 +69,7 @@ export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "
         </div>
         {message ? <p className="mt-4 rounded-md border border-cyanGlow/20 bg-cyanGlow/10 p-3 text-sm text-cyan-50">{message}</p> : null}
         {error ? <p className="mt-4 rounded-md border border-rose-300/20 bg-rose-500/10 p-3 text-sm text-rose-100">{error}</p> : null}
+        <p role="status" className="mt-3 text-sm text-white/65">{stripe?.enabled ? stripe.mode === "test" ? "Stripe test mode. No live charges." : "Secure payments through Stripe." : "Payments are not available yet."}</p>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-4">
@@ -70,9 +81,6 @@ export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "
 
       <section className="rounded-md border border-white/10 bg-white/[0.04] p-5">
         <h2 className="text-xl font-semibold text-white">Plans</h2>
-        <div className="mt-4 flex max-w-md gap-2">
-          <input className="min-w-0 flex-1 rounded-md border border-white/10 bg-black/30 px-3 py-2 text-sm text-white" value={couponCode} onChange={(event) => setCouponCode(event.target.value)} placeholder="Coupon code" />
-        </div>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <article key={String(plan.planKey)} className="rounded-md border border-white/10 bg-black/20 p-4">
@@ -80,7 +88,7 @@ export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "
               <p className="mt-2 text-sm text-white/58">{String(plan.description)}</p>
               <p className="mt-3 text-2xl font-semibold text-white">{Number(plan.amountCents) === 0 ? "Included" : `$${(Number(plan.amountCents) / 100).toFixed(2)}`}</p>
               <p className="mt-1 text-xs uppercase tracking-[0.14em] text-white/42">{String(plan.interval)} · {String(plan.provider)}</p>
-              <button className="mt-4 w-full rounded-md border border-cyanGlow/20 px-3 py-2 text-sm text-cyan-50 hover:bg-cyanGlow/10" onClick={() => checkout(String(plan.planKey))}>{Number(plan.amountCents) === 0 ? "Use Free" : "Start Checkout"}</button>
+              {Number(plan.amountCents) > 0 ? <button disabled={busy || !stripe?.enabled || !stripe.configuredPlans?.includes(String(plan.planKey))} className="mt-4 w-full rounded-md border border-cyanGlow/20 px-3 py-2 text-sm text-cyan-50 hover:bg-cyanGlow/10 disabled:opacity-50" onClick={() => checkout(String(plan.planKey))}>{busy ? "Connecting..." : "Start Checkout"}</button> : <p className="mt-4 text-sm text-white/60">Default membership</p>}
             </article>
           ))}
         </div>
@@ -91,9 +99,9 @@ export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "
         <DataPanel title="Invoices and Receipts" data={invoices} />
         <DataPanel title="Payment History" data={payments} />
         <div className="rounded-md border border-white/10 bg-white/[0.04] p-5">
-          <h2 className="text-xl font-semibold text-white">Cancel Subscription</h2>
-          <p className="mt-2 text-sm text-white/58">Cancellation removes paid access after billing synchronization and falls back to Free where policy allows.</p>
-          <button className="mt-4 rounded-md border border-amber-300/20 px-3 py-2 text-sm text-amber-100 hover:bg-amber-500/10" onClick={cancel}>Cancel Current Subscription</button>
+          <h2 className="text-xl font-semibold text-white">Manage Subscription</h2>
+          <p className="mt-2 text-sm text-white/58">Manage payment methods and cancellation securely through Stripe. Membership updates after provider verification.</p>
+          <button disabled={busy || !stripe?.enabled} className="mt-4 rounded-md border border-amber-300/20 px-3 py-2 text-sm text-amber-100 hover:bg-amber-500/10 disabled:opacity-50" onClick={cancel}>{busy ? "Connecting..." : "Open Stripe Billing"}</button>
         </div>
       </section>
     </main>

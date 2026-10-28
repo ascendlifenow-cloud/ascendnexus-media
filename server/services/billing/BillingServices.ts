@@ -16,6 +16,7 @@ import { jsonDatabase } from "../media/JsonDatabase";
 import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceService";
 import { membershipAssignmentService } from "../membership/MembershipAssignmentService";
 import { membershipCatalogService } from "../membership/MembershipCatalogService";
+import { stripeBillingService } from "./StripeBillingService";
 
 const nowIso = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
@@ -53,14 +54,8 @@ export interface PaymentProviderAdapter {
 export class StripeProvider implements PaymentProviderAdapter {
   provider: BillingProviderKey = "stripe";
 
-  async createCheckoutSession(input: { memberId: string; plan: BillingPlanRecord; coupon?: CouponRecord }) {
-    // No provider API call is implemented; configuration alone is not a checkout.
-    return {
-      providerCheckoutSessionId: `stripe-checkout-${Date.now()}-${randomUUID().slice(0, 8)}`,
-      checkoutUrl: undefined,
-      status: "provider_configuration_required" as const,
-      safeMessage: "Automatic checkout is unavailable until the Stripe integration is implemented and verified. Contact support for membership access.",
-    };
+  async createCheckoutSession(_input: { memberId: string; plan: BillingPlanRecord; coupon?: CouponRecord }): Promise<Pick<CheckoutSessionResult, "providerCheckoutSessionId" | "checkoutUrl" | "status" | "safeMessage">> {
+    throw new AuthApiError("BILLING_STRIPE_CHECKOUT_REQUIRED", "Use the idempotent Stripe checkout endpoint.", 409);
   }
 
   async verifyWebhook(input: { signature?: string; payload: Record<string, unknown> }) {
@@ -71,12 +66,7 @@ export class StripeProvider implements PaymentProviderAdapter {
   }
 
   async getHealth() {
-    return {
-      provider: this.provider,
-      configured: Boolean(process.env.STRIPE_SECRET_KEY),
-      webhookSecretConfigured: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
-      mode: "integration_required",
-    };
+    return stripeBillingService.health();
   }
 }
 
@@ -284,6 +274,9 @@ export class EntitlementSyncService {
 export class SubscriptionService {
   async checkout(memberId: string, planKey: string, couponCode?: string): Promise<CheckoutSessionResult> {
     const plan = await billingPlanService.getPlan(planKey);
+    if (plan.provider === "stripe") throw new AuthApiError("BILLING_STRIPE_CHECKOUT_REQUIRED", "Use the secure Stripe checkout endpoint.", 409);
+    const activeStripe = (await jsonDatabase.listCollection("memberSubscriptions")).some((item) => item.memberId === memberId && item.provider === "stripe" && ["active", "trial", "past_due", "paused", "suspended"].includes(item.state));
+    if (activeStripe) throw new AuthApiError("BILLING_PORTAL_REQUIRED", "Manage your Stripe subscription in the billing portal.", 409);
     const coupon = await couponService.validate(couponCode, memberId, plan);
     const provider = paymentProviderService.getProvider(plan.provider);
     const providerSession = await provider.createCheckoutSession({ memberId, plan, coupon });
@@ -340,6 +333,7 @@ export class SubscriptionService {
     await jsonDatabase.update((data) => {
       const subscription = data.memberSubscriptions.find((item) => item.subscriptionId === subscriptionId || item.providerSubscriptionId === subscriptionId);
       if (!subscription) throw new AuthApiError("BILLING_SUBSCRIPTION_NOT_FOUND", "Subscription was not found.", 404);
+      if (subscription.provider === "stripe") throw new AuthApiError("BILLING_PROVIDER_STATE_REQUIRED", "Stripe subscription state must come from verified provider synchronization.", 409);
       subscription.state = state;
       subscription.updatedAt = nowIso();
       if (state === "canceled") subscription.canceledAt = subscription.updatedAt;
@@ -397,6 +391,7 @@ export class RefundService {
     const data = await jsonDatabase.read();
     const payment = data.paymentRecords.find((item) => item.paymentId === input.paymentId);
     if (!payment) throw new AuthApiError("BILLING_PAYMENT_NOT_FOUND", "Payment was not found.", 404);
+    if (payment.provider === "stripe") throw new AuthApiError("BILLING_PROVIDER_REFUND_REQUIRED", "Issue Stripe refunds in the Stripe dashboard; application refund reconciliation is not yet enabled.", 409);
     const refundAmount = cents(input.amountCents ?? payment.amountCents);
     const timestamp = nowIso();
     const refund: RefundRecord = {
@@ -472,26 +467,7 @@ export class GiftMembershipService {
   }
 
   async redeem(memberId: string, redemptionCode: string) {
-    let gift: GiftMembershipRecord | undefined;
-    await jsonDatabase.update((data) => {
-      gift = data.giftMemberships.find((item) => item.redemptionCodeHash === hash(redemptionCode) && item.status === "purchased");
-      if (!gift) throw new AuthApiError("BILLING_GIFT_INVALID", "Gift membership code is invalid.", 400);
-      if (Date.parse(gift.expiresAt) <= Date.now()) {
-        gift.status = "expired";
-        throw new AuthApiError("BILLING_GIFT_EXPIRED", "Gift membership code is expired.", 400);
-      }
-      gift.status = "redeemed";
-      gift.redeemedByMemberId = memberId;
-      gift.redeemedAt = nowIso();
-    });
-    if (!gift) throw new AuthApiError("BILLING_GIFT_INVALID", "Gift membership code is invalid.", 400);
-    const data = await jsonDatabase.read();
-    const plan = data.billingPlans.find((item) => item.billingPlanId === gift!.billingPlanId);
-    if (plan) {
-      const subscription = await subscriptionService.checkout(memberId, plan.planKey);
-      await subscriptionService.updateState(subscription.subscriptionId, "active", memberId);
-    }
-    return gift;
+    throw new AuthApiError("BILLING_GIFT_UNAVAILABLE", "Gift redemption is unavailable until funded gift verification is implemented.", 409);
   }
 }
 
@@ -617,6 +593,7 @@ export class BillingService {
     const revenue = await revenueAnalyticsService.report();
     if (memberId) {
       return {
+        stripe: stripeBillingService.health(),
         plans: await billingPlanService.listPublicPlans(),
         currentSubscription: await subscriptionService.current(memberId),
         subscriptions: await subscriptionService.listForMember(memberId),
