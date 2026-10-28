@@ -77,7 +77,7 @@ export function applyProductionFinalAudio(data: MediaDatabaseShape, releaseId: s
   storage.metadata = { ...storage.metadata, productionAudioRevision: revision };
   release.updatedAt = now;
   release.updatedBy = actorId;
-  release.metadata = { ...release.metadata, fullSongAssetId: asset.assetId, fullSongStorageObjectId: storage.storageObjectId, fullSongMimeType: storage.mimeType, fullSongFileSizeBytes: storage.fileSizeBytes, fullSongPublicPlaybackAllowed: false, pendingFullSongAssignment: false, productionPackage: bundle, productionValidation: validation, productionRevision: revision, audioStatus: "candidate_awaiting_audition", productionAudioReview: "pending" };
+  release.metadata = { ...release.metadata, fullSongAssetId: asset.assetId, fullSongStorageObjectId: storage.storageObjectId, fullSongMimeType: storage.mimeType, fullSongFileSizeBytes: storage.fileSizeBytes, fullSongOriginalFileName: storage.originalFileName ?? storage.fileName, fullSongPublicPlaybackAllowed: false, pendingFullSongAssignment: false, productionPackage: bundle, productionValidation: validation, productionRevision: revision, audioStatus: "candidate_awaiting_audition", productionAudioReview: "pending" };
   for (const intake of data.mediaIntakeRecords) {
     if (intake.mediaAssetId === asset.assetId && !["quarantined", "ignored", "failed", "superseded"].includes(intake.status)) Object.assign(intake, { status: "assigned", assignedEntityType: "release", assignedEntityId: releaseId, assignedAssetRole: "fullSongUrl", assignedAt: now, reviewedAt: now, updatedAt: now });
   }
