@@ -38,3 +38,25 @@ R2 existence check `4523c6d2-5baf-434e-b9cd-f54f4713cebf` inspected all 22 exact
 The first read-only object check was stopped to replace repeated collection scans with an existence-first check; it performed no mutations. No real-media duplicate was approved for deletion. Refreshing existing browser sessions is required to clear fetched lists; this run did not validate authenticated browser cache behavior.
 
 Final repeat check `1eacadb3-0145-4629-a197-7a0c4090cd1b` found zero known fixtures and made zero changes. Catalog/non-test-media integrity remained unchanged.
+
+## Follow-Up: 107 Review Items
+
+The user approved keeping current artwork and reversibly archiving checksum-confirmed duplicates, then explicitly approved the same treatment for audio. A follow-up source-code inventory identified 11 additional test records: nine publication-smoke full songs with generic titles and two development seed media records. Exact fixture IDs and titles are both required for these cases. They were unreferenced and removed with a private backup; there were no public R2 objects to delete.
+
+Archived 77 redundant artwork records and six older full-song records. The original upload SHA-256 was checked against actual current assigned bytes. The old artwork originals were not available locally; do not describe this as comparing two freshly read original files. Protected audio was verified from registered staging R2 objects using short-lived, in-memory signing artifacts; no URLs, paths, or tokens were logged. No media bytes were deleted or promoted.
+
+Two stale `metadata.mediaAssetId` references and one stale active cover-art link were reconciled to the already-current canonical artwork. Current artwork, lyrics, release state, membership/access policies, media URLs and storage records were preserved. Historical `previousCoverArtAssetIds` references remain intact; archival preserves their records. Diagnostic release IDs from the initial small archival pass were corrected in three records with append-only audit events. Regression tests now explicitly distinguish release IDs from artist IDs.
+
+Ten preview records did not pass duplicate byte verification and were retained. Three other artwork records also remain. `scripts/staging-review-availability.ts` checks remaining delivery availability and records actionable review reasons; it does not assign unavailable files or silently replace current media.
+
+Operator commands (staging only, dry run by default):
+
+```sh
+node --env-file=.env.migration.local --import tsx scripts/staging-archive-assigned-duplicates.ts --environment=staging --evidence=/private/tmp/duplicate-evidence.json
+node --env-file=.env.migration.local --import tsx scripts/staging-archive-assigned-duplicates.ts --environment=staging --evidence=/private/tmp/duplicate-evidence.json --apply --confirm-archive-duplicates --include-audio --backup=/private/tmp/duplicate-backup-UNIQUE.json
+node --env-file=.env.migration.local --import tsx scripts/staging-review-availability.ts --environment=staging --apply-diagnostics --report=/private/tmp/remaining-review.json
+```
+
+`--include-audio` is opt-in and requires owner approval. Private full-song verification never falls back to public delivery. An existing approved public preview URL may be checked only for preview assets; exact size and byte checks still apply. No audio is claimed auditioned. Repeated archival ignores already archived duplicate records. Operations are per-record transactional with private backups and audit events; partial successful batches remain valid if a later record fails.
+
+Validation: 19 fixture-policy assertions, five catalog-reference assertions, 15 reconciliation assertions, application TypeScript, production build and pure policy TypeScript checks passed. Live staging byte checks and content/storage fingerprints were verified for each archival batch. Authenticated Media Review counts still require browser refresh; final backend unresolved count is 13, not 107. This is not a claim that all 107 received new primary assignments.

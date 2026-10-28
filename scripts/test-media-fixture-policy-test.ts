@@ -4,4 +4,8 @@ for (const title of ["Backend Smoke Cover", "Publication Smoke Cover", "Processi
 for (const title of ["Smoke and Mirrors", "The Test of Time", "Latest Song", "Smoke Cover", "", "Debug My Heart"]) assert.equal(isKnownTestMediaFixture({ title }), false);
 assert.equal(referencesAny({ metadata: { assets: ["test-asset"] } }, new Set(["test-asset"])), true);
 assert.equal(referencesAny({ title: "test-asset song" }, new Set(["test-asset"])), false);
-console.log("Test media fixture policy: 15 checks passed.");
+assert.equal(isKnownTestMediaFixture({ title: "Private Full Song", assetId: "publication-full-song-1783725555209-hzljs" }), true);
+assert.equal(isKnownTestMediaFixture({ title: "Private Full Song", assetId: "real-private-song" }), false);
+assert.equal(isKnownTestMediaFixture({ title: "Seed Public Preview", assetId: "seed-asset-public-preview" }), true);
+assert.equal(isKnownTestMediaFixture({ title: "Seed Public Preview", assetId: "real-preview" }), false);
+console.log("Test media fixture policy: 19 checks passed.");

@@ -1,7 +1,10 @@
 // Deliberately recognize known development fixtures, not songs containing "test" or "smoke".
-export function isKnownTestMediaFixture(asset: { title?: string }): boolean {
+export function isKnownTestMediaFixture(asset: { title?: string; assetId?: string }): boolean {
   const title = asset.title ?? "";
-  return /^(?:Backend Smoke Cover|Publication Smoke Cover|Processing Smoke|Real Processing Smoke|Release Cover Picker Smoke)$/.test(title)
+  return (title === "Private Full Song" && /^publication-full-song-\d{13}-[a-z0-9]+$/.test(asset.assetId ?? ""))
+    || (title === "Seed Public Preview" && asset.assetId === "seed-asset-public-preview")
+    || (title === "Seed Protected Full Stream" && asset.assetId === "seed-asset-premium-full-stream")
+    || /^(?:Backend Smoke Cover|Publication Smoke Cover|Processing Smoke|Real Processing Smoke|Release Cover Picker Smoke)$/.test(title)
     || /^Smoke (?:Cover|Full Song) \d{13}-[a-z0-9]+$/.test(title)
     || /^Debug(?:CoverArt|CoverArtLan|CoverArtLanRestarted|LargeCoverArt|CustomImageCoverArt|CustomImageAfterProxyFix|OriginCoverArt|MalformedMetadataCoverArt)$/.test(title);
 }

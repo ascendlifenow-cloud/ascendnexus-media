@@ -52,7 +52,7 @@ try {
     const source = await hashApprovedImage(asset.url);
     const current = await hashApprovedImage(record[field] ?? canonical?.url);
     const sameBytes = Boolean(source.hash && current.hash && source.hash === current.hash);
-    results.push({ assetId: asset.assetId, targetEntityId: target.entityId, canonicalAssetId: canonical?.assetId ?? null, status: sameBytes ? "byte_identical_duplicate" : source.hash && current.hash ? "different_artwork" : "unverified", candidateDelivery: source.reason, assignedDelivery: current.reason, candidateMatchesRecordedChecksum: source.hash ? source.hash === asset.metadata.checksum : null });
+    results.push({ assetId: asset.assetId, targetEntityId: target.entityId, canonicalAssetId: canonical?.assetId ?? null, status: sameBytes ? "byte_identical_duplicate" : source.hash && current.hash ? "different_artwork" : "unverified", candidateDelivery: source.reason, assignedDelivery: current.reason, candidateMatchesRecordedChecksum: source.hash ? source.hash === asset.metadata.checksum : null, recordedCandidateChecksumMatchesAssignedBytes: current.hash ? current.hash === asset.metadata.checksum : null });
   }
   const report = { environment: "staging", checkedAt: new Date().toISOString(), assessed: results.length, mutations: 0, counts: results.reduce<Record<string, number>>((counts, result) => { const status = String(result.status); counts[status] = (counts[status] ?? 0) + 1; return counts; }, {}), items: results };
   if (reportPath) await writeFile(reportPath, JSON.stringify(report, null, 2), { mode: 0o600, flag: "wx" });
