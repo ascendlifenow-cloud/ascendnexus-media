@@ -76,6 +76,7 @@ try {
   assert.equal(usage.remainingFullPlays, 0);
   assert.equal(usage.canContinue, true);
   assert.equal(usage.canStream, false);
+  assert.equal((await jsonDatabase.read()).memberAccessHistory.filter(item => item.memberId === "free" && item.action === "song_stream_started").length, 1, "First byte delivery must persist one safe access-history record, not one per range.");
   assert.equal((await authorize("free")).authorized, false);
   const firstAuth = (await jsonDatabase.read()).protectedMediaAuthorizations.find((item) => item.memberId === "free")!;
   await jsonDatabase.update((data) => { const record = data.protectedMediaAuthorizations.find((item) => item.authorizationId === firstAuth.authorizationId)!; record.issuedAt = new Date(Date.now() - 290000).toISOString(); record.expiresAt = new Date(Date.now() + 10000).toISOString(); });
@@ -179,6 +180,23 @@ try {
     assert.equal(response.status, 206);
     assert.equal(await response.text(), "345");
     assert.equal(response.headers.get("location"), null);
+    for (const upstreamStatus of [403, 206]) {
+      let cancelled = false;
+      globalThis.fetch = async (input, options) => {
+        if (String(input).startsWith("https://fixture-storage.invalid/")) return new Response(new ReadableStream({ cancel() { cancelled = true; } }), {
+          status: upstreamStatus, headers: { "Content-Length": "999", "Content-Range": "bytes 0-998/999" },
+        });
+        return originalFetch(input, options);
+      };
+      const beforeFailure = (await songUsageService.summary("vip", "fixture")).streamStarts;
+      const failedAuthorization = await authorize("vip");
+      const rejected = await request("streamEndpoint" in failedAuthorization ? failedAuthorization.streamEndpoint! : "", "vip", { headers: { Range: "bytes=3-5" } });
+      assert.equal(rejected.status, 502);
+      assert.equal(rejected.headers.get("cache-control"), "private, no-store");
+      assert.equal((await rejected.json() as { code: string }).code, "PROTECTED_MEDIA_NOT_READY");
+      assert.equal(cancelled, true, "Rejected upstream bodies must be cancelled before Node stream conversion.");
+      assert.equal((await songUsageService.summary("vip", "fixture")).streamStarts, beforeFailure, "Rejected upstream must not consume a play.");
+    }
   } finally { globalThis.fetch = originalFetch; backendStorageProviderRegistry.getActiveProvider = originalProvider; }
   await jsonDatabase.update((data) => { data.mediaStorageObjects[0].provider = "local"; });
   const liveBeforeTakedown = await authorize("vip");

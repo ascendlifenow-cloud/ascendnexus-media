@@ -37,6 +37,26 @@ npm run build
 
 ## Remaining Acceptance
 
+### Isolated staging run, 2026-10-28
+
+Owner authorized four disposable test members and private synthetic audio. The deployed revision `69443e3` passed the anonymous smoke check. Isolated authenticated tests passed real Free/Premium/Supporter/VIP logins, private detail exclusion, unsigned private-object denial, Free issuance without debit, member binding and HEAD without debit. The configured R2 bucket/public-media mapping matched by ETag and content length. A server-only signed origin range returned the exact 44 expected synthetic WAV header bytes.
+
+The deployed gateway range request returned HTML HTTP 502 rather than the required 206/audio bytes. The same gateway implementation using the same staging fixture/session over localhost returned the correct 206 bytes. This narrows the failure to deployed runtime/delivery behavior but does not establish which hosting/configuration layer is responsible. Paid playback, download replay and deployed revocation acceptance did not run past that blocking failure; local tests are not a substitute.
+
+All generated test accounts, assignments, grants, content requirements/policies, assets, usage records, sessions, authorizations, playback records and the private silent object were removed after each run. Sanitized administrative/security/access evidence is intentionally retained. Private run reports are under ignored `production/anmx-003/song-acceptance-<runId>.json`. The first report was overwritten by an early cleanup-only rerun; its failure remains in administrative audit and subsequent reproductions. Later cleanup reports use a separate filename. No existing memberships were changed and no real song allowance was consumed.
+
+Follow-on patch validates/cancels rejected upstream bodies before Node-stream conversion and adds sanitized stage/status diagnostics; this is defensive handling, not a proven fix for the HTML 502. It also fixes a demonstrated local commit omission: first-delivery access history now persists with the usage ledger and authorization. New tests verify exactly one history record across ranges and no debit for rejected storage responses.
+
+The staging harness pins the approved database/storage target fingerprint, rejects production, uses run-specific IDs and short-lived scoped grants, and independently attempts/verifies each cleanup step. After a process interruption, run the scoped cleanup command with the private report's run ID. The harness creates synthetic records directly, then uses real deployed login/authorization/delivery routes; it does not test registration/email or administrative grant UI end-to-end.
+
+```sh
+npm run test:staging-song-acceptance-safety
+node --env-file=.env.migration.local --import tsx scripts/staging-song-acceptance.ts --environment=staging --execute-isolated-staging-tests
+node --env-file=.env.migration.local --import tsx scripts/staging-song-acceptance.ts --environment=staging --cleanup-run=<run-id>
+```
+
+These commands mutate only isolated staging fixtures and require owner authorization. No production mode is supported; credentials and delivery artifacts are never printed.
+
 1. Confirm the API reports the new expected commit after deployment. A green generic readiness response alone is insufficient.
 2. Confirm `/admin/members` labels and counts match effective membership, not historical readiness fields. Verify the song usage table appears; zero starts is valid.
 3. With an approved isolated test member, verify one Free full play, range continuation without another debit, a second new-play denial, and separate download denial.

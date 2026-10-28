@@ -138,6 +138,7 @@ export class ProtectedMediaGatewayService {
   private async deliver(request: IncomingMessage, response: ServerResponse, reference: string, action: Action) {
     let source: Readable | undefined;
     let sourceFailed = false;
+    let stage = "authorization";
     let handle: Awaited<ReturnType<typeof fsp.open>> | undefined;
     const abort = new AbortController();
     const disconnect = () => { abort.abort(); source?.destroy(); };
@@ -164,6 +165,7 @@ export class ProtectedMediaGatewayService {
       }
       const length = Math.max(0, range.end - range.start + 1);
       if (request.method === "GET" && length > 0) {
+        stage = "storage_read";
         if (handle) {
           source = handle.createReadStream({ start: range.start, end: range.end, autoClose: false });
         } else {
@@ -173,16 +175,22 @@ export class ProtectedMediaGatewayService {
           const upstream = await fetch(signed, { redirect: "error", signal: abort.signal, headers: {
             "Accept-Encoding": "identity", ...(range.status === 206 ? { Range: `bytes=${range.start}-${range.end}` } : {}),
           } });
-          source = upstream.body ? Readable.fromWeb(upstream.body as never) : undefined;
-          if (upstream.status !== range.status || !source || upstream.headers.get("content-length") !== String(length) ||
+          if (upstream.status !== range.status || !upstream.body || upstream.headers.get("content-length") !== String(length) ||
             (upstream.headers.get("content-encoding") && upstream.headers.get("content-encoding") !== "identity") ||
-            (range.status === 206 ? upstream.headers.get("content-range") !== `bytes ${range.start}-${range.end}/${size}` : upstream.headers.has("content-range"))) throw denied("PROTECTED_MEDIA_NOT_READY", 502);
+            (range.status === 206 ? upstream.headers.get("content-range") !== `bytes ${range.start}-${range.end}/${size}` : upstream.headers.has("content-range"))) {
+            console.warn("[protected-delivery] upstream response rejected", { provider: validation.storage.provider, status: upstream.status, partial: range.status === 206,
+              lengthMatches: upstream.headers.get("content-length") === String(length), rangeMatches: upstream.headers.get("content-range") === `bytes ${range.start}-${range.end}/${size}` });
+            await upstream.body?.cancel().catch(() => undefined);
+            throw denied("PROTECTED_MEDIA_NOT_READY", 502);
+          }
+          source = Readable.fromWeb(upstream.body as never);
         }
       }
       source?.on("error", () => { sourceFailed = true; });
       const parsed = parseReference(reference)!;
       // Reauthenticate after source opening, then recheck and account inside the same update, before headers or bytes.
       const session = await memberIdentityService.authenticateRequest(request);
+      stage = "usage_commit";
       const commit = usageQueue.then(() => jsonDatabase.update((data) => {
         if (abort.signal.aborted || response.destroyed || sourceFailed) throw denied();
         // The JSON database may expose its cache directly. Publish only after every throwing check succeeds.
@@ -197,6 +205,7 @@ export class ProtectedMediaGatewayService {
         if (action === "download") current.authorization.status = "used";
         data.memberSongUsage = staged.memberSongUsage;
         data.protectedMediaAuthorizations = staged.protectedMediaAuthorizations;
+        data.memberAccessHistory = staged.memberAccessHistory;
       }));
       usageQueue = commit.catch(() => undefined);
       await commit;
@@ -215,8 +224,11 @@ export class ProtectedMediaGatewayService {
         delivered += chunk.length;
         callback(delivered > length ? denied() : null, delivered > length ? undefined : chunk);
       }, flush(callback) { callback(delivered === length ? null : denied()); } });
+      stage = "byte_delivery";
       await pipeline(source, bounded, response);
     } catch (error) {
+      if (!request.aborted) console.warn("[protected-delivery] request failed", { stage, action, status: error instanceof AuthApiError ? error.status : 503,
+        code: error instanceof AuthApiError ? error.code : "PROTECTED_CONTENT_UNAVAILABLE" });
       if (!response.destroyed) this.safeDenied(response, error instanceof AuthApiError ? error.status : 503, error instanceof AuthApiError ? error.code : "PROTECTED_CONTENT_UNAVAILABLE");
     } finally {
       clearTimeout(timeout);

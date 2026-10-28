@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:staging-song-acceptance-safety": "node --import tsx scripts/staging-song-acceptance-safety-test.ts",
+    "staging:song-acceptance": "node --import tsx scripts/staging-song-acceptance.ts",
     "test:member-crm-effective-tier": "node --import tsx scripts/member-crm-effective-tier-test.ts",
     "test:deployment-identity": "node --import tsx scripts/deployment-identity-test.ts",
     "test:staging-permission-smoke": "node --import tsx scripts/staging-permission-smoke-test.ts",
