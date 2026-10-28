@@ -7,6 +7,7 @@ import { parseJsonBody } from "../middleware/adminMediaUploadMiddleware";
 import { authenticationService } from "../services/auth/AuthenticationService";
 import { readPrivateProductionCover } from "../services/production/PrivateProductionCoverService";
 import { buildCorsHeaders, buildSecurityHeaders } from "../utils/security/securityHeaderUtils";
+import { listProductionAudioCandidates, selectProductionFinalAudio } from "../services/production/ProductionFinalAudioService";
 
 export const handleAdminReleaseRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
   const method = request.method ?? "GET";
@@ -17,6 +18,19 @@ export const handleAdminReleaseRoute = async (request: IncomingMessage, response
   if (!match) return false;
   const releaseId = decodeURIComponent(match[1]);
   const action = match[2];
+  if ((action === "production-audio-candidates" && method === "GET") || (action === "production-final-audio" && method === "POST")) {
+    // Real admin identity is mandatory, even when local legacy media bypass is enabled.
+    const auth = await authenticationService.authenticateRequest(request);
+    mediaAuthorizationService.requirePermission({ ...auth, adminId: auth.user.userId }, "releases.read");
+    mediaAuthorizationService.requirePermission({ ...auth, adminId: auth.user.userId }, "media.read");
+    if (method === "POST") {
+      mediaAuthorizationService.requirePermission({ ...auth, adminId: auth.user.userId }, "releases.update");
+      mediaAuthorizationService.requirePermission({ ...auth, adminId: auth.user.userId }, "media.update");
+    }
+    const data = method === "GET" ? await listProductionAudioCandidates(releaseId) : await selectProductionFinalAudio(releaseId, await parseJsonBody(request), auth.user.userId);
+    sendJson(response, 200, { success: true, data }, { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
+    return true;
+  }
   if (action === "production-cover" && method === "GET") {
     const auth = await mediaAuthorizationService.authenticate(request);
     mediaAuthorizationService.requirePermission(auth, "releases.read");

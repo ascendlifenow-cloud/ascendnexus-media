@@ -4,6 +4,8 @@ Updated 2026-10-27. These are coordinated specialist assignments, not continuous
 
 ## ANMX-AGENT-003
 
+Private-audio follow-on: Ramanujan delivered the candidate-picker interface, coordinator implemented revision-bound private association/manifest updates and tests, and Sartre independently reviewed the boundary. Real upload plumbing was tested with a tiny synthetic WAV in a temporary local database. This is not a real song recording or audition. The owner must still supply the final recording; audition and exact-bundle approval/execution remain separate work. See `docs/ANMX-private-final-audio-ingestion.md`.
+
 Follow-on engineering increment: legacy Mongo `update()` now writes only changed records inside a transaction and rejects stale snapshots. Deterministic tests plus an isolated real staging transaction/rollback test passed without modifying application records. Independent review and deployment results are recorded separately; this does not enable public release execution. See `docs/ANMX-database-mutation-safety.md`.
 
 The current evidence-based backlog and assignment ownership live in `docs/ANMX-AGENT-003-development-readiness.md`. `/admin/agents` reports persisted bounded assignments and sanitized per-run history; `/admin/production` remains the private release-review workspace. Status reports are operator-submitted evidence, not a claim that an external agent daemon is connected.

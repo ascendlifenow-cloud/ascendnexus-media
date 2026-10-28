@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
-import { jsonDatabase } from "../media/JsonDatabase";
+import { jsonDatabase, type MediaDatabaseShape } from "../media/JsonDatabase";
+import type { SongReleaseRecord } from "../../models/releases/SongReleaseModel";
+import type { ArtistRecord } from "../../models/artists/ArtistModel";
 import { MediaApiError } from "../../utils/media/mediaErrorUtils";
 import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceService";
 import { validateSongProductionPackage, type SongProductionPackage } from "./SongProductionContract";
@@ -32,7 +34,11 @@ export async function productionReviewSnapshot(releaseId: string) {
     jsonDatabase.listCollection("adminAuditEvents"),
     jsonDatabase.findCollectionRecord("artistRecords", { artistId: release.artistId }),
   ]);
-  const data = { mediaAssetLinks, mediaAssets, mediaStorageObjects, adminAuditEvents };
+  return buildProductionReviewSnapshot(release, { mediaAssetLinks, mediaAssets, mediaStorageObjects, adminAuditEvents }, artist);
+}
+
+export function buildProductionReviewSnapshot(release: SongReleaseRecord, data: Pick<MediaDatabaseShape, "mediaAssetLinks" | "mediaAssets" | "mediaStorageObjects" | "adminAuditEvents">, artist: ArtistRecord | null | undefined) {
+  const releaseId = release.releaseId;
   const links = data.mediaAssetLinks.filter((link) => link.entityId === releaseId && link.status === "active");
   const assets = links.map((link) => {
     const asset = data.mediaAssets.find((item) => item.assetId === link.assetId);
@@ -40,13 +46,14 @@ export async function productionReviewSnapshot(releaseId: string) {
     return { assetId: link.assetId, role: link.fieldKey, updatedAt: asset?.updatedAt, checksum: storage?.checksum, accessLevel: storage?.accessLevel };
   });
   const { status: _status, publicationState: _publication, updatedAt: _updated, ...content } = release;
-  const bundle = { release: content, assets, artist: artist && { artistId: artist.artistId, name: artist.name, bio: artist.bio, metadata: artist.metadata } };
+  const bundle = { release: content, assets, artist: artist ? { artistId: artist.artistId, name: artist.name, bio: artist.bio, metadata: artist.metadata } : null };
   const bundleHash = createHash("sha256").update(JSON.stringify(bundle)).digest("hex");
-  const audio = links.find((link) => link.fieldKey === "fullSongAssetId");
+  const audio = links.find((link) => ["fullSongAssetId", "fullSongUrl"].includes(link.fieldKey));
   const audioAsset = data.mediaAssets.find((asset) => asset.assetId === audio?.assetId && asset.assetType === "full_song" && !["deleted", "archived"].includes(asset.status));
   const audioStorage = data.mediaStorageObjects.find((object) => object.assetId === audioAsset?.assetId && object.accessLevel !== "public" && object.checksum && ["ready", "uploaded"].includes(object.status));
   const blockers: string[] = [];
   if (!audioAsset || !audioStorage) blockers.push("Final audio has not been produced or ingested.");
+  else if (release.metadata?.productionAudioReview !== "auditioned") blockers.push("Final audio candidate requires audition and review.");
   try {
     const saved = release.metadata?.productionPackage as SongProductionPackage;
     const validation = validateSongProductionPackage({ ...saved, title: release.title, lyrics: release.lyrics ?? "", artistId: release.artistId });
