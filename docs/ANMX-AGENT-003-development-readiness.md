@@ -31,7 +31,7 @@ Date: October 27, 2026 (America/Denver). Coordinator owns shared catalog mutatio
 
 | Priority | Assignment | Current state | Exit evidence / blocker |
 | --- | --- | --- | --- |
-| P0 | Replace legacy whole-catalog Mongo snapshot mutation | Partial; high-risk existing architecture | Targeted/transactional writes throughout mutating services, concurrent update/delete tests. New agent reports are deliberately excluded from snapshot registry. |
+| P0 | Replace legacy whole-catalog Mongo snapshot mutation | Partial; update path hardened | Legacy `update()` now commits changed records transactionally with stale-edit rejection; local and isolated real staging tests pass. Explicit full `write()` and broad snapshot reads remain migration boundaries. See `docs/ANMX-database-mutation-safety.md`. |
 | P0 | Transactional approval-to-publication executor | Planned; public execution locked | Revision-bound owner authority, rollback and duplicate/retry/concurrency tests. Must preserve existing public releases. |
 | P1 | Approved artist/brand/reference version | Blocked | Owner-selected approved brief and original handbook/reference versions; existing identity provenance is not fabricated profile approval. |
 | P1 | Generate and audition final recording | Blocked | Real WAV/MP3 from supported/manual generation, selected revision and review evidence. No subscription implies generation API access. |

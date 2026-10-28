@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:database-snapshot-changes": "node --import tsx scripts/snapshot-changes-test.ts",
+    "test:database-snapshot-staging": "node --import tsx scripts/snapshot-changes-staging-test.ts",
     "test:agent-status": "node --import tsx scripts/agent-status-test.ts",
     "test:agent-operator-safety": "node --import tsx scripts/agent-operator-safety-test.ts",
     "test:private-production-cover": "node --import tsx scripts/private-production-cover-test.ts",

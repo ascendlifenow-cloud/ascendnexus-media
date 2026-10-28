@@ -4,6 +4,7 @@ import { mediaBackendConfig } from "../../config/mediaBackendConfig";
 import { databaseCollections } from "../../database/collectionRegistry";
 import { databaseConnectionService } from "../../database/DatabaseConnectionService";
 import { stripInternalMongoFields, withDatabaseDefaults } from "../../database/databaseSerialization";
+import { applySnapshotChanges, planSnapshotChanges } from "../../database/snapshotChanges";
 import type {
   AdminAuditEvent,
   MediaAsset,
@@ -398,6 +399,21 @@ export class JsonDatabase {
   }
 
   async update(mutator: (data: MediaDatabaseShape) => void | Promise<void>): Promise<MediaDatabaseShape> {
+    if (this.useMongo()) {
+      const before = await this.readMongo();
+      const data = structuredClone(before);
+      await mutator(data);
+      const changes = planSnapshotChanges(before as never, data as never);
+      if (changes.length) {
+        const db = await databaseConnectionService.getDb();
+        await databaseConnectionService.withSession(async (session) => {
+          await session.withTransaction(async () => {
+            await applySnapshotChanges(db, session, changes);
+          });
+        });
+      }
+      return data;
+    }
     const data = await this.read();
     await mutator(data);
     return this.write(data);

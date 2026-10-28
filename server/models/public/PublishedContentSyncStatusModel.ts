@@ -1,6 +1,7 @@
 export type PublishedContentSyncStatusValue = "pending" | "syncing" | "synced" | "synced_with_warnings" | "failed" | "stale";
 
 export interface PublishedContentSyncStatus {
+  syncStatusId?: string;
   entityType: string;
   entityId: string;
   publicationOperationId: string;

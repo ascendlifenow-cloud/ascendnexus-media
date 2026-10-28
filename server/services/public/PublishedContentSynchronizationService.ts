@@ -3,6 +3,7 @@ import type { PublishedContentSyncStatus } from "../../models/public/PublishedCo
 import { jsonDatabase } from "../media/JsonDatabase";
 import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceService";
 import { publicContentCacheService } from "./PublicContentCacheService";
+import { publicationSyncId } from "../../database/publicationSyncIdentity";
 
 export class PublishedContentSynchronizationService {
   async synchronizePublicationOperation(operation: MediaPublicationOperation): Promise<PublishedContentSyncStatus> {
@@ -12,6 +13,7 @@ export class PublishedContentSynchronizationService {
       publicContentCacheService.markHidden(operation.entityType, operation.entityId, String(operation.metadata?.slug ?? operation.entityId));
     }
     const status: PublishedContentSyncStatus = {
+      syncStatusId: publicationSyncId(operation.entityType, operation.entityId),
       entityType: operation.entityType,
       entityId: operation.entityId,
       publicationOperationId: operation.publicationOperationId,
