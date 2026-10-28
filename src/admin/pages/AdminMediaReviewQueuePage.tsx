@@ -9,6 +9,8 @@ import { useMediaReviewFilters } from "../../hooks/media/useMediaReviewFilters";
 import { useSelectedMediaReviewItem } from "../../hooks/media/useSelectedMediaReviewItem";
 import { useAdminArtists, useAdminReleases } from "../../hooks/admin/useAdminContent";
 import { AdminPageHeader, AdminSectionCard } from "../components";
+import { adminApiBase } from "../services/AdminAuthApiService";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   MediaReviewItemList,
   MediaReviewPanel,
@@ -25,6 +27,22 @@ const metadata = {
 
 export function AdminMediaReviewQueuePage() {
   const queue = useMediaAssignmentReviewQueue();
+  const queryClient = useQueryClient();
+  const [autoAssigning, setAutoAssigning] = useState(false);
+  const [autoResult, setAutoResult] = useState<string | null>(null);
+  const autoAssign = async () => {
+    setAutoAssigning(true);
+    setAutoResult(null);
+    try {
+      const response = await fetch(`${adminApiBase()}/api/admin/media/intake/auto-assign`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dryRun: false }) });
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.errors?.join(" ") || "Automatic assignment failed.");
+      setAutoResult(`${result.assigned} assigned, ${result.reconciled} already-linked items cleared from ${result.assessed} pending intake items. Threshold: above ${Math.round(result.threshold * 100)}%. Remaining items need manual review.`);
+      await queryClient.invalidateQueries();
+      await queue.refreshQueue();
+    } catch (error) { setAutoResult(error instanceof Error ? error.message : "Automatic assignment failed."); }
+    finally { setAutoAssigning(false); }
+  };
   const artistsQuery = useAdminArtists();
   const releasesQuery = useAdminReleases();
   const filters = useMediaReviewFilters(queue.items);
@@ -93,6 +111,7 @@ export function AdminMediaReviewQueuePage() {
 
       {queue.loading ? <GridSkeleton itemCount={4} variant="block" columns="sm:grid-cols-2 xl:grid-cols-4" /> : null}
       {queue.error ? <PublicLoadingErrorState /> : null}
+      {autoResult ? <p role="status" className="text-sm text-white/75">{autoResult}</p> : null}
 
       {!queue.loading && !queue.error ? (
         <>
@@ -106,9 +125,9 @@ export function AdminMediaReviewQueuePage() {
                 <RefreshCw className="h-4 w-4" aria-hidden />
                 Refresh Queue
               </Button>
-              <Button type="button" variant="glass" disabled>
-                <Sparkles className="h-4 w-4" aria-hidden />
-                Bulk Assign
+              <Button type="button" variant="glass" disabled={autoAssigning} onClick={() => void autoAssign()}>
+                <Sparkles className={`h-4 w-4 ${autoAssigning ? "animate-pulse" : ""}`} aria-hidden />
+                {autoAssigning ? "Assigning…" : "Auto-assign Intake"}
               </Button>
               <Button type="button" variant="glass" disabled={!selectedIds.length} onClick={handleBulkArchive}>
                 <Archive className="h-4 w-4" aria-hidden />

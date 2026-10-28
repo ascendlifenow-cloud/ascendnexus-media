@@ -2,6 +2,7 @@ import type { ArtistRecord } from "../../models/artists/ArtistModel";
 import type { MediaAssignmentConfidence, MediaIntakeSuggestedMatch } from "../../models/mediaIntake/MediaIntakeModels";
 import { artistRepository } from "../../repositories/ArtistRepository";
 import { mediaFilenameNormalizationService } from "./MediaFilenameNormalizationService";
+import { mediaIntakeConfigService } from "./MediaIntakeConfigService";
 
 const metadataStrings = (metadata: Record<string, unknown> | undefined, keys: string[]): string[] =>
   keys.flatMap((key) => {
@@ -14,7 +15,8 @@ const metadataStrings = (metadata: Record<string, unknown> | undefined, keys: st
 export class MediaIntakeArtistMatcher {
   async findCandidateMatches(token: string): Promise<{ matches: MediaIntakeSuggestedMatch[]; confidence: MediaAssignmentConfidence }> {
     const normalizedToken = mediaFilenameNormalizationService.normalizeArtistToken(token);
-    const artists = await artistRepository.list({ includeArchived: true });
+    if (!normalizedToken) return this.buildMatchDecision([]);
+    const artists = await artistRepository.list();
     const scored = artists.map((artist) => this.scoreCandidate(normalizedToken, artist)).filter((item) => item.score > 0).sort((a, b) => b.score - a.score);
     return this.buildMatchDecision(scored);
   }
@@ -42,7 +44,7 @@ export class MediaIntakeArtistMatcher {
   buildMatchDecision(candidates: MediaIntakeSuggestedMatch[]): { matches: MediaIntakeSuggestedMatch[]; confidence: MediaAssignmentConfidence } {
     const top = candidates[0];
     const tied = top ? candidates.filter((item) => item.score === top.score).length : 0;
-    const decision = top && top.score >= 0.92 && tied === 1 ? "auto_assign" : candidates.length ? "review_required" : "review_required";
+    const decision = top && top.score > mediaIntakeConfigService.getConfig().minConfidence && tied === 1 && candidates.length === 1 ? "auto_assign" : "review_required";
     return {
       matches: candidates.slice(0, 5),
       confidence: {

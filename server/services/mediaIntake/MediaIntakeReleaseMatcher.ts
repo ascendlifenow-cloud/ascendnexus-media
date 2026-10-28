@@ -2,6 +2,7 @@ import type { SongReleaseRecord } from "../../models/releases/SongReleaseModel";
 import type { MediaAssignmentConfidence, MediaIntakeSuggestedMatch } from "../../models/mediaIntake/MediaIntakeModels";
 import { releaseRepository } from "../../repositories/ReleaseRepository";
 import { mediaFilenameNormalizationService } from "./MediaFilenameNormalizationService";
+import { mediaIntakeConfigService } from "./MediaIntakeConfigService";
 
 const metadataStrings = (metadata: Record<string, unknown> | undefined, keys: string[]): string[] =>
   keys.flatMap((key) => {
@@ -14,7 +15,8 @@ const metadataStrings = (metadata: Record<string, unknown> | undefined, keys: st
 export class MediaIntakeReleaseMatcher {
   async findCandidateMatches(token: string): Promise<{ matches: MediaIntakeSuggestedMatch[]; confidence: MediaAssignmentConfidence }> {
     const normalizedToken = mediaFilenameNormalizationService.normalizeReleaseToken(token);
-    const releases = await releaseRepository.list({ includeArchived: true });
+    if (!normalizedToken) return this.buildMatchDecision([]);
+    const releases = await releaseRepository.list();
     const scored = releases.map((release) => this.scoreCandidate(normalizedToken, release)).filter((item) => item.score > 0).sort((a, b) => b.score - a.score);
     return this.buildMatchDecision(scored);
   }
@@ -58,7 +60,7 @@ export class MediaIntakeReleaseMatcher {
         mediaTypeScore: 1,
         conflictPenalty: tied > 1 ? 1 : 0,
         candidateCount: candidates.length,
-        decision: top && top.score >= 0.92 && tied === 1 ? "auto_assign" : "review_required",
+        decision: top && top.score > mediaIntakeConfigService.getConfig().minConfidence && tied === 1 && candidates.length === 1 ? "auto_assign" : "review_required",
         reasons: top ? top.reasons : ["No release match found."],
       },
     };

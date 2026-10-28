@@ -43,6 +43,7 @@ export const handleAdminMediaRoute = async (request: IncomingMessage, response: 
   if (method === "GET" && path === "/api/admin/media/intake/status") return adminMediaIntakeController.status(request, response).then(() => true);
   if (method === "GET" && path === "/api/admin/media/intake/records") return adminMediaIntakeController.records(request, response, url).then(() => true);
   if (method === "POST" && path === "/api/admin/media/intake/scan") return adminMediaIntakeController.scan(request, response).then(() => true);
+  if (method === "POST" && path === "/api/admin/media/intake/auto-assign") return adminMediaIntakeController.autoAssign(request, response).then(() => true);
   if (method === "POST" && path === "/api/admin/media/intake/start") return adminMediaIntakeController.start(request, response).then(() => true);
   if (method === "POST" && path === "/api/admin/media/intake/stop") return adminMediaIntakeController.stop(request, response).then(() => true);
   const processingAssetMatch = /^\/api\/admin\/media\/assets\/([^/]+)\/processing$/.exec(path);

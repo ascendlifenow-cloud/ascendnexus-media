@@ -14,6 +14,7 @@ import { mediaIntakeArtistMatcher } from "./MediaIntakeArtistMatcher";
 import { mediaIntakeReleaseMatcher } from "./MediaIntakeReleaseMatcher";
 import { artistArtworkAssignmentService } from "./ArtistArtworkAssignmentService";
 import { releaseCoverArtAssignmentService } from "./ReleaseCoverArtAssignmentService";
+import { automaticAssignmentBlocker } from "./MediaIntakeAutoAssignmentService";
 
 const actorId = "system:media-intake";
 
@@ -181,7 +182,7 @@ export class WatchedFolderMediaIngestionService {
     }))!;
 
     const match = await this.matchRecord(record);
-    const autoAllowed = config.autoAssignEnabled && match.confidence.decision === "auto_assign" && match.confidence.overallScore >= config.minConfidence && match.matches.length === 1;
+    const autoAllowed = config.autoAssignEnabled && match.confidence.decision === "auto_assign" && match.confidence.overallScore > config.minConfidence && match.matches.length === 1 && !await automaticAssignmentBlocker(record, match.matches[0].entityType, match.matches[0].entityId);
     if (autoAllowed) {
       const assigned = await this.assign(record, match.matches[0].entityType, match.matches[0].entityId);
       await safeMove(filePath, config.deleteSourceAfterSuccess ? config.archiveFolder : config.archiveFolder, filename).catch(() => undefined);

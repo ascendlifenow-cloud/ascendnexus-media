@@ -45,7 +45,8 @@ export class MediaIntakeConfigService {
       stabilityWindowMs: parseNumber(process.env.MEDIA_INTAKE_STABILITY_WINDOW_MS, 1_500),
       maxFileSize: parseNumber(process.env.MEDIA_INTAKE_MAX_FILE_SIZE, mediaBackendConfig.maxFullSongBytes),
       autoAssignEnabled: parseBool(process.env.MEDIA_INTAKE_AUTO_ASSIGN_ENABLED, true),
-      minConfidence: Math.min(1, Math.max(0, Number(process.env.MEDIA_INTAKE_MIN_CONFIDENCE ?? "0.92"))),
+      minConfidence: Number.isFinite(Number(process.env.MEDIA_INTAKE_MIN_CONFIDENCE ?? "0.60"))
+        ? Math.min(1, Math.max(0, Number(process.env.MEDIA_INTAKE_MIN_CONFIDENCE ?? "0.60"))) : 1,
       deleteSourceAfterSuccess: parseBool(process.env.MEDIA_INTAKE_DELETE_SOURCE_AFTER_SUCCESS, false),
       allowedExtensions: (process.env.MEDIA_INTAKE_ALLOWED_EXTENSIONS ?? "jpg,jpeg,png,webp,gif,mp3,wav,flac,aac,m4a,mp4,mov,webm")
         .split(",")

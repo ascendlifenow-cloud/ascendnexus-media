@@ -4,8 +4,21 @@ import { sendJson } from "../middleware/mediaErrorMiddleware";
 import { mediaIntakeFolderWatcherService } from "../services/mediaIntake/MediaIntakeFolderWatcherService";
 import { mediaIntakeRecordRepository } from "../services/mediaIntake/MediaIntakeRecordRepository";
 import { mediaIntakeConfigService } from "../services/mediaIntake/MediaIntakeConfigService";
+import { reprocessPendingIntake } from "../services/mediaIntake/MediaIntakeAutoAssignmentService";
+import { parseJsonBody } from "../middleware/adminMediaUploadMiddleware";
+import { mediaAuditPersistenceService } from "../services/media/MediaAuditPersistenceService";
 
 export class AdminMediaIntakeController {
+  async autoAssign(request: IncomingMessage, response: ServerResponse) {
+    const auth = await mediaAuthorizationService.authenticate(request);
+    mediaAuthorizationService.requirePermission(auth, "media.edit");
+    mediaAuthorizationService.requirePermission(auth, "artists.update");
+    mediaAuthorizationService.requirePermission(auth, "releases.update");
+    const body = await parseJsonBody(request) as Record<string, unknown>;
+    const result = await reprocessPendingIntake(body.dryRun !== false);
+    if (!result.dryRun) await mediaAuditPersistenceService.record("media_intake_cleanup_completed", "Re-evaluated pending media intake assignments.", { actorId: auth.adminId, metadata: { assigned: result.assigned, reconciled: result.reconciled, assessed: result.assessed, threshold: result.threshold } });
+    sendJson(response, 200, result);
+  }
   async health(request: IncomingMessage, response: ServerResponse) {
     const auth = await mediaAuthorizationService.authenticate(request);
     mediaAuthorizationService.requirePermission(auth, "media.read");
