@@ -6,7 +6,8 @@ export class DeploymentReleaseService {
   async getCurrentRelease() {
     const environment = getDeploymentEnvironment();
     const persisted = await deploymentReleaseRepository.getCurrent(environment);
-    if (persisted) return persisted;
+    const runtimeCommit = getDeploymentCommitSha();
+    if (persisted && (runtimeCommit === "local-unversioned" || persisted.commitSha === runtimeCommit)) return persisted;
     const now = new Date().toISOString();
     return {
       deploymentReleaseId: getDeploymentReleaseId(),

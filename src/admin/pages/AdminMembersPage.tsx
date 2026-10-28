@@ -121,7 +121,7 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
       </section>
 
       <section className="grid gap-4 md:grid-cols-4 xl:grid-cols-7">
-        {statKeys.map((key) => <div key={key} className="rounded-md border border-white/10 bg-white/[0.04] p-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-white/42">{key}</p><p className="mt-2 text-2xl font-semibold text-white">{String(dashboard?.[key] ?? 0)}</p></div>)}
+        {statKeys.map((key) => <div key={key} className="rounded-md border border-white/10 bg-white/[0.04] p-4"><p className="text-xs font-bold uppercase tracking-[0.16em] text-white/42">{key === "premiumReady" ? "Premium Members" : key}</p><p className="mt-2 text-2xl font-semibold text-white">{String(dashboard?.[key] ?? 0)}</p></div>)}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[360px_1fr]">
@@ -137,7 +137,7 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
             {members.map((item) => {
               const itemId = String(item.memberId);
               const selected = itemId === selectedMemberId;
-              return <button key={itemId} className={`block w-full border-b p-4 text-left transition ${selected ? "translate-x-1 border-cyanGlow/30 bg-cyanGlow/10 shadow-[inset_3px_0_0_rgba(58,226,255,0.8)]" : "border-white/10 hover:bg-white/[0.06]"}`} onClick={() => void selectMember(itemId)} aria-pressed={selected}><p className="font-semibold text-white">{String(item.displayName)}</p><p className="mt-1 text-xs text-white/52">{String(item.emailRedacted ?? item.email)} · {String(item.status)} · {String(item.membershipTier)}</p></button>;
+              return <button key={itemId} className={`block w-full border-b p-4 text-left transition ${selected ? "translate-x-1 border-cyanGlow/30 bg-cyanGlow/10 shadow-[inset_3px_0_0_rgba(58,226,255,0.8)]" : "border-white/10 hover:bg-white/[0.06]"}`} onClick={() => void selectMember(itemId)} aria-pressed={selected}><p className="font-semibold text-white">{String(item.displayName)}</p><p className="mt-1 text-xs text-white/52">{String(item.emailRedacted ?? item.email)} · {String(item.status)} · {String(item.effectiveMembershipName ?? item.membershipTier)}</p></button>;
             })}
             {!members.length ? <p className="p-6 text-sm text-white/50">No members found.</p> : null}
           </div>
@@ -152,7 +152,7 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
                     <UserRound className="text-cyanGlow" size={22} />
                     <h2 className="mt-3 text-2xl font-semibold text-white">{String(member.displayName)}</h2>
                     <p className="mt-1 text-sm text-white/56">{String(member.emailRedacted ?? member.email)} · {String(member.memberId)}</p>
-                    <p className="mt-1 text-sm text-white/56">{String(member.membershipTier)} · {String(member.status)}</p>
+                    <p className="mt-1 text-sm text-white/56">{String(member.effectiveMembershipName ?? member.membershipTier)} · {String(member.status)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {!Boolean(member.emailVerified) ? (

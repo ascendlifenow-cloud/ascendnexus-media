@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import type { MemberAccount, MemberAccountResponse } from "../../models/members/MemberModels";
+import type { MemberAccount } from "../../models/members/MemberModels";
 import type { MemberModerationAction, MemberRiskLevel, MemberSupportStatus } from "../../models/memberCrm/MemberCrmModels";
 import { AuthApiError } from "../../utils/auth/authErrorUtils";
 import { sanitizeMemberAccount } from "../../models/members/MemberModels";
-import { jsonDatabase } from "../media/JsonDatabase";
+import { jsonDatabase, type MediaDatabaseShape } from "../media/JsonDatabase";
+import { resolveMemberEntitlements } from "../access/EffectiveEntitlementService";
 import { membershipAssignmentService } from "../membership/MembershipAssignmentService";
 import { membershipCatalogService } from "../membership/MembershipCatalogService";
 import { memberIdentityService } from "../members/MemberIdentityService";
@@ -12,10 +13,37 @@ import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceServ
 const now = () => new Date().toISOString();
 const id = (prefix: string) => `${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
 
-const redactMember = (member: MemberAccount): MemberAccountResponse & { emailRedacted: string } => ({
-  ...sanitizeMemberAccount(member),
-  emailRedacted: member.email.replace(/^(.).+(@.+)$/, "$1***$2"),
-});
+const redactMember = (member: MemberAccount, data: MediaDatabaseShape) => {
+  const access = resolveMemberEntitlements(data, member.memberId);
+  const tier = data.membershipTiers.find(item => item.tierId === access.tierId);
+  return {
+    ...sanitizeMemberAccount(member),
+    emailRedacted: member.email.replace(/^(.).+(@.+)$/, "$1***$2"),
+    effectiveTierKey: access.tierKey,
+    effectiveMembershipStatus: access.status,
+    effectiveMembershipName: access.status === "active" && tier ? tier.name : "No protected membership access",
+  };
+};
+
+function memberRedactor(data: MediaDatabaseShape) {
+  function byMember<T extends { memberId: string }>(items: T[]) {
+    const groups = new Map<string, T[]>();
+    for (const item of items) {
+      const group = groups.get(item.memberId);
+      if (group) group.push(item); else groups.set(item.memberId, [item]);
+    }
+    return groups;
+  }
+  const assignments = byMember(data.memberMembershipAssignments);
+  const grants = byMember(data.memberEntitlementGrants);
+  const accounts = byMember(data.memberAccounts);
+  // Resolve each account against the same catalog without rescanning other members.
+  return (member: MemberAccount) => redactMember(member, {
+    ...data, memberAccounts: accounts.get(member.memberId) ?? [],
+    memberMembershipAssignments: assignments.get(member.memberId) ?? [],
+    memberEntitlementGrants: grants.get(member.memberId) ?? [],
+  });
+}
 
 export class MemberSearchService {
   async search(params: URLSearchParams) {
@@ -24,12 +52,12 @@ export class MemberSearchService {
     const tier = params.get("tier") ?? "";
     const data = await jsonDatabase.read();
     return data.memberAccounts
+      .map(memberRedactor(data))
       .filter((member) => !status || member.status === status)
-      .filter((member) => !tier || member.membershipTier === tier || member.membershipTier.toLowerCase().includes(tier.toLowerCase()))
-      .filter((member) => !query || [member.email, member.displayName, member.username, member.memberId, member.membershipTier, member.status].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)))
+      .filter((member) => !tier || member.effectiveTierKey === tier || member.effectiveMembershipName.toLowerCase().includes(tier.toLowerCase()))
+      .filter((member) => !query || [member.email, member.displayName, member.username, member.memberId, member.effectiveMembershipName, member.status].filter(Boolean).some((value) => String(value).toLowerCase().includes(query)))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, 200)
-      .map(redactMember);
+      .slice(0, 200);
   }
 }
 
@@ -226,7 +254,7 @@ export class MemberAdministrationService {
       memberModerationService.list(memberId),
     ]);
     return {
-      member: redactMember(member),
+      member: redactMember(member, data),
       membership,
       membershipHistory,
       songUsage: data.memberSongUsage.filter((item) => item.memberId === memberId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 100).map((item) => ({ releaseId: item.releaseId, title: data.releaseRecords.find((release) => release.releaseId === item.releaseId)?.title ?? "Unavailable song", streamStarts: item.streamStarts, downloadStarts: item.downloadStarts, includedPlayUsed: item.freePlayUsed, lastStreamAt: item.lastStreamAt ?? null })),
@@ -272,14 +300,15 @@ export class MemberAdministrationService {
 export class MemberCrmService {
   async dashboard() {
     const data = await jsonDatabase.read();
-    const recentRegistrations = data.memberAccounts.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10).map(redactMember);
+    const members = data.memberAccounts.map(memberRedactor(data));
+    const recentRegistrations = members.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 10);
     return {
       totalMembers: data.memberAccounts.length,
       activeMembers: data.memberAccounts.filter((member) => member.status === "Active").length,
       inactiveMembers: data.memberAccounts.filter((member) => member.status !== "Active").length,
-      premiumReady: data.memberAccounts.filter((member) => /premium/i.test(member.membershipTier)).length,
-      supporterReady: data.memberAccounts.filter((member) => /supporter/i.test(member.membershipTier)).length,
-      vipReady: data.memberAccounts.filter((member) => /vip/i.test(member.membershipTier)).length,
+      premiumReady: members.filter(member => member.effectiveTierKey === "premium").length,
+      supporterReady: members.filter(member => member.effectiveTierKey === "supporter").length,
+      vipReady: members.filter(member => member.effectiveTierKey === "vip").length,
       recentRegistrations,
       recentUpgrades: data.memberMembershipAssignments.filter((item) => item.source === "admin_grant").slice(-10).reverse(),
       suspensions: data.memberAccounts.filter((member) => member.status === "Suspended").length,

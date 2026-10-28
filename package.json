@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:member-crm-effective-tier": "node --import tsx scripts/member-crm-effective-tier-test.ts",
+    "test:deployment-identity": "node --import tsx scripts/deployment-identity-test.ts",
+    "test:staging-permission-smoke": "node --import tsx scripts/staging-permission-smoke-test.ts",
+    "staging:permissions-verify": "node --import tsx scripts/staging-permission-smoke.ts",
     "test:song-permissions": "node --import tsx scripts/song-permissions-test.ts",
     "test:production-final-audio": "node --import tsx scripts/production-final-audio-test.ts",
     "test:database-snapshot-changes": "node --import tsx scripts/snapshot-changes-test.ts",

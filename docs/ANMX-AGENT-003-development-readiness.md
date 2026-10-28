@@ -29,6 +29,8 @@ Date: October 27, 2026 (America/Denver). Coordinator owns shared catalog mutatio
 
 ## Prioritized Backlog
 
+Current follow-on (2026-10-28): song usage and storage repair evidence is in `ANMX-song-usage-permissions.md`; eight approved staging public full-song copies were retired after private-copy verification. Next bounded milestone is staging permission acceptance and accurate CRM membership presentation; implementation/evidence and remaining authenticated checks are in `ANMX-staging-permission-milestone.md`. Generic health currently lacks deployed revision identity until the new provider-identity change is deployed. Stripe account setup and real final song audio remain external dependencies, not completed milestones.
+
 | Priority | Assignment | Current state | Exit evidence / blocker |
 | --- | --- | --- | --- |
 | P0 | Replace legacy whole-catalog Mongo snapshot mutation | Partial; update path hardened | Legacy `update()` now commits changed records transactionally with stale-edit rejection; local and isolated real staging tests pass. Explicit full `write()` and broad snapshot reads remain migration boundaries. See `docs/ANMX-database-mutation-safety.md`. |
