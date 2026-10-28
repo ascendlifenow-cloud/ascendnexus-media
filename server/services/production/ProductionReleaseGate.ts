@@ -4,6 +4,11 @@ import { MediaApiError } from "../../utils/media/mediaErrorUtils";
 import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceService";
 import { validateSongProductionPackage, type SongProductionPackage } from "./SongProductionContract";
 
+export async function assertProductionAssetAllowed(assetId: string) {
+  const enrollment = await jsonDatabase.findCollectionRecord("adminAuditEvents", { action: "production_asset_enrolled", entityId: assetId });
+  if (enrollment) throw new MediaApiError("PRODUCTION_ASSET_EXECUTION_LOCKED", "This managed production asset remains private pending owner review and verified release execution.", 403, "validation");
+}
+
 // Enrollment is append-only audit evidence, not editable release metadata.
 export async function assertProductionReleaseAllowed(releaseId: string) {
   const events = await jsonDatabase.listCollection("adminAuditEvents");
@@ -18,16 +23,22 @@ export async function assertProductionReleaseAllowed(releaseId: string) {
 }
 
 export async function productionReviewSnapshot(releaseId: string) {
-  const data = await jsonDatabase.read();
-  const release = data.releaseRecords.find((item) => item.releaseId === releaseId);
+  const release = await jsonDatabase.findCollectionRecord("releaseRecords", { releaseId });
   if (!release) throw new MediaApiError("RELEASE_NOT_FOUND", "Release was not found.", 404, "database");
+  const [mediaAssetLinks, mediaAssets, mediaStorageObjects, adminAuditEvents, artist] = await Promise.all([
+    jsonDatabase.listCollection("mediaAssetLinks"),
+    jsonDatabase.listCollection("mediaAssets"),
+    jsonDatabase.listCollection("mediaStorageObjects"),
+    jsonDatabase.listCollection("adminAuditEvents"),
+    jsonDatabase.findCollectionRecord("artistRecords", { artistId: release.artistId }),
+  ]);
+  const data = { mediaAssetLinks, mediaAssets, mediaStorageObjects, adminAuditEvents };
   const links = data.mediaAssetLinks.filter((link) => link.entityId === releaseId && link.status === "active");
   const assets = links.map((link) => {
     const asset = data.mediaAssets.find((item) => item.assetId === link.assetId);
     const storage = data.mediaStorageObjects.find((item) => item.assetId === link.assetId);
     return { assetId: link.assetId, role: link.fieldKey, updatedAt: asset?.updatedAt, checksum: storage?.checksum, accessLevel: storage?.accessLevel };
   });
-  const artist = data.artistRecords.find((item) => item.artistId === release.artistId);
   const { status: _status, publicationState: _publication, updatedAt: _updated, ...content } = release;
   const bundle = { release: content, assets, artist: artist && { artistId: artist.artistId, name: artist.name, bio: artist.bio, metadata: artist.metadata } };
   const bundleHash = createHash("sha256").update(JSON.stringify(bundle)).digest("hex");

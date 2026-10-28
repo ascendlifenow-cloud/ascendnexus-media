@@ -11,6 +11,7 @@ import { assertProductionReleaseAllowed, productionReviewSnapshot } from "../ser
 import { adminReleaseService } from "../server/services/releases/AdminReleaseService";
 import { mediaStoragePromotionService } from "../server/services/media/MediaStoragePromotionService";
 import { releaseRepository } from "../server/repositories/ReleaseRepository";
+import { mediaAuditPersistenceService } from "../server/services/media/MediaAuditPersistenceService";
 
 // This local operator command has no public side effects and refuses remote storage/databases.
 if (mediaBackendConfig.provider !== "local" || await jsonDatabase.getPersistenceMode() !== "local_json") throw new Error("Local private ingestion only; remote ingestion requires an authenticated API deployment.");
@@ -35,6 +36,7 @@ try {
   const upload = existing ? null : await mediaUploadApiService.uploadSingle({ fieldName: "file", fileName: "the-spare-key-choir-cover-v1.png", mimeType: "image/png", size: cover.length, buffer: cover }, { targetType: "release", targetId: releaseId, ownerType: "release", ownerId: releaseId, assetType: "cover_art", intendedUse: "coverArt", accessLevel: "admin_only", title: "The Spare Key Choir cover", metadata: { productionSongId: songId, productionChecksum: hash(cover) } }, actorId);
   const asset = existing ?? upload?.mediaAsset;
   if (!asset) throw new Error("Cover upload failed.");
+  if (!await jsonDatabase.findCollectionRecord("adminAuditEvents", { action: "production_asset_enrolled", entityId: asset.assetId })) await mediaAuditPersistenceService.record("production_asset_enrolled", "Managed production artwork remains private independently of assignment links.", { entityType: "media_asset", entityId: asset.assetId, actorId, metadata: { releaseId } });
   const links = (await jsonDatabase.read()).mediaAssetLinks;
   if (!links.some((link) => link.entityId === releaseId && link.assetId === asset.assetId && link.status === "active")) await mediaLibraryService.linkAsset(asset.assetId, { entityType: "release", entityId: releaseId, fieldKey: "coverArt", updateEntityField: false, actorId });
   const destinations = [
@@ -49,7 +51,7 @@ try {
   await assert.rejects(() => adminReleaseService.publishRelease(releaseId, actorId), /awaiting owner review/);
   const storage = (await jsonDatabase.read()).mediaStorageObjects.find((object) => object.assetId === asset.assetId)!;
   assert.notEqual(storage.accessLevel, "public");
-  await assert.rejects(() => mediaStoragePromotionService.promoteStorageObjectToPublic(storage.storageObjectId), /awaiting owner review/);
+  await assert.rejects(() => mediaStoragePromotionService.promoteStorageObjectToPublic(storage.storageObjectId), /awaiting owner review|remains private/);
   await assert.rejects(() => assertProductionReleaseAllowed(releaseId), /awaiting owner review/);
   assert.equal((await releaseRepository.listPublic()).some((item) => item.releaseId === releaseId), false);
   const snapshot = await productionReviewSnapshot(releaseId);

@@ -1,0 +1,71 @@
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import assert from "node:assert/strict";
+import { MongoClient } from "mongodb";
+import { validateSongProductionPackage } from "../server/services/production/SongProductionContract";
+
+if (!process.argv.includes("--environment=staging") || !/stag(?:ing|ging)/i.test(process.env.MONGODB_DATABASE ?? "") || !process.env.MONGODB_URI) throw new Error("Explicit staging configuration is required.");
+process.env.NODE_ENV = "staging";
+process.env.MEDIA_STORAGE_PROVIDER = "r2";
+process.env.MEDIA_STORAGE_FORCE_PATH_STYLE = "true";
+const releaseId = "anmx-release-the-spare-key-choir";
+let client: MongoClient | undefined;
+const hash = (value: Buffer | string) => createHash("sha256").update(value).digest("hex");
+try {
+  client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+  await client.connect();
+  const db = client.db(process.env.MONGODB_DATABASE);
+  const local = JSON.parse(await readFile("production/anmx-002/package.json", "utf8"));
+  const release = await db.collection("song_releases").findOne({ releaseId });
+  assert.ok(release && release.status === "draft" && release.publicationState === "draft" && release.publicVisibility === false, "Private staging draft state must be preserved.");
+  assert.ok(await db.collection("song_releases").countDocuments({ releaseId }) === 1, "Exactly one stable release must exist.");
+  const bundle = release.metadata?.productionPackage;
+  assert.ok(bundle && JSON.stringify(bundle) === JSON.stringify({ ...local, artistId: release.artistId }), "Remote package must match the saved package and authoritative artist mapping.");
+  assert.ok(release.lyrics === await readFile("production/anmx-002/lyrics.txt", "utf8"), "Saved lyrics must equal exact ingested text.");
+  const validation = validateSongProductionPackage(bundle);
+  assert.ok(validation.valid, "Remote production package validation must pass.");
+  const links = await db.collection("media_asset_links").find({ entityId: releaseId, status: "active" }).toArray();
+  assert.ok(links.length === 1 && links[0].fieldKey === "coverArt", "Expected one exact cover association; unexpected graph requires manual review.");
+  const manifest = bundle.assets.find((asset: { role: string }) => asset.role === "artwork");
+  assert.ok(manifest && links[0].assetId === manifest.assetId, "Cover manifest and association must match.");
+  const asset = await db.collection("media_assets").findOne({ assetId: manifest.assetId });
+  assert.ok(await db.collection("media_assets").countDocuments({ assetId: manifest.assetId }) === 1, "Exactly one stable artwork asset must exist.");
+  const objects = await db.collection("media_storage_objects").find({ assetId: manifest.assetId }).toArray();
+  assert.ok(asset && asset.status === "draft" && !asset.url && !asset.thumbnailUrl && !asset.largeUrl, "Private candidate must not contain public artwork URLs.");
+  assert.ok(objects.length === 1 && objects[0].accessLevel !== "public" && !objects[0].publicUrl && objects[0].storagePath.startsWith("private/production/anmx-002/"), "Private production storage must remain private and unambiguous.");
+  const object = objects[0];
+  assert.ok(object.checksum === manifest.sha256, "Stored checksum must match the manifest.");
+  const { CloudflareR2StorageAdapter } = await import("../server/storage/adapters/CloudflareR2StorageAdapter");
+  const adapter = new CloudflareR2StorageAdapter();
+  const signed = await adapter.getSignedUrl(object as never, 60, "admin_preview");
+  assert.ok(signed, "Private storage read authorization must be available.");
+  const privateResponse = await fetch(signed, { signal: AbortSignal.timeout(30000) });
+  assert.ok(privateResponse.ok, "Private candidate readback must succeed.");
+  const bytes = Buffer.from(await privateResponse.arrayBuffer());
+  assert.ok(hash(bytes) === manifest.sha256 && hash(await readFile("production/anmx-002/cover-v1.png")) === manifest.sha256, "Remote bytes, saved cover and manifest must match.");
+  const unsigned = new URL(signed); unsigned.search = "";
+  const origin = await fetch(unsigned, { headers: { Range: "bytes=0-0" }, signal: AbortSignal.timeout(15000) });
+  assert.ok([400, 401, 403, 404].includes(origin.status), `Unsigned private origin must deny access (received ${origin.status}).`);
+  if (origin.status === 400) assert.ok(/<Code>(InvalidArgument|AccessDenied|Unauthorized)<\/Code>/.test(await origin.text()), "Unsigned origin must return a recognized authentication error, not media.");
+  const publicMedia = await fetch(`https://staging-media.ascendnexusmedia.com/${object.storagePath}`, { method: "HEAD", signal: AbortSignal.timeout(15000) });
+  assert.ok([403, 404].includes(publicMedia.status), "Public delivery domain must reject the private candidate.");
+  for (const route of [`releases/${release.slug}`, `releases/${releaseId}`]) {
+    const response = await fetch(`https://api-staging.ascendnexusmedia.com/api/public/${route}`, { signal: AbortSignal.timeout(15000) });
+    assert.ok(response.status === 404, "Public release lookup must exclude the private draft.");
+  }
+  const enrollment = await db.collection("admin_audit_events").findOne({ action: "production_draft_ingested", entityId: releaseId });
+  assert.ok(enrollment, "Persistent managed-release enrollment must exist.");
+  const enroll = process.argv.includes("--enroll-assets");
+  if (enroll) await db.collection("admin_audit_events").updateOne({ auditEventId: `audit-production-asset-${manifest.assetId}` }, { $setOnInsert: { auditEventId: `audit-production-asset-${manifest.assetId}`, action: "production_asset_enrolled", entityType: "media_asset", entityId: manifest.assetId, actorId: "ANMX-AGENT-003-coordinator", summary: "Managed production asset remains private independently of assignment links.", metadata: { releaseId }, createdAt: new Date().toISOString() } }, { upsert: true });
+  const protection = await db.collection("admin_audit_events").findOne({ auditEventId: `audit-production-asset-${manifest.assetId}` });
+  const assetEnrollmentRecorded = Boolean(protection?.action === "production_asset_enrolled" && protection.entityId === manifest.assetId && protection.metadata?.releaseId === releaseId);
+  if (enroll) assert.ok(assetEnrollmentRecorded, "Asset enrollment must be verified after the idempotent write.");
+  const report = { environment: "staging", releaseId, privateDraftVerified: true, exactSavedText: true, counts: validation.counts, manifestAndLinksVerified: true, remoteCoverBytesVerified: true, unsignedOriginStatus: origin.status, publicMediaStatus: publicMedia.status, publicReleaseHidden: true, releaseCount: 1, assetCount: 1, assetEnrollmentRecorded, finalAudio: "not_produced", artistProfileApproval: "not_independently_verified", ownerApproval: "not_granted", publicExecution: "locked", checkedAt: new Date().toISOString() };
+  await mkdir("production/anmx-003", { recursive: true });
+  await writeFile("production/anmx-003/staging-verification.json", JSON.stringify(report, null, 2), { mode: 0o600 });
+  console.log(JSON.stringify(report));
+} catch (error) {
+  const reason = error instanceof assert.AssertionError ? error.message.split("\n")[0] : "Storage or database verification was unavailable.";
+  console.error(`Private staging verification failed: ${reason} No public action was attempted.`);
+  process.exitCode = 1;
+} finally { await client?.close(); }

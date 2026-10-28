@@ -24,6 +24,7 @@ import { handleAdminSeoRoute } from "./routes/adminSeoRoutes";
 import { handleAdminObservabilityRoute } from "./routes/adminObservabilityRoutes";
 import { handleAdminLaunchReadinessRoute } from "./routes/adminLaunchReadinessRoutes";
 import { handleAdminOperationsRoute } from "./routes/adminOperationsRoutes";
+import { handleAdminAgentStatusRoute } from "./routes/adminAgentStatusRoutes";
 import { handleAdminDistributionRoute } from "./routes/adminDistributionRoutes";
 import { handleAdminIntelligenceRoute } from "./routes/adminIntelligenceRoutes";
 import { handleAdminExportRoute } from "./routes/adminExportRoutes";
@@ -175,6 +176,7 @@ export const createMediaApiServer = () => http.createServer(async (request, resp
     if (await handleAdminLaunchReadinessRoute(request, response, url)) return;
     if (await handleMemberEcosystemCertificationRoute(request, response, url)) return;
     if (await handleAdminObservabilityRoute(request, response, url)) return;
+    if (await handleAdminAgentStatusRoute(request, response, url)) return;
     if (await handleAdminOperationsRoute(request, response, url)) return;
     if (await handleAdminDistributionRoute(request, response, url)) return;
     if (await handleAdminIntelligenceRoute(request, response, url)) return;

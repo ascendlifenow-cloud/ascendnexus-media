@@ -41,8 +41,8 @@ export function AdminProductionWorkspacePage() {
     <SEOHead metadata={{ title: "Production Workspace | Ascend Nexus Media", description: "Private production review", type: "custom", noIndex: true }} disableSocial />
     <header><h1 className="text-2xl font-semibold text-white">Production Workspace</h1><Link to="/admin/releases" className="text-anm-blue">Releases</Link></header>
     <div className="grid gap-5 border-y border-white/15 py-5 md:grid-cols-2">
-      <section><h2 className="font-semibold text-white">Media Production Team</h2><p className="text-white/70">Text and artwork candidate complete. Final audio awaiting generation and ingestion. Owner review pending.</p></section>
-      <section><h2 className="font-semibold text-white">Application Engineering Team</h2><p className="text-white/70">Private ingestion and negative access tests passed locally. Public execution locked pending transactional release verification.</p></section>
+      <section><h2 className="font-semibold text-white">Production assignments</h2><Link to="/admin/agents" className="text-anm-blue">Agent status and report history</Link></section>
+      <section><h2 className="font-semibold text-white">Release review</h2><p className="text-white/70">Public execution remains locked. Review each draft for its current validation and approval blockers.</p></section>
     </div>
     {!releaseId ? <section><h2 className="mb-3 text-lg font-semibold text-white">Private Productions</h2>{releases.isLoading ? <p role="status">Loading productions…</p> : releases.isError || releases.data?.ok === false ? <p role="alert">Productions could not load.</p> : rows.length ? <ul className="divide-y divide-white/10">{rows.map((release) => <li key={release.releaseId} className="py-4"><Link className="text-anm-blue" to={`/admin/production/${release.releaseId}`}>{release.title}</Link><span className="ml-3 text-sm text-white/60">Private review</span></li>)}</ul> : <p>No production drafts are available.</p>}</section> : null}
     {review.isLoading && releaseId ? <p role="status">Loading private review…</p> : null}

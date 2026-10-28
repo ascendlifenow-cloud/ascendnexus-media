@@ -42,6 +42,7 @@ try {
     if (!remoteArtist) await put("artists", "artistId", sourceArtist);
     // Enroll the ID before its catalog/asset records can become reachable.
     await put("admin_audit_events", "auditEventId", { auditEventId: "audit-anmx-song-the-spare-key-choir-enrollment", action: "production_draft_ingested", entityType: "release", entityId: releaseId, actorId: "ANMX-AGENT-002-staging", summary: "Private production draft enrolled; no public actions authorized.", createdAt: new Date().toISOString() });
+    await put("admin_audit_events", "auditEventId", { auditEventId: `audit-production-asset-${asset.assetId}`, action: "production_asset_enrolled", entityType: "media_asset", entityId: asset.assetId, actorId: "ANMX-AGENT-003-coordinator", summary: "Managed production asset remains private independently of assignment links.", metadata: { releaseId }, createdAt: new Date().toISOString() });
     await put("media_storage_objects", "storageObjectId", { ...object, ...uploaded, storageObjectId: object.storageObjectId, assetId: asset.assetId, provider: "r2", storagePath, accessLevel: "admin_only", publicUrl: undefined });
     await put("media_assets", "assetId", { ...asset, url: undefined, thumbnailUrl: undefined, largeUrl: undefined });
     for (const version of source.mediaAssetVersions.filter((item: any) => item.assetId === asset.assetId)) await put("media_asset_versions", "versionId", { ...version, storagePath, provider: "r2", publicUrl: undefined });

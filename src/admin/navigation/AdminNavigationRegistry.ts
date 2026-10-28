@@ -28,6 +28,8 @@ export const adminNavigationEntries: AdminNavigationEntry[] = [
   { navigationKey: "dashboard", label: "Dashboard", path: "/admin/dashboard", icon: BarChart3, groupKey: "overview", order: 10 },
   { navigationKey: "artwork_collage", label: "Artwork Collage", path: "/admin/artwork-collage", icon: Images, groupKey: "overview", order: 15, requiredPermission: "media.read" },
   { navigationKey: "operations", label: "Operations", path: "/admin/operations", icon: CalendarDays, groupKey: "overview", order: 20, requiredPermission: "operations.read" },
+  { navigationKey: "agent_status", label: "Agent Status", path: "/admin/agents", icon: Activity, groupKey: "overview", order: 25, requiredPermission: "operations.read" },
+  { navigationKey: "production_workspace", label: "Production Workspace", path: "/admin/production", icon: FileMusic, groupKey: "overview", order: 30, requiredPermission: "releases.read" },
 
   { navigationKey: "artists", label: "Artists", path: "/admin/artists", icon: UsersRound, groupKey: "content", order: 10, requiredPermission: "artists.read" },
   { navigationKey: "releases", label: "Releases", path: "/admin/releases", icon: FileMusic, groupKey: "content", order: 20, requiredPermission: "releases.read" },
