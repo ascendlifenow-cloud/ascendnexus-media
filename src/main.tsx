@@ -5,6 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 import { PublicAudioPlayerProvider } from "./providers/PublicAudioPlayerProvider";
 import { PublicConsentProvider } from "./providers/PublicConsentProvider";
 import { AppRouter } from "./routes/AppRouter";
+import { ApplicationErrorBoundary } from "./components/ApplicationErrorBoundary";
 import "./styles.css";
 
 const queryClient = new QueryClient({
@@ -22,7 +23,7 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
       <PublicAudioPlayerProvider>
         <PublicConsentProvider>
           <BrowserRouter>
-            <AppRouter />
+            <ApplicationErrorBoundary><AppRouter /></ApplicationErrorBoundary>
           </BrowserRouter>
         </PublicConsentProvider>
       </PublicAudioPlayerProvider>
