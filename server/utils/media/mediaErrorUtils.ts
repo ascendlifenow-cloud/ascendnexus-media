@@ -14,7 +14,9 @@ export type MediaErrorCode =
   | `PUBLICATION_${string}`
   | `ARTIST_${string}`
   | `RELEASE_${string}`
-  | `MEMBER_${string}`;
+  | `MEMBER_${string}`
+  | `AGENT_${string}`
+  | `PRODUCTION_${string}`;
 
 export class MediaApiError extends Error {
   constructor(

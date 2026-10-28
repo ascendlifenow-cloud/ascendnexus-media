@@ -33,7 +33,13 @@ export function AdminProductionWorkspacePage() {
     enabled: Boolean(coverId && releaseId), staleTime: 0, gcTime: 0,
     queryFn: async ({ signal }) => {
       const response = await fetch(`${adminApiBase()}/api/admin/releases/${encodeURIComponent(releaseId!)}/production-cover`, { credentials: "include", cache: "no-store", signal });
-      if (!response.ok || !response.headers.get("content-type")?.startsWith("image/")) throw new Error("Private cover preview unavailable.");
+      if (!response.ok) {
+        const failure = await response.json().catch(() => ({})) as { error?: { details?: { check?: string; upstreamStatus?: number } } };
+        const check = failure.error?.details?.check;
+        const safeCheck = check && ["release", "asset_manifest", "asset_link", "private_storage", "storage_provider", "storage_signing", "storage_read", "checksum"].includes(check) ? ` (${check.replace(/_/g, " ")})` : "";
+        throw new Error(`Private cover preview unavailable${safeCheck}.`);
+      }
+      if (!response.headers.get("content-type")?.startsWith("image/")) throw new Error("Private cover preview unavailable.");
       return response.blob();
     },
   });
@@ -61,7 +67,7 @@ export function AdminProductionWorkspacePage() {
     {review.error ? <p role="alert" className="text-rose-200">{review.error.message}</p> : null}
     {review.data ? <>
       <section className="grid gap-6 md:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
-        <div>{coverQuery.data && cover.source && !cover.exhausted ? <img key={cover.imageKey} className="aspect-square w-full rounded-md object-cover" src={cover.source} onError={cover.recover} alt={`${review.data.release.title} cover candidate`} /> : <p role="status">{cover.exhausted || coverQuery.isError ? "Private cover preview unavailable." : "Loading artwork…"}</p>}</div>
+        <div>{coverQuery.data && cover.source && !cover.exhausted ? <img key={cover.imageKey} className="aspect-square w-full rounded-md object-cover" src={cover.source} onError={cover.recover} alt={`${review.data.release.title} cover candidate`} /> : <p role="status">{coverQuery.isError ? coverQuery.error.message : cover.exhausted ? "Private cover preview unavailable." : "Loading artwork…"}</p>}</div>
         <div><span className="text-amber-200">Private · Approval pending</span><h2 className="mt-3 text-2xl font-semibold text-white">{review.data.release.title}</h2><p className="mt-3 text-white/70">Lyrics: {counts?.lyrics ?? "Unvalidated"} characters · Styles: {counts?.styles.join(" / ") ?? "Unvalidated"}</p><ul className="mt-4 list-disc pl-5 text-white/70">{review.data.approval.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul><p className="mt-4 text-white/70">Nothing is scheduled for publication. Artwork remains a review candidate.</p><p className="mt-4 break-all text-xs text-white/50">Bundle: {review.data.bundleHash}</p><Link className="mt-4 inline-block text-anm-blue" to={`/admin/releases/${releaseId}/edit`}>Edit release</Link></div>
       </section>
       <section className="border-t border-white/15 pt-5"><h2 className="text-lg font-semibold text-white">Production Documents</h2><details className="py-3"><summary>Lyrics</summary><pre className="mt-3 whitespace-pre-wrap font-sans text-sm text-white/80">{review.data.release.lyrics}</pre></details><details className="py-3"><summary>Master Song Creation Prompt</summary><pre className="mt-3 whitespace-pre-wrap font-sans text-sm text-white/80">{bundle?.masterPrompt}</pre></details>{bundle?.styles.map((style, index) => <details key={index} className="py-3"><summary>Style {index + 1}</summary><p className="mt-3 whitespace-pre-wrap text-sm text-white/80">{style}</p></details>)}</section>
