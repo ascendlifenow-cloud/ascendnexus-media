@@ -39,3 +39,31 @@ No real or staging owner-approval action is executed by the agent. The Spare Key
 - Wrong media or missing artwork: correct the private artifact/association and repeat review. Do not attach unrelated catalog assets to satisfy readiness.
 
 Approval withdrawal and the transactional publication executor remain follow-on work. Until those exist, all managed public execution stays locked.
+# Approval Withdrawal Increment
+
+Owner-only `POST /api/admin/releases/:releaseId/production-withdraw-approval`
+accepts only `approvalId` and explicit `confirmed: true`. Real admin authentication,
+media/read and release/read/publish permissions are required. Withdrawal remains
+available after content changes or readiness failures. No private media is returned.
+
+Withdrawal appends `production_bundle_approval_withdrawn`, references the immutable
+approval ID, and uses the fixed reason `owner_withdrawal`. Existing audit evidence
+is retained. Retrying the same withdrawal is idempotent and cannot withdraw a newer
+approval. The current configured owner is authoritative; previous owners' approvals
+do not authorize the current workflow.
+
+Each withdrawal advances a release-wide generation derived from append-only audit
+records, independent of wall-clock ordering. Approval requests carry the generation
+from the review summary; old requests fail after withdrawal. Reapproval gets a new
+approval ID even for identical content. Legacy approvals belong to generation zero.
+The admin panel refreshes both summary and review after either action.
+
+Both mutations touch the release for optimistic transaction conflict detection.
+This is not a transactional public executor: referenced media dependencies are not
+serializable across every existing mutation path. Publication stays unconditionally
+locked. Already downloaded bytes cannot be recalled.
+
+Verified locally with isolated synthetic fixtures: withdrawal after material edits,
+owner/confirmation rejection, HTTP private headers, idempotent retry, stale approval
+rejection, content reversion, distinct reapproval, and continuing execution lock.
+Staging deployment and browser interaction remain unverified for this increment.

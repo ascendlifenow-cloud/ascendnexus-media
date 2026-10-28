@@ -29,6 +29,9 @@ interface ApprovalSummary {
   approved: boolean;
   approvedAt: string | null;
   canApprove: boolean;
+  generation: number;
+  approvalId: string | null;
+  canWithdraw: boolean;
   executionStatus: "locked_pending_transactional_executor";
 }
 
@@ -67,8 +70,8 @@ function ApprovalPanel({ releaseId, bundleHash, onApproved, actorId }: Props & {
     </div>
     {summary.isPending ? <p role="status" className="mt-3">Loading approval summary...</p> : null}
     {summary.isError ? <p role="alert" className="mt-3 text-rose-200">Approval summary could not load. Please refresh and review again.</p> : null}
-    {summary.data ? <ApprovalDetails key={summary.data.bundleHash} data={summary.data} bundleHash={bundleHash}
-      endpoint={endpoint} unavailable={summary.isFetching || summary.isError} onApproved={onApproved} /> : null}
+    {summary.data ? <ApprovalDetails key={JSON.stringify([summary.data.bundleHash, summary.data.generation, summary.data.approvalId])} data={summary.data} bundleHash={bundleHash}
+      endpoint={endpoint} unavailable={summary.isFetching || summary.isError} onApproved={() => { void summary.refetch(); onApproved(); }} /> : null}
   </section>;
 }
 
@@ -80,6 +83,7 @@ function ApprovalDetails({ data, bundleHash, endpoint, unavailable, onApproved }
   onApproved: () => void;
 }) {
   const [confirmed, setConfirmed] = useState(false);
+  const [withdrawConfirmed, setWithdrawConfirmed] = useState(false);
   const checkboxId = useId();
   const matches = data.bundleHash === bundleHash;
   const approve = useMutation({
@@ -89,7 +93,7 @@ function ApprovalDetails({ data, bundleHash, endpoint, unavailable, onApproved }
       const result = await readData(await fetch(`${endpoint}/production-approve`, {
         method: "POST", credentials: "include", cache: "no-store",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bundleHash: data.bundleHash, confirmed: true }),
+        body: JSON.stringify({ bundleHash: data.bundleHash, confirmed: true, generation: data.generation }),
       })) as { approved?: unknown; reused?: unknown };
       if (result.approved !== true || typeof result.reused !== "boolean") throw new Error("Request failed");
       return result;
@@ -97,9 +101,21 @@ function ApprovalDetails({ data, bundleHash, endpoint, unavailable, onApproved }
     onSuccess: () => { setConfirmed(false); onApproved(); },
     onError: () => { setConfirmed(false); },
   });
-  const approved = data.approved || approve.isSuccess;
+  const withdraw = useMutation({
+    retry: false, gcTime: 0,
+    mutationFn: async () => {
+      const result = await readData(await fetch(`${endpoint}/production-withdraw-approval`, {
+        method: "POST", credentials: "include", cache: "no-store", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approvalId: data.approvalId, confirmed: true }),
+      })) as { withdrawn?: boolean };
+      if (result.withdrawn !== true) throw new Error("Withdrawal not confirmed");
+    },
+    onSuccess: () => { setWithdrawConfirmed(false); onApproved(); },
+    onError: () => { setWithdrawConfirmed(false); },
+  });
+  const approved = !withdraw.isSuccess && (data.approved || approve.isSuccess);
   const eligible = matches && data.ownerConfigured && data.isOwner && data.canApprove
-    && !data.blockers.length && !approved && !unavailable && !approve.isPending;
+    && !data.blockers.length && !approved && !unavailable && !approve.isPending && !withdraw.isPending;
   return <div className="mt-3 grid min-w-0 gap-4">
     <dl className="grid min-w-0 gap-x-4 gap-y-1 sm:grid-cols-[max-content_minmax(0,1fr)]">
       <dt>Title</dt><dd>{data.title}</dd>
@@ -166,5 +182,15 @@ function ApprovalDetails({ data, bundleHash, endpoint, unavailable, onApproved }
     {approve.isPending ? <p role="status">Recording owner approval...</p> : null}
     {approve.isSuccess ? <p role="status" className="text-emerald-200">Owner approval confirmed. Execution remains locked.</p> : null}
     {approve.isError ? <p role="alert" className="text-rose-200">Approval could not be confirmed. Refresh and review the bundle before retrying.</p> : null}
+    {data.canWithdraw && !withdraw.isSuccess ? <div className="grid gap-3 border-t border-white/15 pt-4">
+      <label className="flex items-start gap-2"><input type="checkbox" checked={withdrawConfirmed}
+        disabled={unavailable || approve.isPending || withdraw.isPending} onChange={(event) => setWithdrawConfirmed(event.target.checked)} />
+        Withdraw the recorded approval, including if this bundle has since changed.</label>
+      <button type="button" className="anm-focus min-h-10 justify-self-start rounded-md border border-rose-300/40 px-3 py-2"
+        disabled={!withdrawConfirmed || unavailable || approve.isPending || withdraw.isPending} onClick={() => withdraw.mutate()}>
+        {withdraw.isPending ? "Withdrawing approval..." : "Withdraw approval"}</button>
+    </div> : null}
+    {withdraw.isSuccess ? <p role="status">Approval withdrawn. A new explicit approval is required. Publication remains locked.</p> : null}
+    {withdraw.isError ? <p role="alert">Withdrawal could not be confirmed. Refresh before retrying.</p> : null}
   </div>;
 }

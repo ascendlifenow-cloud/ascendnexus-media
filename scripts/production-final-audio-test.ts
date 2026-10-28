@@ -172,7 +172,7 @@ try {
     globalThis.fetch = async () => { throw new Error("SYNTHETIC_ONLY signed origin failure"); };
     await assert.rejects(() => readProductionAudition("release", remote.reference, actor), (error: Error) => !error.message.includes("SYNTHETIC_ONLY") && /unavailable/.test(error.message));
   } finally { globalThis.fetch = originalFetch; backendStorageProviderRegistry.getActiveProvider = originalProvider; }
-  const { approveProductionRelease, productionApprovalSummary } = await import("../server/services/production/ProductionReleaseGate");
+  const { approveProductionRelease, productionApprovalSummary, withdrawProductionApproval } = await import("../server/services/production/ProductionReleaseGate");
   delete process.env.ANMX_PRODUCTION_OWNER_USER_ID;
   assert.equal((await productionApprovalSummary("release", "admin")).canApprove, false);
   await assert.rejects(async () => approveProductionRelease("release", "admin", hash(await jsonDatabase.read()), true), /configured production owner/);
@@ -219,9 +219,33 @@ try {
     assert.equal(blockedReview.approval.status, "pending");
     assert.ok(blockedReview.approval.blockers.some((issue) => issue.includes("quarantined or unavailable")));
   }
+  const approvedSummary = await productionApprovalSummary("release", "admin");
+  assert.equal((await fetch(`${base}/production-withdraw-approval`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approvalId: approvedSummary.approvalId, confirmed: true }) })).status, 403);
+  await assert.rejects(() => withdrawProductionApproval("release", "other-admin", approvedSummary.approvalId, true), /configured production owner/);
+  await assert.rejects(() => withdrawProductionApproval("release", "admin", approvedSummary.approvalId, false), /Explicit confirmation/);
+  await jsonDatabase.patchCollectionRecord("releaseRecords", { releaseId: "release" }, { description: "Material metadata change" });
+  authenticationService.authenticateRequest = async () => ({ user: { userId: "admin" }, sessionId: actor.sessionId, permissions: ["releases.read", "media.read", "releases.publish"] }) as never;
+  const withdrawalResponse = await fetch(`${base}/production-withdraw-approval`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approvalId: approvedSummary.approvalId, confirmed: true }) });
+  assert.equal(withdrawalResponse.status, 200);
+  assert.equal(withdrawalResponse.headers.get("cache-control"), "private, no-store");
+  assert.deepEqual((await withdrawalResponse.json() as { data: unknown }).data, { withdrawn: true, reused: false });
+  assert.deepEqual(await withdrawProductionApproval("release", "admin", approvedSummary.approvalId, true), { withdrawn: true, reused: true });
+  await assert.rejects(() => approveProductionRelease("release", "admin", ready.bundleHash, true), /Approval state changed/);
+  await jsonDatabase.patchCollectionRecord("releaseRecords", { releaseId: "release" }, { description: orderOnly.releaseRecords[0].description });
+  const withdrawn = await productionApprovalSummary("release", "admin");
+  assert.equal(withdrawn.bundleHash, ready.bundleHash);
+  assert.equal(withdrawn.approved, false, "Reverting content must not restore withdrawn approval");
+  assert.equal(withdrawn.generation, 1);
+  assert.deepEqual(await approveProductionRelease("release", "admin", ready.bundleHash, true, withdrawn.generation), { approved: true, reused: false });
+  const reapproved = await productionApprovalSummary("release", "admin");
+  assert.equal(reapproved.approved, true);
+  assert.notEqual(reapproved.approvalId, approvedSummary.approvalId);
+  await withdrawProductionApproval("release", "admin", approvedSummary.approvalId, true);
+  assert.equal((await productionApprovalSummary("release", "admin")).approved, true, "An old withdrawal retry must not withdraw a later approval");
+  await assert.rejects(() => assertProductionReleaseAllowed("release"), /execution is locked/);
   await jsonDatabase.patchCollectionRecord("releaseRecords", { releaseId: "release" }, { description: "Material metadata change" });
   assert.equal((await productionApprovalSummary("release", "admin")).approved, false);
-  await assert.rejects(() => approveProductionRelease("release", "admin", ready.bundleHash, true), /release changed/i);
+  await assert.rejects(() => approveProductionRelease("release", "admin", ready.bundleHash, true, 1), /release changed/i);
   authenticationService.authenticateRequest = authenticate;
   assert.equal((await fetch(`${base}/production-audition?reference=${authorization.reference}`)).status, 401);
   assert.equal((await fetch(`${base}/production-approval-summary`)).status, 401);

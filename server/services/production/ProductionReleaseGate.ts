@@ -8,6 +8,15 @@ import { privateProductionMedia } from "./ProductionMediaValidation";
 
 const ownerBlocker = "Owner release approval has not been granted.";
 
+function approvalLifecycle(data: Pick<MediaDatabaseShape, "adminAuditEvents">, releaseId: string) {
+  const withdrawals = data.adminAuditEvents.filter((event) => event.entityId === releaseId && event.action === "production_bundle_approval_withdrawn");
+  const generation = withdrawals.length;
+  const approval = [...data.adminAuditEvents].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.auditEventId.localeCompare(a.auditEventId)).find((event) => event.entityId === releaseId && event.action === "production_bundle_approved"
+    && event.actorId === process.env.ANMX_PRODUCTION_OWNER_USER_ID && (event.metadata?.generation ?? 0) === generation
+    && !withdrawals.some((withdrawal) => withdrawal.metadata?.approvalId === event.auditEventId));
+  return { generation, approval };
+}
+
 export async function assertProductionAssetAllowed(assetId: string) {
   const enrollment = await jsonDatabase.findCollectionRecord("adminAuditEvents", { action: "production_asset_enrolled", entityId: assetId });
   if (enrollment) throw new MediaApiError("PRODUCTION_ASSET_EXECUTION_LOCKED", "This managed production asset remains private pending owner review and verified release execution.", 403, "validation");
@@ -89,30 +98,49 @@ export function buildProductionReviewSnapshot(release: SongReleaseRecord, data: 
     if (audioAsset && !saved.assets.some((asset) => asset.role === "final_audio" && asset.assetId === audioAsset.assetId && asset.sha256 === audioStorage?.checksum)) blockers.push("Final audio must match the production manifest.");
   } catch { blockers.push("Production package is missing or invalid."); }
   const owner = process.env.ANMX_PRODUCTION_OWNER_USER_ID;
-  const approval = owner ? data.adminAuditEvents.find((event) => event.action === "production_bundle_approved" && event.entityId === releaseId && event.actorId === owner && event.metadata?.bundleHash === bundleHash && event.metadata?.hashVersion === 2) : undefined;
+  const lifecycle = approvalLifecycle(data, releaseId);
+  const approval = owner && lifecycle.approval?.metadata?.bundleHash === bundleHash && lifecycle.approval.metadata?.hashVersion === 2 ? lifecycle.approval : undefined;
   const approved = Boolean(approval && !blockers.length);
   if (!approved) blockers.unshift(ownerBlocker);
   return { release, assets, bundleHash, artistSummary: { name: artist?.name ?? "Unavailable", profileVersion: String(artist?.metadata?.profileVersion ?? "Unrecorded") }, audioReview: { available: Boolean(audioAsset && audioStorage && audioIdentity), reviewed: audioReviewed }, approval: { status: approved ? "review_approved" : "pending", approvedAt: approved ? approval!.createdAt : null, publicActionsAllowed: false, executionStatus: "locked_pending_transactional_executor", blockers: [...new Set(blockers)] } };
 }
 
-export async function approveProductionRelease(releaseId: string, actorId: string, expectedBundleHash: unknown, confirmed = false) {
+export async function approveProductionRelease(releaseId: string, actorId: string, expectedBundleHash: unknown, confirmed = false, expectedGeneration: unknown = 0) {
   if (!process.env.ANMX_PRODUCTION_OWNER_USER_ID || actorId !== process.env.ANMX_PRODUCTION_OWNER_USER_ID) throw new MediaApiError("PRODUCTION_OWNER_REQUIRED", "Only the configured production owner may approve this bundle.", 403, "auth");
   if (confirmed !== true || typeof expectedBundleHash !== "string" || !/^[a-f0-9]{64}$/.test(expectedBundleHash)) throw new MediaApiError("PRODUCTION_CONFIRMATION_REQUIRED", "Explicit confirmation of the displayed bundle is required.", 400, "validation");
   let reused = false;
   await jsonDatabase.update((data) => {
     const release = data.releaseRecords.find((item) => item.releaseId === releaseId);
     if (!release) throw new MediaApiError("RELEASE_NOT_FOUND", "Release was not found.", 404, "database");
+    const lifecycle = approvalLifecycle(data, releaseId);
+    if (!Number.isSafeInteger(expectedGeneration) || expectedGeneration !== lifecycle.generation) throw new MediaApiError("PRODUCTION_APPROVAL_CHANGED", "Approval state changed. Refresh before approving again.", 409, "validation");
     const snapshot = buildProductionReviewSnapshot(release, data, data.artistRecords.find((item) => item.artistId === release.artistId));
     if (snapshot.bundleHash !== expectedBundleHash) throw new MediaApiError("PRODUCTION_REVISION_CHANGED", "The release changed. Review the current bundle before approving.", 409, "validation");
     if (snapshot.approval.blockers.some((issue) => issue !== ownerBlocker)) throw new MediaApiError("PRODUCTION_BUNDLE_INCOMPLETE", "Resolve all bundle readiness issues before approval.", 409, "validation");
-    const auditEventId = `production-approval-${productionValueHash([releaseId, actorId, expectedBundleHash])}`;
+    const auditEventId = `production-approval-${productionValueHash(lifecycle.generation === 0 ? [releaseId, actorId, expectedBundleHash] : [releaseId, actorId, expectedBundleHash, lifecycle.generation])}`;
     if (data.adminAuditEvents.some((event) => event.auditEventId === auditEventId)) { reused = true; return; }
     const now = new Date().toISOString();
     // A nonmaterial touch makes concurrent release edits participate in conflict checks.
     release.updatedAt = new Date(Math.max(Date.now(), (Date.parse(release.updatedAt) || 0) + 1)).toISOString();
-    data.adminAuditEvents.push({ auditEventId, action: "production_bundle_approved", entityType: "release", entityId: releaseId, actorId, summary: "Owner explicitly approved the exact review bundle; public execution remains locked.", createdAt: now, metadata: { bundleHash: expectedBundleHash, hashVersion: 2 } });
+    data.adminAuditEvents.push({ auditEventId, action: "production_bundle_approved", entityType: "release", entityId: releaseId, actorId, summary: "Owner explicitly approved the exact review bundle; public execution remains locked.", createdAt: now, metadata: { bundleHash: expectedBundleHash, hashVersion: 2, generation: lifecycle.generation } });
   });
   return { approved: true, reused };
+}
+
+export async function withdrawProductionApproval(releaseId: string, actorId: string, approvalId: unknown, confirmed = false) {
+  if (!process.env.ANMX_PRODUCTION_OWNER_USER_ID || actorId !== process.env.ANMX_PRODUCTION_OWNER_USER_ID) throw new MediaApiError("PRODUCTION_OWNER_REQUIRED", "Only the configured production owner may withdraw approval.", 403, "auth");
+  if (!confirmed || typeof approvalId !== "string" || !/^production-approval-[a-f0-9]{64}$/.test(approvalId)) throw new MediaApiError("PRODUCTION_CONFIRMATION_REQUIRED", "Explicit confirmation of the selected approval is required.", 400, "validation");
+  let reused = false;
+  await jsonDatabase.update((data) => {
+    const release = data.releaseRecords.find((item) => item.releaseId === releaseId);
+    if (!release) throw new MediaApiError("RELEASE_NOT_FOUND", "Release was not found.", 404, "database");
+    const auditEventId = `production-withdrawal-${productionValueHash([releaseId, approvalId])}`;
+    if (data.adminAuditEvents.some((event) => event.auditEventId === auditEventId)) { reused = true; return; }
+    if (approvalLifecycle(data, releaseId).approval?.auditEventId !== approvalId) throw new MediaApiError("PRODUCTION_APPROVAL_CHANGED", "Approval state changed. Refresh before withdrawing.", 409, "validation");
+    release.updatedAt = new Date(Math.max(Date.now(), (Date.parse(release.updatedAt) || 0) + 1)).toISOString();
+    data.adminAuditEvents.push({ auditEventId, action: "production_bundle_approval_withdrawn", entityType: "release", entityId: releaseId, actorId, createdAt: new Date().toISOString(), summary: "Owner withdrew release review approval; public execution remains locked.", metadata: { approvalId, reasonCode: "owner_withdrawal" } });
+  });
+  return { withdrawn: true, reused };
 }
 
 export async function productionApprovalSummary(releaseId: string, actorId: string) {
@@ -121,6 +149,7 @@ export async function productionApprovalSummary(releaseId: string, actorId: stri
   const ownerConfigured = Boolean(process.env.ANMX_PRODUCTION_OWNER_USER_ID);
   const isOwner = ownerConfigured && process.env.ANMX_PRODUCTION_OWNER_USER_ID === actorId;
   const approved = snapshot.approval.status === "review_approved";
+  const lifecycle = approvalLifecycle({ adminAuditEvents: await jsonDatabase.listCollection("adminAuditEvents") }, releaseId);
   return { bundleHash: snapshot.bundleHash, revision: Number.isSafeInteger(saved?.revision) ? saved!.revision : null, title: snapshot.release.title, songId: snapshot.release.songId,
     artist: { ...snapshot.artistSummary, expectedProfileVersion: saved?.artistProfileVersion ?? "Unrecorded" },
     assets: Array.isArray(saved?.assets) ? saved.assets.map((item) => ({ assetId: item.assetId, role: item.role, revision: item.revision, sha256: item.sha256 })) : [],
@@ -129,5 +158,6 @@ export async function productionApprovalSummary(releaseId: string, actorId: stri
     references: Array.isArray(saved?.references) ? saved.references.map((item) => ({ source: item.source, version: item.version, approval: item.approval })) : [],
     metadata: { description: snapshot.release.description ?? "", releaseDate: snapshot.release.releaseDate, genre: snapshot.release.genre, styleTags: snapshot.release.styleTags, externalLinks: snapshot.release.externalLinks },
     blockers: snapshot.approval.blockers.filter((issue) => issue !== ownerBlocker), ownerConfigured, isOwner, approved, approvedAt: snapshot.approval.approvedAt,
+    generation: lifecycle.generation, approvalId: lifecycle.approval?.auditEventId ?? null, canWithdraw: isOwner && Boolean(lifecycle.approval),
     canApprove: isOwner && !approved && snapshot.approval.blockers.every((issue) => issue === ownerBlocker), executionStatus: "locked_pending_transactional_executor" as const };
 }
