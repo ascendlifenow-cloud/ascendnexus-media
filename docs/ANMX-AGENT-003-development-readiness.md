@@ -36,6 +36,7 @@ Date: October 27, 2026 (America/Denver). Coordinator owns shared catalog mutatio
 | P1 | Approved artist/brand/reference version | Blocked | Owner-selected approved brief and original handbook/reference versions; existing identity provenance is not fabricated profile approval. |
 | P1 | Generate and audition final recording | Blocked | Real WAV/MP3 from supported/manual generation, selected revision and review evidence. No subscription implies generation API access. |
 | P1 | Final-audio ingestion and complete release preview | Partial | Secure upload and exact manifest update using current media system; reconcile audio/artwork/metadata before approval. |
+| P1 | Restore deployed API private-artwork read | Blocked | Authenticated preview reports `storage_read` failure although operator read-back verifies exact R2 bytes. Compare deployed API storage settings/permissions with the verified connection, then confirm browser rendering. Do not promote the candidate publicly as a workaround. |
 | P1 | Automated trusted-agent reporting integration | Planned | Existing page reports persisted bounded assignments. Future runners must submit safe events; no fake heartbeat or automatic execution is enabled. |
 | P1 | Broader identity/playback/intake regression coverage | Partial | Isolated staging account and media E2E, access changes, recovery and CI gates. Prior individual checks are not full-suite certification. |
 | P2 | Restore three missing original artwork sources | Blocked | Original files must be re-uploaded; do not substitute unrelated art or publish private assets. |
@@ -87,3 +88,9 @@ node --env-file=.env.migration.local --import tsx scripts/verify-private-product
 ```
 
 The first test uses a temporary local database/listener and checks reporting safety, restart persistence, snapshot isolation, pagination, 401/403/private caching, no browser writes and detached-asset enforcement. Real distributed race behavior and production certification remain separate work.
+
+## Staging Acceptance Result
+
+Agent Status deployed and exercised with the existing authenticated admin session: persisted specialist/team records, selection, filters, empty state, safe report history, noindex and 375px layout without horizontal overflow. Anonymous agent and private-cover endpoints reject access. Private draft public lookup remains 404 and readiness remains 200.
+
+The production preview renders exact saved text, counts, bundle fingerprint and approval blockers. **Artwork rendering is not verified:** the deployed authenticated gateway reports the safe `storage_read` failure category. R2 bytes were separately verified using operator configuration; this is not evidence that deployed API configuration can read them. The artwork issue is recorded as its own blocked engineering assignment and a creative-release blocker. The first full production/release milestone is therefore not complete. No final audio, owner approval, public promotion, distribution upload or song publication occurred.
