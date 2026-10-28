@@ -16,4 +16,7 @@ assert.equal(planMediaLibraryReconciliation([{ ...asset, status: "archived" }], 
 assert.equal(plan({ ...asset, assetType: "full_song", url: "private" }, [{ ...target, fields: { fullSongUrl: "private" } }]).outcome, "review");
 assert.equal(plan(asset, [{ ...target, metadata: { coverArtAssetId: "a" } }, { ...target, entityId: "r2", metadata: { coverArtAssetId: "a" } }]).outcome, "review");
 assert.equal(plan(asset, [{ ...target, metadata: { coverArtAssetId: "a" } }], [{ assetId: "a", entityType: "release", entityId: "r", fieldKey: "audioPreviewUrl", status: "active" }]).outcome, "review");
-console.log("Media library reconciliation: 12 safety checks passed.");
+assert.equal(plan({ ...asset, url: "same-image" }, [{ ...target, fields: { coverArtUrl: "same-image" }, metadata: { coverArtAssetId: "other" } }]).outcome, "review");
+assert.equal(planMediaLibraryReconciliation([{ ...asset, url: "same-image" }, { ...asset, assetId: "duplicate", url: "same-image" }], [{ ...target, fields: { coverArtUrl: "same-image" } }], []).every((item) => item.outcome === "review"), true);
+assert.equal(plan({ ...asset, url: "unique-image" }, [{ ...target, fields: { coverArtUrl: "unique-image" } }]).outcome, "reconcile");
+console.log("Media library reconciliation: 15 safety checks passed.");

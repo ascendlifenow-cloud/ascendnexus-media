@@ -27,3 +27,13 @@ The command compares pre/post content, storage, and media-delivery fingerprints;
 ## Initial Dry Run
 
 136 records assessed: 135 unassigned and one detached. Found 39 test-like files, 75 occupied-slot matches, 19 unmatched items, one conflicting association, one unique new candidate, and one confirmed reference repair. Do not interpret this inventory as 135 missing songs or promise that all items can safely be auto-assigned.
+
+## Executed Staging Result
+
+User-authorized pass on 2026-10-27 (America/Denver): run `40d7b125-f54d-4727-bae6-7043a17b5815` repaired one existing artist profile association and prepared 135 review records. Independent verification confirmed the artist's explicit asset ID, matching existing URL, and exactly one active link. Final assignment counts: 437 assigned, 134 unassigned, one detached.
+
+Repeat run `1a54703c-91b7-4aaf-a067-a39e9bb9e3f2` assessed the remaining 135, made zero changes, and skipped all 135 unchanged review decisions. Both runs confirmed identical content/storage/delivery safety fingerprints. Nothing was uploaded again, deleted, archived, promoted, or published. No actual new filename-based association was made; the only unique candidate still needs delivery validation and review.
+
+Frontend review support was pushed in commit `1c4f391`; the staging bundle was fetched and confirmed to contain `libraryReconciliation`. API live health passed. Authenticated browser interaction was not tested in this run. Tests: 15 planner assertions, the existing intake threshold regression tests, application TypeScript check, production build, and standalone planner TypeScript check passed. The repository has no Node type definitions configured for an independent CLI TypeScript check; CLI execution was verified through real staging dry/apply/repeat runs instead.
+
+Next bounded work: verify physical object availability and compare checksums for the 75 occupied-slot candidates before offering duplicate archival or replacement. Review the 39 test-like files before any destructive cleanup. Resolve the 19 unmatched names and the conflicting association with the owner; do not create speculative artist/release records.
