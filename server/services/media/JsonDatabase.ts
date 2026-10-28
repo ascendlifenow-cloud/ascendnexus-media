@@ -113,6 +113,7 @@ import type {
 import type { MemberAccountFlagRecord, MemberCrmReportRecord, MemberModerationRecord, MemberSupportNoteRecord } from "../../models/memberCrm/MemberCrmModels";
 import type { BillingPlanRecord, BillingRevenueSnapshotRecord, BillingWebhookEventRecord, CouponRecord, GiftMembershipRecord, InvoiceRecord, MemberSubscriptionRecord, PaymentMethodRecord, PaymentRecord, PromotionRecord, RefundRecord } from "../../models/billing/BillingModels";
 import type { DevelopmentSeedRunRecord } from "../../models/seeding/DevelopmentSeedModels";
+import type { MemberSongUsageRecord } from "../../models/members/MemberSongUsageModel";
 import type { MediaIntakeRecord } from "../../models/mediaIntake/MediaIntakeModels";
 
 export interface MediaDatabaseShape {
@@ -206,6 +207,7 @@ export interface MediaDatabaseShape {
   contentEntitlementRequirements: ContentEntitlementRequirementRecord[];
   protectedMediaAuthorizations: ProtectedMediaAuthorizationRecord[];
   memberAccessHistory: MemberAccessHistoryRecord[];
+  memberSongUsage: MemberSongUsageRecord[];
   mediaDeliveryProfiles: MediaDeliveryProfileRecord[];
   protectedMediaResources: ProtectedMediaResourceRecord[];
   protectedPlaybackSessions: ProtectedPlaybackSessionRecord[];
@@ -335,6 +337,7 @@ const emptyDatabase = (): MediaDatabaseShape => ({
   contentEntitlementRequirements: [],
   protectedMediaAuthorizations: [],
   memberAccessHistory: [],
+  memberSongUsage: [],
   mediaDeliveryProfiles: [],
   protectedMediaResources: [],
   protectedPlaybackSessions: [],

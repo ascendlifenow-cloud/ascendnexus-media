@@ -4,6 +4,9 @@ import { protectedContentController } from "../controllers/protectedContentContr
 export const handleProtectedContentRoute = async (request: IncomingMessage, response: ServerResponse, url: URL): Promise<boolean> => {
   const method = request.method ?? "GET";
   const path = url.pathname.replace(/\/+$/, "") || "/";
+  if (method === "POST" && path === "/api/member/media/stream-refresh") return protectedContentController.refreshStream(request, response).then(() => true);
+  const songUsage = /^\/api\/member\/releases\/([^/]+)\/usage$/.exec(path);
+  if (method === "GET" && songUsage) return protectedContentController.songUsage(request, response, decodeURIComponent(songUsage[1])).then(() => true);
 
   const streamAuth = /^\/api\/member\/media\/([^/]+)\/stream-authorize$/.exec(path);
   if (method === "POST" && streamAuth) return protectedContentController.authorizeStream(request, response, decodeURIComponent(streamAuth[1])).then(() => true);

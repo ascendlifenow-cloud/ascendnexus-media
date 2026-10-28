@@ -11,6 +11,7 @@ const unique = (key: Record<string, 1 | -1>, name: string): IndexDescription => 
 const index = (key: Record<string, 1 | -1>, name: string): IndexDescription => ({ key, name });
 
 export const databaseCollections = [
+  { property: "memberSongUsage", collectionName: "member_song_usage", applicationId: "usageId", indexes: [unique({ usageId: 1 }, "memberSongUsageId_unique"), unique({ memberId: 1, songId: 1 }, "memberSongUsage_member_song_unique"), index({ releaseId: 1 }, "memberSongUsage_release"), index({ memberId: 1, updatedAt: -1 }, "memberSongUsage_member_updated")] },
   { property: "adminUsers", collectionName: "admin_users", applicationId: "userId", indexes: [unique({ userId: 1 }, "userId_unique"), unique({ normalizedEmail: 1 }, "normalizedEmail_unique"), index({ status: 1 }, "status"), index({ roles: 1 }, "roles"), index({ createdAt: 1 }, "createdAt"), index({ lastLoginAt: -1 }, "lastLoginAt_desc")] },
   { property: "adminSessions", collectionName: "admin_sessions", applicationId: "sessionId", indexes: [unique({ sessionId: 1 }, "sessionId_unique"), unique({ tokenHash: 1 }, "tokenHash_unique"), index({ userId: 1 }, "userId"), index({ status: 1 }, "status"), index({ expiresAt: 1 }, "expiresAt"), index({ lastSeenAt: -1 }, "lastSeenAt_desc")] },
   { property: "adminRoles", collectionName: "admin_roles", applicationId: "roleId", indexes: [unique({ roleId: 1 }, "roleId_unique"), unique({ name: 1 }, "name_unique"), index({ status: 1 }, "status")] },

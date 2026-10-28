@@ -18,17 +18,17 @@ export class ProtectedContentTakedownService {
     await jsonDatabase.update((data) => {
       data.protectedContentTakedowns.push(takedown);
       for (const resource of data.protectedMediaResources) {
-        if (resource.contentType === resourceType && resource.contentId === resourceId) resource.status = "blocked";
+        if ((resource.contentType === resourceType && resource.contentId === resourceId) || (resourceType === "media" && resource.mediaAssetId === resourceId) || resourceType === "global") resource.status = "blocked";
       }
       for (const authorization of data.protectedMediaAuthorizations) {
-        if (authorization.resourceType === resourceType && authorization.resourceId === resourceId && authorization.status === "active") {
+        if (((authorization.resourceType === resourceType && authorization.resourceId === resourceId) || (resourceType === "media" && (authorization.mediaAssetId ?? authorization.mediaId) === resourceId) || resourceType === "global") && authorization.status === "active") {
           authorization.status = "revoked";
           authorization.revokedAt = now;
           authorization.revokeReason = reason;
         }
       }
       for (const session of data.protectedPlaybackSessions) {
-        if (data.protectedMediaAuthorizations.some((authorization) => authorization.authorizationId === session.authorizationId && authorization.resourceType === resourceType && authorization.resourceId === resourceId)) {
+        if (data.protectedMediaAuthorizations.some((authorization) => authorization.authorizationId === session.authorizationId && ((authorization.resourceType === resourceType && authorization.resourceId === resourceId) || (resourceType === "media" && (authorization.mediaAssetId ?? authorization.mediaId) === resourceId) || resourceType === "global"))) {
           session.status = "revoked";
           session.endedAt = now;
         }
@@ -48,7 +48,9 @@ export class ProtectedContentTakedownService {
         }
       }
       for (const resource of data.protectedMediaResources) {
-        if (resource.contentType === resourceType && resource.contentId === resourceId && resource.status === "blocked") resource.status = "ready";
+        const selected = (resource.contentType === resourceType && resource.contentId === resourceId) || (resourceType === "media" && resource.mediaAssetId === resourceId) || resourceType === "global";
+        const stillBlocked = data.protectedContentTakedowns.some((item) => item.status === "active" && ((item.resourceType === resource.contentType && item.resourceId === resource.contentId) || (item.resourceType === "media" && item.resourceId === resource.mediaAssetId) || item.resourceType === "global"));
+        if (selected && !stillBlocked && resource.status === "blocked") resource.status = "ready";
       }
     });
     return { restored: true, resourceType, resourceId, restoredAt: now };

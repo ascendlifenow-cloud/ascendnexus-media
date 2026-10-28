@@ -229,6 +229,7 @@ export class MemberAdministrationService {
       member: redactMember(member),
       membership,
       membershipHistory,
+      songUsage: data.memberSongUsage.filter((item) => item.memberId === memberId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 100).map((item) => ({ releaseId: item.releaseId, title: data.releaseRecords.find((release) => release.releaseId === item.releaseId)?.title ?? "Unavailable song", streamStarts: item.streamStarts, downloadStarts: item.downloadStarts, includedPlayUsed: item.freePlayUsed, lastStreamAt: item.lastStreamAt ?? null })),
       engagement: {
         favorites: data.memberFavorites.filter((item) => item.memberId === memberId && item.status === "active"),
         following: data.memberFollows.filter((item) => item.memberId === memberId && item.status === "active"),

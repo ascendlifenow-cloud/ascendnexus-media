@@ -204,6 +204,15 @@ export function AdminMembersPage({ focus = "members" }: { focus?: "members" | "h
                 }} />
               </section>
 
+              <section className="min-w-0 rounded-md border border-white/10 bg-white/[0.04] p-5">
+                <h3 className="text-xl font-semibold text-white">Song usage</h3>
+                <p className="mt-2 text-sm text-white/55">Authorized delivery starts, not verified complete listens.</p>
+                <div className="mt-3 overflow-x-auto"><table className="w-full text-left text-sm text-white/75">
+                  <thead><tr><th className="p-2">Song</th><th className="p-2">Streams started</th><th className="p-2">Downloads started</th><th className="p-2">Included play</th></tr></thead>
+                  <tbody>{((detail?.songUsage as Array<Record<string, unknown>>) ?? []).map((item) => <tr key={String(item.releaseId)} className="border-t border-white/10"><td className="p-2">{String(item.title)}</td><td className="p-2">{String(item.streamStarts)}</td><td className="p-2">{String(item.downloadStarts)}</td><td className="p-2">{item.includedPlayUsed ? "Used" : "Available"}</td></tr>)}</tbody>
+                </table>{!(detail?.songUsage as unknown[] | undefined)?.length ? <p className="py-3 text-sm text-white/55">No recorded song deliveries.</p> : null}</div>
+              </section>
+
               <section className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-md border border-white/10 bg-white/[0.04] p-5">
                   <h3 className="text-xl font-semibold text-white">Support tools</h3>

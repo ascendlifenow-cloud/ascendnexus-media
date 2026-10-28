@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:song-permissions": "node --import tsx scripts/song-permissions-test.ts",
     "test:production-final-audio": "node --import tsx scripts/production-final-audio-test.ts",
     "test:database-snapshot-changes": "node --import tsx scripts/snapshot-changes-test.ts",
     "test:database-snapshot-staging": "node --import tsx scripts/snapshot-changes-staging-test.ts",

@@ -9,8 +9,20 @@ import { protectedContentTakedownService } from "../services/protectedContent/Pr
 import { protectedMediaGatewayService } from "../services/protectedContent/ProtectedMediaGatewayService";
 import { protectedPlaybackSessionService } from "../services/protectedContent/ProtectedPlaybackSessionService";
 import { jsonDatabase } from "../services/media/JsonDatabase";
+import { songUsageService } from "../services/access/SongUsageService";
 
 export class ProtectedContentController {
+  async refreshStream(request: IncomingMessage, response: ServerResponse) {
+    const body = await parseJsonBody(request) as { authorizationReference?: string };
+    if (!body || typeof body.authorizationReference !== "string" || body.authorizationReference.length > 500 || Object.keys(body).some((key) => key !== "authorizationReference")) {
+      sendJson(response, 400, { success: false, errors: ["A playback reference is required."] }); return;
+    }
+    sendJson(response, 200, { success: true, data: await protectedMediaGatewayService.refresh(request, body.authorizationReference) }, { "Cache-Control": "private, no-store" });
+  }
+  async songUsage(request: IncomingMessage, response: ServerResponse, releaseSlugOrId: string) {
+    const session = await memberIdentityService.authenticateRequest(request);
+    sendJson(response, 200, { success: true, data: await songUsageService.summary(session.member.memberId, releaseSlugOrId, session.sessionId) }, { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
+  }
   async authorizeStream(request: IncomingMessage, response: ServerResponse, mediaId: string) {
     const session = await memberIdentityService.authenticateRequest(request);
     const body = await parseJsonBody(request).catch(() => ({})) as { playbackContext?: Record<string, unknown> };
@@ -54,18 +66,18 @@ export class ProtectedContentController {
 
   async getPlaybackSession(request: IncomingMessage, response: ServerResponse, playbackSessionId: string) {
     const session = await memberIdentityService.authenticateRequest(request);
-    sendJson(response, 200, { success: true, data: await protectedPlaybackSessionService.get(playbackSessionId, session.member.memberId) });
+    sendJson(response, 200, { success: true, data: await protectedPlaybackSessionService.get(playbackSessionId, session.member.memberId, session.sessionId) });
   }
 
   async updatePlaybackSession(request: IncomingMessage, response: ServerResponse, playbackSessionId: string) {
     const session = await memberIdentityService.authenticateRequest(request);
     const body = await parseJsonBody(request) as { status?: "starting" | "playing" | "paused" | "completed" | "failed" };
-    sendJson(response, 200, { success: true, data: await protectedPlaybackSessionService.update(playbackSessionId, session.member.memberId, body.status ?? "playing") });
+    sendJson(response, 200, { success: true, data: await protectedPlaybackSessionService.update(playbackSessionId, session.member.memberId, body.status ?? "playing", session.sessionId) });
   }
 
   async deletePlaybackSession(request: IncomingMessage, response: ServerResponse, playbackSessionId: string) {
     const session = await memberIdentityService.authenticateRequest(request);
-    sendJson(response, 200, { success: true, data: await protectedPlaybackSessionService.update(playbackSessionId, session.member.memberId, "completed") });
+    sendJson(response, 200, { success: true, data: await protectedPlaybackSessionService.update(playbackSessionId, session.member.memberId, "completed", session.sessionId) });
   }
 
   async adminOverview(request: IncomingMessage, response: ServerResponse) {
