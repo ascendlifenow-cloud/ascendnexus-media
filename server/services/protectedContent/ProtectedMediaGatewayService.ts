@@ -49,20 +49,23 @@ export class ProtectedMediaGatewayService {
     const session = await memberIdentityService.authenticateRequest(request);
     let expiresAt = "";
     const commit = usageQueue.then(() => jsonDatabase.update((data) => {
-      const staged = structuredClone(data);
-      const { authorization } = this.check(staged, session, parsed, "stream");
-      const profile = staged.mediaDeliveryProfiles.find((item) => item.profileKey === authorization.metadata?.profileKey)!;
-      if (Date.parse(authorization.expiresAt) - Date.now() > 60000) { expiresAt = authorization.expiresAt; return; }
-      const origin = Date.parse(String(authorization.metadata?.episodeStartedAt ?? authorization.issuedAt));
+      const validated = this.check(data, session, parsed, "stream").authorization;
+      const profile = data.mediaDeliveryProfiles.find((item) => item.profileKey === validated.metadata?.profileKey)!;
+      if (Date.parse(validated.expiresAt) - Date.now() > 60000) { expiresAt = validated.expiresAt; return; }
+      const origin = Date.parse(String(validated.metadata?.episodeStartedAt ?? validated.issuedAt));
       const now = Date.now();
       const expires = Math.min(now + Math.min(profile.tokenTtlSeconds, 900) * 1000, origin + 3600000);
       if (!Number.isFinite(origin) || expires <= now + 1000) throw denied("PROTECTED_STREAM_AUTHORIZATION_EXPIRED");
+      const authorizations = structuredClone(data.protectedMediaAuthorizations);
+      const playbacks = structuredClone(data.protectedPlaybackSessions);
+      const authorization = authorizations.find(item => item.authorizationId === validated.authorizationId)!;
       authorization.metadata = { ...authorization.metadata, episodeStartedAt: new Date(origin).toISOString() };
       authorization.issuedAt = new Date(now).toISOString();
       authorization.expiresAt = new Date(expires).toISOString();
-      for (const playback of staged.protectedPlaybackSessions) if (playback.authorizationId === authorization.authorizationId && ["authorized", "starting", "playing", "paused"].includes(playback.status)) playback.expiresAt = authorization.expiresAt;
+      for (const playback of playbacks) if (playback.authorizationId === authorization.authorizationId && ["authorized", "starting", "playing", "paused"].includes(playback.status)) playback.expiresAt = authorization.expiresAt;
       expiresAt = authorization.expiresAt;
-      Object.assign(data, staged);
+      data.protectedMediaAuthorizations = authorizations;
+      data.protectedPlaybackSessions = playbacks;
     }));
     usageQueue = commit.catch(() => undefined);
     await commit;
@@ -193,16 +196,18 @@ export class ProtectedMediaGatewayService {
       stage = "usage_commit";
       const commit = usageQueue.then(() => jsonDatabase.update((data) => {
         if (abort.signal.aborted || response.destroyed || sourceFailed) throw denied();
-        // The JSON database may expose its cache directly. Publish only after every throwing check succeeds.
-        const staged = structuredClone(data);
-        const current = this.check(staged, session, parsed, action);
+        const current = this.check(data, session, parsed, action);
         if (JSON.stringify(current.storage) !== JSON.stringify(validation.storage)) throw denied("PROTECTED_MEDIA_NOT_READY", 404);
         if (request.method === "HEAD") return;
         if (action === "stream" && current.authorization.useCount > 0) return;
-        if (current.authorization.resourceType === "release") recordSongDelivery(staged, current.authorization, action);
-        current.authorization.useCount += 1;
-        current.authorization.lastUsedAt = new Date().toISOString();
-        if (action === "download") current.authorization.status = "used";
+        // Local JSON updates expose their cache: isolate only the collections accounting mutates.
+        const staged = { ...data, memberSongUsage: structuredClone(data.memberSongUsage),
+          protectedMediaAuthorizations: structuredClone(data.protectedMediaAuthorizations), memberAccessHistory: structuredClone(data.memberAccessHistory) };
+        const authorization = staged.protectedMediaAuthorizations.find(item => item.authorizationId === current.authorization.authorizationId)!;
+        if (authorization.resourceType === "release") recordSongDelivery(staged, authorization, action);
+        authorization.useCount += 1;
+        authorization.lastUsedAt = new Date().toISOString();
+        if (action === "download") authorization.status = "used";
         data.memberSongUsage = staged.memberSongUsage;
         data.protectedMediaAuthorizations = staged.protectedMediaAuthorizations;
         data.memberAccessHistory = staged.memberAccessHistory;

@@ -63,7 +63,15 @@ try {
   assert.equal((await request(endpoint, "free", { method: "HEAD" })).status, 200);
   assert.equal((await jsonDatabase.read()).memberSongUsage.length, 0, "HEAD must not consume a play");
   assert.equal((await request(endpoint, "premium")).status, 403, "Authorizations must be member-bound");
-  const bytes = await request(endpoint, "free", { headers: { Range: "bytes=2-4" } });
+  const withoutCatalogClone = async <T>(run: () => Promise<T>) => {
+    const clone = globalThis.structuredClone;
+    globalThis.structuredClone = ((value: unknown, options?: StructuredSerializeOptions) => {
+      assert.ok(!value || typeof value !== "object" || !("releaseRecords" in value && "memberAccounts" in value), "Gateway accounting must not clone the complete catalog snapshot.");
+      return clone(value, options);
+    }) as typeof structuredClone;
+    try { return await run(); } finally { globalThis.structuredClone = clone; }
+  };
+  const bytes = await withoutCatalogClone(() => request(endpoint, "free", { headers: { Range: "bytes=2-4" } }));
   assert.equal(bytes.status, 206);
   assert.equal(await bytes.text(), "234");
   assert.equal(bytes.headers.get("content-range"), "bytes 2-4/10");
@@ -80,7 +88,7 @@ try {
   assert.equal((await authorize("free")).authorized, false);
   const firstAuth = (await jsonDatabase.read()).protectedMediaAuthorizations.find((item) => item.memberId === "free")!;
   await jsonDatabase.update((data) => { const record = data.protectedMediaAuthorizations.find((item) => item.authorizationId === firstAuth.authorizationId)!; record.issuedAt = new Date(Date.now() - 290000).toISOString(); record.expiresAt = new Date(Date.now() + 10000).toISOString(); });
-  const refresh = await request("/api/member/media/stream-refresh", "free", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ authorizationReference: decodeURIComponent(endpoint.split("/").at(-1)!) }) });
+  const refresh = await withoutCatalogClone(() => request("/api/member/media/stream-refresh", "free", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ authorizationReference: decodeURIComponent(endpoint.split("/").at(-1)!) }) }));
   assert.equal(refresh.status, 200);
   assert.ok(Date.parse((await refresh.json() as { data: { expiresAt: string } }).data.expiresAt) > Date.now() + 200000);
   assert.equal((await songUsageService.summary("free", "fixture")).streamStarts, 1, "Refresh must not consume another play");
@@ -102,6 +110,16 @@ try {
   assert.equal((await request(downloadEndpoint, "vip")).status, 200);
   assert.equal((await request(downloadEndpoint, "vip")).status, 403);
   assert.equal((await songUsageService.summary("vip", "fixture")).downloadStarts, 1);
+  const rollbackAuthorization = await authorize("vip");
+  const beforeRollback = structuredClone(await jsonDatabase.read());
+  await jsonDatabase.update(data => { data.memberAccessHistory = null as never; });
+  try {
+    const rejectedAccounting = await request("streamEndpoint" in rollbackAuthorization ? rollbackAuthorization.streamEndpoint! : "", "vip");
+    assert.equal(rejectedAccounting.status, 503);
+    const afterRollback = await jsonDatabase.read();
+    assert.deepEqual(afterRollback.memberSongUsage, beforeRollback.memberSongUsage, "Late accounting failure must not leak usage changes to the local cache.");
+    assert.deepEqual(afterRollback.protectedMediaAuthorizations, beforeRollback.protectedMediaAuthorizations, "Late accounting failure must not consume an authorization.");
+  } finally { await jsonDatabase.update(data => { data.memberAccessHistory = beforeRollback.memberAccessHistory; }); }
   const snapshot = structuredClone(await jsonDatabase.read());
   for (const status of ["PendingVerification", "Locked", "Disabled", "Suspended", "Deleted"] as const) {
     const data = structuredClone(snapshot); data.memberAccounts.find((item) => item.memberId === "vip")!.status = status;

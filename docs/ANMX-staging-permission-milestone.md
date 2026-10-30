@@ -2,6 +2,16 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Gateway Memory Increment, 2026-10-30
+
+Staging readiness still identifies `281618e`. The protected range acceptance blocker is not considered resolved by a generic ready response.
+
+Independent inspection found that first delivery deep-cloned the entire catalog inside Mongo `update()`, which already retains an original snapshot and its mutable copy. The gateway now validates before allocating accounting copies and independently clones only usage, authorizations and access history. HEAD and already-counted ranges return before that extra staging allocation. Refresh independently stages only authorizations and playback sessions. The outer Mongo conflict checks and transaction remain unchanged; local-cache mutations are still published only after all throwing accounting work succeeds.
+
+Local regression checks pass, including a guard against gateway whole-catalog cloning, first-delivery/range accounting, refresh, membership changes and late accounting failure isolation. A synthetic late failure returns 503 without changing the cached usage ledger or authorization. This reduces redundant copying; it does not establish an out-of-memory diagnosis, measured latency improvement, or a fix for the deployed HTML 502. Broader catalog-wide reads in the legacy database adapter remain a separate scaling limitation.
+
+Render integration discovery succeeded and workspace confirmation is pending before service logs/events are inspected. No Render settings, instance plans, credentials or storage permissions were changed.
+
 ## Scope
 
 Make the song-permission increment independently identifiable on staging, align administrative membership presentation with effective access, and establish repeatable safe verification. This is not a live payment launch or song-publication approval.
@@ -56,6 +66,8 @@ node --env-file=.env.migration.local --import tsx scripts/staging-song-acceptanc
 ```
 
 These commands mutate only isolated staging fixtures and require owner authorization. No production mode is supported; credentials and delivery artifacts are never printed.
+
+Post-deployment result: readiness identifies `281618ec5a3a9051d1a5c459cf50169b0436475c`. The authenticated rerun still returned HTML 502 for the deployed range path, while the server-only origin read and local gateway comparison returned exact 206 bytes. Defensive upstream handling did not resolve the demonstrated staging failure. All fixture cleanup checks passed. Render's new `[protected-delivery]` stage/status/code diagnostics are the next required evidence; the generic signed-out `Member authentication is required` log is expected from anonymous negative checks and does not identify the range cause. Do not mark paid playback/download/revocation acceptance complete.
 
 1. Confirm the API reports the new expected commit after deployment. A green generic readiness response alone is insufficient.
 2. Confirm `/admin/members` labels and counts match effective membership, not historical readiness fields. Verify the song usage table appears; zero starts is valid.
