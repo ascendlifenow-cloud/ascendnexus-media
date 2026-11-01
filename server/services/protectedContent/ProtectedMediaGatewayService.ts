@@ -11,6 +11,7 @@ import { memberIdentityService } from "../members/MemberIdentityService";
 import { resolveInsideRoot } from "../../utils/media/mediaPathUtils";
 import { backendStorageProviderRegistry } from "../../storage/StorageProviderRegistry";
 import { evaluateSongAction, recordSongDelivery, songMediaMatches } from "../access/SongUsageService";
+import { protectedDeliveryTelemetryService, type DeliveryStage } from "./ProtectedDeliveryTelemetryService";
 
 type Action = "stream" | "download";
 type Data = Awaited<ReturnType<typeof jsonDatabase.read>>;
@@ -43,6 +44,8 @@ const denied = (code = "PROTECTED_CONTENT_UNAVAILABLE", status = 403) => new Aut
 let usageQueue: Promise<unknown> = Promise.resolve();
 
 export class ProtectedMediaGatewayService {
+  constructor(private readonly requestTimeoutMs = 120_000) {}
+
   async refresh(request: IncomingMessage, reference: string) {
     const parsed = parseReference(reference);
     if (!parsed) throw denied("PROTECTED_STREAM_SESSION_INVALID");
@@ -141,16 +144,31 @@ export class ProtectedMediaGatewayService {
   private async deliver(request: IncomingMessage, response: ServerResponse, reference: string, action: Action) {
     let source: Readable | undefined;
     let sourceFailed = false;
-    let stage = "authorization";
+    let stage: DeliveryStage = "authorization";
+    const observationId = protectedDeliveryTelemetryService.begin(action, request.method);
+    let byteDeliveryCompleted = false;
+    let failureStatus: number | undefined;
+    let failureCode: string | undefined;
+    let timedOut = false;
+    let deliveryIntegrityFailed = false;
     let handle: Awaited<ReturnType<typeof fsp.open>> | undefined;
     const abort = new AbortController();
     const disconnect = () => { abort.abort(); source?.destroy(); };
     response.once("close", disconnect);
     request.once("aborted", disconnect);
-    const timeout = setTimeout(disconnect, 120_000);
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      disconnect();
+      protectedDeliveryTelemetryService.finish(observationId, 504, false, "PROTECTED_DELIVERY_TIMEOUT");
+      if (!response.destroyed) {
+        if (!response.headersSent) this.safeDenied(response, 504, "PROTECTED_DELIVERY_TIMEOUT");
+        else response.destroy();
+      }
+    }, this.requestTimeoutMs);
     try {
       if (request.method !== "GET" && request.method !== "HEAD") throw denied("PROTECTED_MEDIA_METHOD_NOT_ALLOWED", 405);
       const validation = await this.validateReference(request, reference, action);
+      if (abort.signal.aborted || response.destroyed) return;
       if (!validation.ok) { this.safeDenied(response, validation.status, validation.code); return; }
       const provider = backendStorageProviderRegistry.getActiveProvider();
       if (provider.getProviderName() !== validation.storage.provider) throw denied("PROTECTED_MEDIA_NOT_READY", 404);
@@ -169,6 +187,7 @@ export class ProtectedMediaGatewayService {
       const length = Math.max(0, range.end - range.start + 1);
       if (request.method === "GET" && length > 0) {
         stage = "storage_read";
+        protectedDeliveryTelemetryService.advance(observationId, stage);
         if (handle) {
           source = handle.createReadStream({ start: range.start, end: range.end, autoClose: false });
         } else {
@@ -194,8 +213,10 @@ export class ProtectedMediaGatewayService {
       // Reauthenticate after source opening, then recheck and account inside the same update, before headers or bytes.
       const session = await memberIdentityService.authenticateRequest(request);
       stage = "usage_commit";
+      protectedDeliveryTelemetryService.advance(observationId, stage);
       const commit = usageQueue.then(() => jsonDatabase.update((data) => {
-        if (abort.signal.aborted || response.destroyed || sourceFailed) throw denied();
+        if (sourceFailed) throw denied("PROTECTED_MEDIA_NOT_READY", 502);
+        if (abort.signal.aborted || response.destroyed) throw denied();
         const current = this.check(data, session, parsed, action);
         if (JSON.stringify(current.storage) !== JSON.stringify(validation.storage)) throw denied("PROTECTED_MEDIA_NOT_READY", 404);
         if (request.method === "HEAD") return;
@@ -227,15 +248,24 @@ export class ProtectedMediaGatewayService {
       let delivered = 0;
       const bounded = new Transform({ transform(chunk, _encoding, callback) {
         delivered += chunk.length;
-        callback(delivered > length ? denied() : null, delivered > length ? undefined : chunk);
-      }, flush(callback) { callback(delivered === length ? null : denied()); } });
+        if (delivered > length) deliveryIntegrityFailed = true;
+        callback(deliveryIntegrityFailed ? denied("PROTECTED_MEDIA_NOT_READY", 502) : null, deliveryIntegrityFailed ? undefined : chunk);
+      }, flush(callback) {
+        if (delivered !== length) deliveryIntegrityFailed = true;
+        callback(deliveryIntegrityFailed ? denied("PROTECTED_MEDIA_NOT_READY", 502) : null);
+      } });
       stage = "byte_delivery";
+      protectedDeliveryTelemetryService.advance(observationId, stage);
       await pipeline(source, bounded, response);
+      byteDeliveryCompleted = true;
     } catch (error) {
-      if (!request.aborted) console.warn("[protected-delivery] request failed", { stage, action, status: error instanceof AuthApiError ? error.status : 503,
-        code: error instanceof AuthApiError ? error.code : "PROTECTED_CONTENT_UNAVAILABLE" });
-      if (!response.destroyed) this.safeDenied(response, error instanceof AuthApiError ? error.status : 503, error instanceof AuthApiError ? error.code : "PROTECTED_CONTENT_UNAVAILABLE");
+      failureStatus = timedOut ? 504 : deliveryIntegrityFailed || sourceFailed ? 502 : request.aborted || (abort.signal.aborted && response.destroyed) ? 499 : error instanceof AuthApiError ? error.status : 503;
+      failureCode = timedOut ? "PROTECTED_DELIVERY_TIMEOUT" : deliveryIntegrityFailed || sourceFailed ? "PROTECTED_MEDIA_NOT_READY" : error instanceof AuthApiError ? error.code : "PROTECTED_CONTENT_UNAVAILABLE";
+      if (!request.aborted) console.warn("[protected-delivery] request failed", { stage, action, status: failureStatus, code: failureCode });
+      if (!response.destroyed) this.safeDenied(response, failureStatus, failureCode);
     } finally {
+      const finalStatus = timedOut ? 504 : failureStatus ?? (!byteDeliveryCompleted && abort.signal.aborted && response.destroyed && response.statusCode < 400 && request.method === "GET" ? 499 : response.statusCode);
+      protectedDeliveryTelemetryService.finish(observationId, finalStatus, byteDeliveryCompleted, timedOut ? "PROTECTED_DELIVERY_TIMEOUT" : failureCode);
       clearTimeout(timeout);
       abort.abort();
       source?.destroy();

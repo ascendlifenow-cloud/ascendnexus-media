@@ -84,22 +84,23 @@ export class ProtectedContentController {
     const auth = await mediaAuthorizationService.authenticate(request);
     if (!auth.permissions.includes("media.security.read") && !auth.permissions.includes("security.read")) mediaAuthorizationService.requirePermission(auth, "security.read");
     const data = await jsonDatabase.read();
+    const health = await protectedContentDeliveryHealthService.getHealthReport(data);
     sendJson(response, 200, {
       success: true,
       data: {
-        health: await protectedContentDeliveryHealthService.getHealthReport(),
+        health,
         protectedAssetCount: data.protectedMediaResources.length,
-        activeAuthorizations: data.protectedMediaAuthorizations.filter((item) => item.status === "active" && item.expiresAt > new Date().toISOString()).length,
-        activePlaybackSessions: data.protectedPlaybackSessions.filter((item) => ["authorized", "starting", "playing", "paused"].includes(item.status)).length,
+        activeAuthorizations: health.activeAuthorizations,
+        activePlaybackSessions: health.activePlaybackSessions,
         takedowns: data.protectedContentTakedowns.filter((item) => item.status === "active"),
       },
-    });
+    }, { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
   }
 
   async adminHealth(request: IncomingMessage, response: ServerResponse) {
     const auth = await mediaAuthorizationService.authenticate(request);
     if (!auth.permissions.includes("media.security.read") && !auth.permissions.includes("security.read")) mediaAuthorizationService.requirePermission(auth, "security.read");
-    sendJson(response, 200, { success: true, data: await protectedContentDeliveryHealthService.getHealthReport() });
+    sendJson(response, 200, { success: true, data: await protectedContentDeliveryHealthService.getHealthReport() }, { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
   }
 
   async adminProfiles(request: IncomingMessage, response: ServerResponse) {

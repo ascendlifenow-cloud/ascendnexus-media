@@ -13,13 +13,19 @@ const { evaluateSongAction, songUsageService } = await import("../server/service
 const { resolveMemberEntitlements } = await import("../server/services/access/EffectiveEntitlementService");
 const { protectedContentDeliveryAuthorizationService: delivery } = await import("../server/services/protectedContent/ProtectedContentDeliveryAuthorizationService");
 const { protectedPlaybackSessionService: playback } = await import("../server/services/protectedContent/ProtectedPlaybackSessionService");
+const { protectedDeliveryTelemetryService: telemetry } = await import("../server/services/protectedContent/ProtectedDeliveryTelemetryService");
+const { ProtectedMediaGatewayService } = await import("../server/services/protectedContent/ProtectedMediaGatewayService");
+const timeoutGateway = new ProtectedMediaGatewayService(100);
 const { memberIdentityService } = await import("../server/services/members/MemberIdentityService");
 const { handleProtectedContentRoute } = await import("../server/routes/protectedContentRoutes");
 const { sendSafeError } = await import("../server/middleware/mediaErrorMiddleware");
 const { AuthApiError } = await import("../server/utils/auth/authErrorUtils");
 const authenticate = memberIdentityService.authenticateRequest;
 const server = createServer(async (request, response) => {
-  try { if (!await handleProtectedContentRoute(request, response, new URL(request.url!, "http://localhost"))) { response.writeHead(404); response.end(); } }
+  try {
+    if (request.headers["x-fixture-timeout"] === "yes") { await timeoutGateway.stream(request, response, new URL(request.url!, "http://localhost").pathname.split("/").at(-1)!); return; }
+    if (!await handleProtectedContentRoute(request, response, new URL(request.url!, "http://localhost"))) { response.writeHead(404); response.end(); }
+  }
   catch (error) { sendSafeError(response, error); }
 });
 try {
@@ -62,6 +68,7 @@ try {
   assert.equal((await songUsageService.summary("free", "fixture")).streamStarts, 0, "Issuance must not consume a play");
   assert.equal((await request(endpoint, "free", { method: "HEAD" })).status, 200);
   assert.equal((await jsonDatabase.read()).memberSongUsage.length, 0, "HEAD must not consume a play");
+  assert.equal(telemetry.getSnapshot().originByteResponsesCompleted, 0, "HEAD and denied requests do not verify delivery.");
   assert.equal((await request(endpoint, "premium")).status, 403, "Authorizations must be member-bound");
   const withoutCatalogClone = async <T>(run: () => Promise<T>) => {
     const clone = globalThis.structuredClone;
@@ -84,6 +91,7 @@ try {
   assert.equal(usage.remainingFullPlays, 0);
   assert.equal(usage.canContinue, true);
   assert.equal(usage.canStream, false);
+  assert.ok(telemetry.getSnapshot().originRangeResponsesCompleted >= 1, "A completed gateway range must be observed without exposing its source.");
   assert.equal((await jsonDatabase.read()).memberAccessHistory.filter(item => item.memberId === "free" && item.action === "song_stream_started").length, 1, "First byte delivery must persist one safe access-history record, not one per range.");
   assert.equal((await authorize("free")).authorized, false);
   const firstAuth = (await jsonDatabase.read()).protectedMediaAuthorizations.find((item) => item.memberId === "free")!;
@@ -215,8 +223,64 @@ try {
       assert.equal(cancelled, true, "Rejected upstream bodies must be cancelled before Node stream conversion.");
       assert.equal((await songUsageService.summary("vip", "fixture")).streamStarts, beforeFailure, "Rejected upstream must not consume a play.");
     }
+    for (const wrongBytes of ["34", "3456"]) {
+      globalThis.fetch = async (input, options) => {
+        if (String(input).startsWith("https://fixture-storage.invalid/")) return new Response(wrongBytes, { status: 206, headers: { "Content-Length": "3", "Content-Range": "bytes 3-5/10" } });
+        return originalFetch(input, options);
+      };
+      const failedAuthorization = await authorize("vip");
+      const failuresBefore = telemetry.getSnapshot().serverFailures;
+      await request("streamEndpoint" in failedAuthorization ? failedAuthorization.streamEndpoint! : "", "vip", { headers: { Range: "bytes=3-5" } })
+        .then(result => result.arrayBuffer()).catch(() => undefined);
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(telemetry.getSnapshot().serverFailures, failuresBefore + 1, "Short and oversized origin bodies are server failures, not denials or client disconnects.");
+      assert.equal(telemetry.getSnapshot().lastFailure?.status, 502);
+    }
+    let originCancelled!: () => void;
+    const cancelledOrigin = new Promise<void>(resolve => { originCancelled = resolve; });
+    globalThis.fetch = async (input, options) => {
+      if (String(input).startsWith("https://fixture-storage.invalid/")) return new Response(new ReadableStream({
+        start(controller) { controller.enqueue(new TextEncoder().encode("3")); }, cancel() { originCancelled(); },
+      }), { status: 206, headers: { "Content-Length": "3", "Content-Range": "bytes 3-5/10" } });
+      return originalFetch(input, options);
+    };
+    const cancellationAuthorization = await authorize("vip");
+    const beforeCancellation = telemetry.getSnapshot();
+    const clientAbort = new AbortController();
+    const partial = await request("streamEndpoint" in cancellationAuthorization ? cancellationAuthorization.streamEndpoint! : "", "vip", { signal: clientAbort.signal, headers: { Range: "bytes=3-5" } });
+    assert.equal(partial.status, 206);
+    const reader = partial.body!.getReader();
+    assert.equal((await reader.read()).value?.length, 1);
+    clientAbort.abort();
+    await reader.cancel().catch(() => undefined);
+    let cancellationDeadline: ReturnType<typeof setTimeout> | undefined;
+    try { await Promise.race([cancelledOrigin, new Promise((_, reject) => { cancellationDeadline = setTimeout(() => reject(new Error("Client cancellation must close the origin source.")), 1000); })]); }
+    finally { clearTimeout(cancellationDeadline); }
+    await new Promise(resolve => setTimeout(resolve, 20));
+    assert.equal(telemetry.getSnapshot().clientDisconnects, beforeCancellation.clientDisconnects + 1);
+    assert.equal(telemetry.getSnapshot().serverFailures, beforeCancellation.serverFailures, "A real client disconnect must not look like an origin server failure.");
   } finally { globalThis.fetch = originalFetch; backendStorageProviderRegistry.getActiveProvider = originalProvider; }
   await jsonDatabase.update((data) => { data.mediaStorageObjects[0].provider = "local"; });
+  const timeoutAuthorization = await authorize("vip");
+  const originalUpdate = jsonDatabase.update;
+  let enteredCommit = false;
+  let commitDone!: () => void;
+  const commitFinished = new Promise<void>(resolve => { commitDone = resolve; });
+  jsonDatabase.update = async (mutator) => {
+    try { return await originalUpdate.call(jsonDatabase, async data => { await mutator(data); enteredCommit = true; await new Promise(resolve => setTimeout(resolve, 200)); }); }
+    finally { commitDone(); }
+  };
+  try {
+    const timeoutResponse = await request("streamEndpoint" in timeoutAuthorization ? timeoutAuthorization.streamEndpoint! : "", "vip", { headers: { "x-fixture-timeout": "yes" } });
+    assert.equal(timeoutResponse.status, 504, "A persistence deadline must end the HTTP response rather than leave the connection hanging.");
+    assert.equal((await timeoutResponse.json() as { code: string }).code, "PROTECTED_DELIVERY_TIMEOUT");
+    assert.equal(enteredCommit, true, `Timeout fixture must reach persistence; last failure: ${JSON.stringify(telemetry.getSnapshot().lastFailure)}`);
+    await commitFinished;
+    await new Promise(resolve => setTimeout(resolve, 10));
+    assert.equal(enteredCommit, true);
+    assert.equal(telemetry.getSnapshot().lastFailure?.status, 504, "Timeout while persistence resolves must not be recorded as a successful response.");
+    assert.equal(telemetry.getSnapshot().lastFailure?.code, "PROTECTED_DELIVERY_TIMEOUT");
+  } finally { jsonDatabase.update = originalUpdate; }
   const liveBeforeTakedown = await authorize("vip");
   const liveEndpoint = "streamEndpoint" in liveBeforeTakedown ? liveBeforeTakedown.streamEndpoint! : "";
   const { protectedContentTakedownService } = await import("../server/services/protectedContent/ProtectedContentTakedownService");
