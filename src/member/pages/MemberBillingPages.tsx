@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { CreditCard, FileText, Gift, History, RefreshCw } from "lucide-react";
 import { memberBillingApiService } from "../services/MemberBillingApiService";
+import { MembershipEmblem } from "../../components/authShell/MembershipEmblem";
 
 export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "subscription" | "payment-methods" | "invoices" | "receipts" | "cancel" | "upgrade" | "downgrade" | "history" }) {
   const [overview, setOverview] = useState<Record<string, unknown> | null>(null);
@@ -84,6 +85,7 @@ export function MemberBillingPage({ focus = "billing" }: { focus?: "billing" | "
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {plans.map((plan) => (
             <article key={String(plan.planKey)} className="rounded-md border border-white/10 bg-black/20 p-4">
+              <MembershipEmblem tier={String(plan.planKey)} className="mx-auto mb-4 h-32 w-32 max-w-full" />
               <h3 className="text-lg font-semibold text-white">{String(plan.name)}</h3>
               <p className="mt-2 text-sm text-white/58">{String(plan.description)}</p>
               <p className="mt-3 text-2xl font-semibold text-white">{Number(plan.amountCents) === 0 ? "Included" : `$${(Number(plan.amountCents) / 100).toFixed(2)}`}</p>

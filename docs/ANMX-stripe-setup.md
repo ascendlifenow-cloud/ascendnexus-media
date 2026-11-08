@@ -1,5 +1,22 @@
 # Stripe Setup and Verification
 
+## Owner-approved staging rollout — 2026-11-08
+
+Sandbox: **Ascend Nexus Media Staging Sandbox**. Approved recurring prices are
+Premium USD 2.99/month, Supporter USD 5.99/month and VIP USD 9.99/month.
+No annual plan or trial is approved for this rollout. Premium, Supporter and VIP
+emblems are integrated into shared membership badges, comparison and billing pages.
+
+Local member-authentication, isolated Stripe billing, and song-permission tests
+passed for this release. These are not evidence of a real Stripe payment or
+successful deployed protected playback. Sandbox Price IDs, API secret, endpoint
+signing secret and explicit portal configuration still need configuration and
+verification. Existing persisted billing plans retain legacy pricing; reconcile
+those records with the approved prices through a reviewed staging-only update
+before enabling checkout. Do not enable annual checkout or overwrite existing
+subscriptions. Keep live payments disabled. Real sandbox checkout, webhook delivery,
+membership synchronization and deployed playback remain acceptance blockers.
+
 Status: integration implemented and tested with isolated SDK-signed fixtures.
 Stripe account creation, real sandbox Checkout, staging deployment, and live launch
 verification are pending. No account, product, price or charge was created by agents.

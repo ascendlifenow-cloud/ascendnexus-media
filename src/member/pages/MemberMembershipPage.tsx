@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { MembershipEmblem } from "../../components/authShell/MembershipEmblem";
 import { useMemberPortal } from "../hooks/useMemberPortal";
 import { PageHeader, Panel } from "./memberPageParts";
 
@@ -10,6 +11,7 @@ export function MemberMembershipPage() {
       <Panel title="Current membership">
         <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
           <div>
+            <MembershipEmblem tier={dashboard.membership?.tierKey ?? "free"} className="mb-4 h-36 w-36 max-w-full" />
             <p className="text-3xl font-semibold text-white">{dashboard.membership?.name ?? "Free Member"}</p>
             <p className="mt-2 text-sm text-white/58">Status: {dashboard.membership?.status ?? "active"}</p>
             <Link to="/member/billing" className="anm-focus mt-3 inline-flex min-h-10 items-center rounded-md border border-white/15 px-3 text-sm text-white">Manage billing</Link>

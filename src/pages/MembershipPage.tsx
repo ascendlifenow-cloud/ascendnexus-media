@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { MembershipEmblem } from "../components/authShell/MembershipEmblem";
 import { publicMembershipApiService, type PublicMembershipTier } from "../services/membership/PublicMembershipApiService";
 
 export function MembershipPage() {
@@ -26,6 +27,7 @@ export function MembershipPage() {
         {tiers.map((tier) => (
           <article key={tier.tierKey} className="flex min-h-[22rem] flex-col rounded-md border border-white/10 bg-white/[0.04] p-5">
             <div>
+              <MembershipEmblem tier={tier.tierKey} className="mx-auto mb-4 h-32 w-32 max-w-full" />
               <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/42">{tier.availability === "available" ? "Available" : "Readiness"}</p>
               <h2 className="mt-2 text-2xl font-semibold text-white">{tier.name}</h2>
               <p className="mt-3 text-sm leading-6 text-white/64">{tier.description}</p>
