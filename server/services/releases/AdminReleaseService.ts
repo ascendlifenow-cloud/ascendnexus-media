@@ -10,6 +10,9 @@ import { adminArtistService } from "../artists/AdminArtistService";
 import { releaseSlugService } from "./ReleaseSlugService";
 import { releaseValidationService } from "./ReleaseValidationService";
 import { assertProductionReleaseAllowed } from "../production/ProductionReleaseGate";
+import { parseReleasePublicationTargets } from "../../utils/publication/releasePublicationTargets";
+import { memberPortalCacheService } from "../memberPortal/MemberPortalCacheService";
+import { jsonDatabase } from "../media/JsonDatabase";
 
 type ReleasePayload = Partial<SongReleaseRecord> & {
   seoMetadata?: Record<string, unknown>;
@@ -36,6 +39,7 @@ const isValidDate = (value: string | undefined): boolean => Boolean(value && Num
 
 const sanitizeReleaseMetadata = (metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined => {
   if (!metadata) return undefined;
+  if (!parseReleasePublicationTargets(metadata)) throw new MediaApiError("RELEASE_PUBLICATION_TARGETS_INVALID", "Select a valid publication audience and placement settings.", 400, "validation");
   const next = { ...metadata };
   delete next.fullSongUrl;
   delete next.fullSongPublicUrl;
@@ -160,6 +164,13 @@ export class AdminReleaseService {
     const validation = await releaseValidationService.buildValidationResult(next, { strictPublicMedia: false });
     if (Object.keys(validation.fieldErrors).length) throw new MediaApiError("RELEASE_VALIDATION_FAILED", Object.values(validation.fieldErrors).join(" "), 400, "validation");
     const updated = await releaseRepository.update(releaseId, patch as Partial<SongReleaseRecord & Record<string, unknown>>);
+    if (updated) {
+      this.invalidateReleaseCaches(current);
+      this.invalidateReleaseCaches(updated);
+      if (["publicationAudience", "publicationHomepage", "publicationNewReleases"].some((key) => current.metadata?.[key] !== updated.metadata?.[key])) {
+        await this.revokeReleaseAuthorizations(releaseId);
+      }
+    }
     if (updated) await mediaAuditPersistenceService.record("release_updated", `Updated release "${updated.title}"`, { actorId, entityType: "release", entityId: releaseId, entityLabel: updated.title, before: current, after: updated });
     return updated ? this.sanitizeReleaseForAdmin(updated) : null;
   }
@@ -187,13 +198,15 @@ export class AdminReleaseService {
     const release = await releaseRepository.findById(releaseId);
     if (!release) return null;
     await this.publishReadyArtistDependency(release, actorId);
+    const targets = parseReleasePublicationTargets(release.metadata);
+    if (!targets) throw new MediaApiError("RELEASE_PUBLICATION_TARGETS_INVALID", "Publication audience or placements are invalid.", 400, "validation");
     const readiness = await this.getReleaseReadiness(releaseId);
     if (!readiness?.ready) throw new MediaApiError("RELEASE_PUBLICATION_BLOCKED", [...(readiness?.blockingIssues ?? []), ...(readiness?.missingFields ?? [])].join(" ") || "Release is not ready.", 400, "validation");
     const promoted = await this.promoteReleaseMedia(release, actorId);
     const updated = await releaseRepository.update(releaseId, {
       status: "published",
       publicationState: "published",
-      publicVisibility: true,
+      publicVisibility: targets.audience === "public",
       coverArtUrl: promoted.coverArtUrl ?? release.coverArtUrl,
       coverArtThumbnailUrl: promoted.coverArtThumbnailUrl ?? release.coverArtThumbnailUrl,
       coverArtLargeUrl: promoted.coverArtLargeUrl ?? release.coverArtLargeUrl,
@@ -201,7 +214,7 @@ export class AdminReleaseService {
       metadata: { ...(release.metadata ?? {}), republishRequired: false, publishedAt: new Date().toISOString() },
       updatedBy: actorId,
     } as Partial<SongReleaseRecord & Record<string, unknown>>);
-    if (updated) await mediaAuditPersistenceService.record("release_published", `Published release "${updated.title}"`, { actorId, entityType: "release", entityId: releaseId });
+    if (updated) await mediaAuditPersistenceService.record("release_published", `Published release "${updated.title}"`, { actorId, entityType: "release", entityId: releaseId, after: { publicationAudience: targets.audience, publicationHomepage: targets.homepage, publicationNewReleases: targets.newReleases } });
     this.invalidateReleaseCaches(release);
     return updated ? this.sanitizeReleaseForAdmin(updated) : null;
   }
@@ -339,12 +352,33 @@ export class AdminReleaseService {
   }
 
   private invalidateReleaseCaches(release: SongReleaseRecord) {
+    memberPortalCacheService.clear();
     publicContentCacheService.deleteByPattern("public:releases");
     publicContentCacheService.deleteByPattern(`public:release:${release.slug}`);
     publicContentCacheService.deleteByPattern(`public:artist:${release.artistId}`);
     publicContentCacheService.deleteByPattern("public:homepage");
+    publicContentCacheService.deleteByPattern("public:landing");
     publicContentCacheService.deleteByPattern("public:search");
     publicContentCacheService.deleteByPattern("public:browse");
+  }
+
+  private async revokeReleaseAuthorizations(releaseId: string) {
+    const now = new Date().toISOString();
+    await jsonDatabase.update((data) => {
+      for (const authorization of data.protectedMediaAuthorizations) {
+        if (authorization.resourceId === releaseId && authorization.status === "active") {
+          authorization.status = "revoked";
+          authorization.revokedAt = now;
+          authorization.revokeReason = "publication_targets_changed";
+        }
+      }
+      for (const playback of data.protectedPlaybackSessions) {
+        if (playback.contentId === releaseId && !["completed", "expired", "revoked", "failed"].includes(playback.status)) {
+          playback.status = "revoked";
+          playback.endedAt = now;
+        }
+      }
+    });
   }
 }
 

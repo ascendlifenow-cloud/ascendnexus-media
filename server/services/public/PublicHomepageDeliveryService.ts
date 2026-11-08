@@ -10,9 +10,9 @@ export class PublicHomepageDeliveryService {
   async getPublicHomepage() {
     const [artists, releases, releaseGroups, featuredReleases, galleryItems, homepageConfig] = await Promise.all([
       publicArtistService.listActivePublishedArtists(),
-      publicReleaseService.listPublishedReleases(),
-      publicReleaseService.getLatestThreeReleasesPerArtist(),
-      publicReleaseService.getFeaturedReleases(),
+      publicReleaseService.listPublishedReleases({ placement: "homepage" }),
+      publicReleaseService.getLatestThreeReleasesPerArtist("homepage"),
+      publicReleaseService.getFeaturedReleases("homepage"),
       publicGalleryDeliveryService.listPublishedGalleryItems(),
       homepageRepository.getPublished(),
     ]);

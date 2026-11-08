@@ -45,7 +45,7 @@ export class PublicContentDeliveryService {
   }
 
   getLatestPublicReleases() {
-    return publicContentCacheService.getOrSet("public:releases:latest", () => publicReleaseService.getLatestThreeReleasesPerArtist(), { ttlSeconds: 300, entityType: "release" });
+    return publicContentCacheService.getOrSet("public:releases:latest", () => publicReleaseService.getLatestThreeReleasesPerArtist("newReleases"), { ttlSeconds: 300, entityType: "release" });
   }
 
   getFeaturedPublicReleases() {

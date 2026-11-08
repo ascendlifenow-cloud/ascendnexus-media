@@ -11,12 +11,15 @@ import { ReleaseActionBar } from "./ReleaseActionBar";
 import { ReleasePublicationImpact } from "./ReleasePublicationImpact";
 import { ReleasePreviewPanel } from "./ReleasePreviewPanel";
 import { ReleasePublishReadinessPanel } from "./ReleasePublishReadinessPanel";
+import { AdminReleasePublicationTargets } from "./form/AdminReleasePublicationTargets";
+import { ReleasePublishWarningsList } from "./ReleasePublishWarningsList";
 
 interface ReleasePublishReadinessDrawerProps {
   open: boolean;
   activeSection: "readiness" | "preview" | "history";
   release: SongReleaseAdminRecord;
   formState: AdminReleaseFormState;
+  updateField: <K extends keyof AdminReleaseFormState>(field: K, value: AdminReleaseFormState[K]) => void;
   artist: ArtistAdminRecord | null;
   readiness: ReleasePublishReadiness;
   publicPreview: PublicSongRelease | null;
@@ -34,6 +37,7 @@ export function ReleasePublishReadinessDrawer({
   activeSection,
   release,
   formState,
+  updateField,
   artist,
   readiness,
   publicPreview,
@@ -108,13 +112,24 @@ export function ReleasePublishReadinessDrawer({
           {message ? <div className="mb-4 rounded-md border border-emerald-300/20 bg-emerald-300/10 p-3 text-sm font-semibold text-emerald-100" role="status">{message}</div> : null}
           {error ? <div className="mb-4 rounded-md border border-rose-300/20 bg-rose-300/10 p-3 text-sm font-semibold text-rose-100" role="alert">{error}</div> : null}
           <div className={cx("grid gap-5", activeSection !== "readiness" && "hidden")}>
-            <ReleasePublishReadinessPanel readiness={readiness} publicPreview={publicPreview} />
+            <AdminReleasePublicationTargets state={formState} updateField={updateField} />
+            {formState.publicationAudience !== "public" ? (
+              <p className="text-sm text-white/62">{formState.publicationAudience
+                ? "Member-only publication. Not visible to guests; selected placements retain the minimum audience requirement."
+                : "Publication blocked until a valid minimum audience is selected."}</p>
+            ) : null}
+            <ReleasePublishReadinessPanel readiness={readiness} publicPreview={publicPreview} compact={formState.publicationAudience !== "public"} />
+            {formState.publicationAudience !== "public" ? <ReleasePublishWarningsList warnings={readiness.warnings} /> : null}
           </div>
           <div className={cx("grid gap-5", activeSection !== "preview" && "hidden")}>
             <ReleasePreviewPanel state={formState} artist={artist} isDirty={isDirty} />
           </div>
           <div className={cx("grid gap-5", activeSection !== "history" && "hidden")}>
-            <ReleasePublicationImpact release={release} readiness={readiness} />
+            {formState.publicationAudience === "public"
+              ? <ReleasePublicationImpact release={release} readiness={readiness} />
+              : <p className="text-sm text-white/62">{formState.publicationAudience
+                ? "Publication is limited to eligible members. No guest/public publication is selected."
+                : "Select a valid minimum audience before publishing."}</p>}
           </div>
         </div>
       </aside>

@@ -22,14 +22,16 @@ export class PublicLandingService {
   }
 
   async buildPublicLandingExperience(): Promise<PublicLandingExperience> {
-    const [site, artists, releases, gallery] = await Promise.all([
+    const [site, artists, releases, gallery, newReleases] = await Promise.all([
       publicContentDeliveryService.getPublicSiteConfiguration(),
       publicContentDeliveryService.listPublicArtists(),
-      publicContentDeliveryService.listPublicReleases(),
+      publicContentDeliveryService.listPublicReleases({ placement: "homepage" }),
       publicContentDeliveryService.listPublicGalleryItems(),
+      publicContentDeliveryService.listPublicReleases({ placement: "newReleases" }),
     ]);
 
     const releaseCards = this.buildReleaseCards(releases.sort(byDateDesc), artists);
+    const newReleaseIds = new Set(newReleases.map(release => release.releaseId));
     const featuredCards = this.buildReleaseCards(
       releases
         .filter((release) => release.featured)
@@ -57,7 +59,7 @@ export class PublicLandingService {
         primaryCta: { label: "Explore releases", href: "/songs", variant: "primary" },
         secondaryCta: { label: "Browse artists", href: "/artists", variant: "secondary" },
       },
-      latestReleases: releaseCards.slice(0, 12),
+      latestReleases: releaseCards.filter(card => newReleaseIds.has(card.release.releaseId)).slice(0, 12),
       featuredReleases: featuredCards.slice(0, 8),
       featuredArtists: featuredArtists.slice(0, 8),
       guestPreviews: releaseCards.filter((card) => card.release.audioPreviewUrl).slice(0, 10),

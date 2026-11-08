@@ -15,6 +15,7 @@ export class PublicContentCacheService {
   private bypasses = 0;
   private errors = 0;
   private lastInvalidationAt: string | undefined;
+  private generation = 0;
 
   get<T>(key: string): T | undefined {
     const entry = this.cache.get(key);
@@ -45,6 +46,7 @@ export class PublicContentCacheService {
   }
 
   delete(key: string): void {
+    this.generation++;
     this.cache.delete(key);
     for (const keys of this.tags.values()) keys.delete(key);
     this.invalidations += 1;
@@ -52,6 +54,7 @@ export class PublicContentCacheService {
   }
 
   deleteByPattern(pattern: string): void {
+    this.generation++;
     for (const key of this.cache.keys()) {
       if (key.includes(pattern)) this.delete(key);
     }
@@ -61,8 +64,11 @@ export class PublicContentCacheService {
   async getOrSet<T>(key: string, loader: () => Promise<T>, options: { ttlSeconds?: number; entityType?: string; entityId?: string; path?: string } = {}): Promise<T> {
     const cached = this.get<T>(key);
     if (cached !== undefined) return cached;
+    const generation = this.generation;
     try {
-      return this.set(key, await loader(), options);
+      const value = await loader();
+      // An in-flight load must not repopulate caches after an audience change.
+      return generation === this.generation ? this.set(key, value, options) : value;
     } catch (error) {
       this.errors += 1;
       throw error;
@@ -109,6 +115,7 @@ export class PublicContentCacheService {
   }
 
   clearPublicCache(): void {
+    this.generation++;
     this.cache.clear();
     this.tags.clear();
     this.invalidations += 1;

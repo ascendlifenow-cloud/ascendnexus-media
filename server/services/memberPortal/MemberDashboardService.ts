@@ -75,7 +75,7 @@ export class MemberDashboardService {
   }
 
   async getRecentReleases(limit = 8, member?: MemberAccountResponse): Promise<MemberDashboardContentCard[]> {
-    if (member) return (await memberSongCatalogService.list(member.memberId)).slice(0, limit);
+    if (member) return (await memberSongCatalogService.list(member.memberId, "newReleases")).slice(0, limit);
     const releases = await publicContentDeliveryService.listPublicReleases();
     return releases.slice(0, limit).map(releaseCard);
   }

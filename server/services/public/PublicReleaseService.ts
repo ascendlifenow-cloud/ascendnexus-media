@@ -8,6 +8,7 @@ import { releaseRepository } from "../../repositories/ReleaseRepository";
 import { mapArtistRecordToPublicProfile } from "../../mappers/public/mapArtistRecordToPublicProfile";
 import { mapReleaseRecordToPublicSongRelease } from "../../mappers/public/mapReleaseRecordToPublicSongRelease";
 import { adminReleaseService } from "../releases/AdminReleaseService";
+import { parseReleasePublicationTargets, type ReleasePublicationPlacement } from "../../utils/publication/releasePublicationTargets";
 
 const publicReleaseFromRecord = (release: Awaited<ReturnType<typeof releaseRepository.listPublic>>[number]): PublicSongRelease =>
   adminReleaseService.sanitizeReleaseForPublic(release) as PublicSongRelease;
@@ -28,11 +29,16 @@ const publicArtistFromRecord = (artist: Awaited<ReturnType<typeof artistReposito
 });
 
 export class PublicReleaseService {
-  async listPublishedReleases(filters: { artistId?: string; genre?: string; styleTag?: string; featured?: boolean } = {}): Promise<PublicSongRelease[]> {
+  async listPublishedReleases(filters: { artistId?: string; genre?: string; styleTag?: string; featured?: boolean; placement?: ReleasePublicationPlacement } = {}): Promise<PublicSongRelease[]> {
+    const eligible = (release: { metadata?: unknown }) => {
+      const targets = parseReleasePublicationTargets(release.metadata);
+      return targets?.audience === "public" && (!filters.placement || targets[filters.placement] === true);
+    };
     const persisted = await releaseRepository.listPublic();
     if (persisted.length || databaseConnectionService.isConfigured() || !getBackendConfig().publicDelivery.seedFallbackEnabled) {
       const publicArtistIds = new Set((await artistRepository.listPublic()).map((artist) => artist.artistId));
       return persisted
+        .filter(eligible)
         .filter((release) => publicArtistIds.has(release.artistId))
         .map(publicReleaseFromRecord)
         .filter((release) => !filters.artistId || release.artistId === filters.artistId)
@@ -42,6 +48,7 @@ export class PublicReleaseService {
         .sort((a, b) => b.releaseDate.localeCompare(a.releaseDate));
     }
     return publicSongReleasesSeed
+      .filter(eligible)
       .map((release) => mapReleaseRecordToPublicSongRelease(release, publicArtistsSeed.find((artist) => artist.artistId === release.artistId)))
       .filter((release): release is PublicSongRelease => Boolean(release))
       .filter((release) => !filters.artistId || release.artistId === filters.artistId)
@@ -64,10 +71,10 @@ export class PublicReleaseService {
     return (await this.listPublishedReleases({ artistId })).slice(0, limit);
   }
 
-  async getLatestThreeReleasesPerArtist(): Promise<Array<ArtistReleaseGroup & { releaseCount: number; hasMoreReleases: boolean }>> {
+  async getLatestThreeReleasesPerArtist(placement: ReleasePublicationPlacement = "newReleases"): Promise<Array<ArtistReleaseGroup & { releaseCount: number; hasMoreReleases: boolean }>> {
     const persistedArtists = await artistRepository.listPublic();
     if (persistedArtists.length || databaseConnectionService.isConfigured() || !getBackendConfig().publicDelivery.seedFallbackEnabled) {
-      const releases = await this.listPublishedReleases();
+      const releases = await this.listPublishedReleases({ placement });
       return persistedArtists
         .map(publicArtistFromRecord)
         .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -86,7 +93,7 @@ export class PublicReleaseService {
       .map((artist) => mapArtistRecordToPublicProfile(artist, []))
       .filter(Boolean)
       .sort((a, b) => (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0));
-    const releases = await this.listPublishedReleases();
+    const releases = await this.listPublishedReleases({ placement });
     return artists.map((artist) => {
       const artistReleases = releases.filter((release) => release.artistId === artist?.artistId);
       return {
@@ -98,8 +105,8 @@ export class PublicReleaseService {
     }).filter((group) => group.releases.length);
   }
 
-  async getFeaturedReleases(): Promise<PublicSongRelease[]> {
-    return (await this.listPublishedReleases({ featured: true })).sort((a, b) => (a.featuredSortOrder ?? 999) - (b.featuredSortOrder ?? 999));
+  async getFeaturedReleases(placement?: ReleasePublicationPlacement): Promise<PublicSongRelease[]> {
+    return (await this.listPublishedReleases({ featured: true, placement })).sort((a, b) => (a.featuredSortOrder ?? 999) - (b.featuredSortOrder ?? 999));
   }
 }
 

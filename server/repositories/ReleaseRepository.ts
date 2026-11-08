@@ -1,8 +1,9 @@
 import type { SongReleaseRecord } from "../models/releases/SongReleaseModel";
 import { BaseRepository } from "./BaseRepository";
+import { parseReleasePublicationTargets } from "../utils/publication/releasePublicationTargets";
 export class ReleaseRepository extends BaseRepository<SongReleaseRecord & Record<string, unknown>> {
   constructor() { super("releaseRecords", "releaseId"); }
-  async listPublic() { return (await this.list()).filter((release) => release.status === "published" && release.publicationState === "published" && release.publicVisibility); }
+  async listPublic() { return (await this.list()).filter((release) => release.status === "published" && release.publicationState === "published" && release.publicVisibility === true && parseReleasePublicationTargets(release.metadata)?.audience === "public"); }
   async latestByArtist(artistId: string, limit = 3) { return (await this.listPublic()).filter((release) => release.artistId === artistId).sort((a, b) => b.releaseDate.localeCompare(a.releaseDate)).slice(0, limit); }
   async findById(releaseId: string) { return this.get(releaseId); }
   async findBySlug(slug: string) { return this.findBy("slug", slug); }

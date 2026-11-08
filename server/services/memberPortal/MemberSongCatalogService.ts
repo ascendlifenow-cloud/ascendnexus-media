@@ -5,13 +5,15 @@ import { publicContentDeliveryService } from "../public/PublicContentDeliverySer
 import type { PublicSongRelease, PublicSongDetail } from "../../../src/models/release";
 import type { ArtistPublicProfile } from "../../../src/models/artist";
 import { AuthApiError } from "../../utils/auth/authErrorUtils";
+import { parseReleasePublicationTargets } from "../../utils/publication/releasePublicationTargets";
+import { publicSafeUrl } from "../../mappers/public/publicUrlMapper";
 
 const safePublicMedia = (value?: string) => value && !/(private\/|signedUrl|signature=|token=|storagePath|privateObjectKey|full[-_]?song)/i.test(value) ? value : undefined;
 
 export class MemberSongCatalogService {
-  async getCatalog(memberId: string) {
+  async getCatalog(memberId: string, placement?: "homepage" | "newReleases") {
     const data = await jsonDatabase.read();
-    const cards = this.project(data, memberId);
+    const cards = this.project(data, memberId, placement);
     const eligible = new Set(cards.map(card => card.contentId));
     const publicReleases = eligible.size ? new Map((await publicContentDeliveryService.listPublicReleases()).map(release => [release.releaseId, release])) : new Map<string, PublicSongRelease>();
     const releases: PublicSongRelease[] = data.releaseRecords.filter(release => eligible.has(release.releaseId)).map(release => {
@@ -22,9 +24,10 @@ export class MemberSongCatalogService {
         description: release.description, lyrics: release.lyrics,
         genre: release.genre ?? "", styleTags: release.styleTags ?? [], status: "published", externalLinks: decoration?.externalLinks ?? {},
         featured: release.featured,
-        coverArtUrl: safePublicMedia(decoration?.coverArtUrl),
-        coverArtThumbnailUrl: safePublicMedia(decoration?.coverArtThumbnailUrl),
-        audioPreviewUrl: safePublicMedia(decoration?.audioPreviewUrl),
+        coverArtUrl: safePublicMedia(decoration?.coverArtUrl ?? publicSafeUrl(release.coverArtUrl)),
+        coverArtThumbnailUrl: safePublicMedia(decoration?.coverArtThumbnailUrl ?? publicSafeUrl(release.coverArtThumbnailUrl)),
+        coverArtLargeUrl: safePublicMedia(decoration?.coverArtLargeUrl ?? publicSafeUrl(release.coverArtLargeUrl)),
+        audioPreviewUrl: safePublicMedia(decoration?.audioPreviewUrl ?? publicSafeUrl(release.audioPreviewUrl)),
       };
     }).sort((a, b) => b.releaseDate.localeCompare(a.releaseDate) || a.releaseId.localeCompare(b.releaseId));
     const artists: ArtistPublicProfile[] = [...new Set(releases.map(release => release.artistId))].map(artistId => {
@@ -50,12 +53,14 @@ export class MemberSongCatalogService {
       moreReleases: catalog.releases.filter(release => release.artistId === song.artistId && release.releaseId !== song.releaseId).slice(0, 3) };
   }
 
-  async list(memberId: string): Promise<MemberDashboardContentCard[]> {
-    return (await this.getCatalog(memberId)).items;
+  async list(memberId: string, placement?: "homepage" | "newReleases"): Promise<MemberDashboardContentCard[]> {
+    return (await this.getCatalog(memberId, placement)).items;
   }
 
-  project(data: MediaDatabaseShape, memberId: string): MemberDashboardContentCard[] {
+  project(data: MediaDatabaseShape, memberId: string, placement?: "homepage" | "newReleases"): MemberDashboardContentCard[] {
     return data.releaseRecords.flatMap((release): MemberDashboardContentCard[] => {
+      const targets = parseReleasePublicationTargets(release.metadata);
+      if (!targets || (placement && !targets[placement])) return [];
       const stream = evaluateSongAction(data, memberId, release.releaseId, "stream");
       // An exhausted included play remains discoverable, but is never playable.
       if (!stream.allowed && stream.reasonCode !== "PROTECTED_CONTENT_PLAY_ALLOWANCE_USED") return [];

@@ -1,11 +1,12 @@
 import { releaseRepository } from "../ReleaseRepository";
 import { publicArtistRepository } from "./PublicArtistRepository";
+import { parseReleasePublicationTargets } from "../../utils/publication/releasePublicationTargets";
 
 export class PublicReleaseRepository {
   async listPublishedReleases() {
     const [releases, artists] = await Promise.all([releaseRepository.listPublic(), publicArtistRepository.listPublishedArtists()]);
     const artistIds = new Set(artists.map((artist) => artist.artistId));
-    return releases.filter((release) => artistIds.has(release.artistId));
+    return releases.filter((release) => artistIds.has(release.artistId) && parseReleasePublicationTargets(release.metadata)?.audience === "public");
   }
 
   async getPublishedReleaseBySlug(slugOrId: string) {
@@ -22,12 +23,13 @@ export class PublicReleaseRepository {
   }
 
   async getLatestPublishedReleases(limit = 24) {
-    return (await this.listPublishedReleases()).sort((a, b) => b.releaseDate.localeCompare(a.releaseDate)).slice(0, limit);
+    return (await this.listPublishedReleases()).filter((release) => parseReleasePublicationTargets(release.metadata)?.newReleases).sort((a, b) => b.releaseDate.localeCompare(a.releaseDate)).slice(0, limit);
   }
 
   async getFeaturedPublishedReleases(limit = 12, placement?: string) {
     return (await this.listPublishedReleases())
       .filter((release) => release.featured && (!placement || release.featuredPlacement === placement))
+      .filter((release) => placement !== "homepage" || parseReleasePublicationTargets(release.metadata)?.homepage)
       .sort((a, b) => (a.sortOrder ?? 999) - (b.sortOrder ?? 999))
       .slice(0, limit);
   }

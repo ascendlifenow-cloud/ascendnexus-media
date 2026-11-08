@@ -98,10 +98,18 @@ export function AdminReleaseFormPage() {
   }, [formState]);
   const mediaAssets = mediaQuery.data?.ok ? mediaQuery.data.data : [];
   const releaseReadiness = useMemo(
-    () => buildReleasePublishReadiness(releasePreviewRecord, selectedArtist, mediaAssets),
+    () => {
+      const readiness = buildReleasePublishReadiness(releasePreviewRecord, selectedArtist, mediaAssets);
+      if (formState.publicationAudience === "public") return readiness;
+      if (formState.publicationAudience === "") {
+        return { ...readiness, ready: false, publicVisibility: "blocked" as const,
+          blockingIssues: [...readiness.blockingIssues, "Select a valid minimum audience before publishing."] };
+      }
+      return { ...readiness, publicVisibility: "not_public" as const };
+    },
     [mediaAssets, releasePreviewRecord, selectedArtist],
   );
-  const publicPreview = releaseReadiness.ready
+  const publicPreview = releaseReadiness.ready && formState.publicationAudience === "public"
     ? mapReleaseAdminToPublicRelease({ ...releasePreviewRecord, status: "published" }, selectedArtist?.status === "active" ? [selectedArtist.artistId] : [])
     : null;
 
@@ -395,6 +403,7 @@ export function AdminReleaseFormPage() {
             activeSection={panelSection}
             release={releasePreviewRecord}
             formState={formState}
+            updateField={updateField}
             artist={selectedArtist}
             readiness={releaseReadiness}
             publicPreview={publicPreview}

@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:release-publication-targets": "node --import tsx scripts/release-publication-targets-test.ts",
+    "test:release-publication-enforcement": "node --import tsx scripts/release-publication-enforcement-test.ts",
+    "test:admin-release-publication-targets": "node --import tsx scripts/admin-release-publication-targets-test.ts",
     "test:member-song-catalog": "node --import tsx scripts/member-song-catalog-test.ts",
     "test:streaming-queue": "node --import tsx scripts/streaming-queue-test.ts",
     "test:protected-storage-diagnostics": "node --import tsx scripts/protected-storage-diagnostics-test.ts",

@@ -6,6 +6,7 @@ import { resolveMemberEntitlements } from "./EffectiveEntitlementService";
 import { AuthApiError } from "../../utils/auth/authErrorUtils";
 import { hashSecret } from "../../utils/auth/sessionSecurityUtils";
 import { databaseConnectionService } from "../../database/DatabaseConnectionService";
+import { parseReleasePublicationTargets, releasePublicationAudienceEntitlements } from "../../utils/publication/releasePublicationTargets";
 
 let indexes: Promise<unknown> | undefined;
 export async function ensureSongUsagePersistence() {
@@ -64,7 +65,10 @@ export function evaluateSongAction(data: MediaDatabaseShape, memberId: string, r
   if (metadataEmbargo != null && (typeof metadataEmbargo !== "string" || !validDate(metadataEmbargo) || Date.parse(metadataEmbargo) > Date.now())) return result(false, "SONG_WINDOW_UNAVAILABLE");
   if (data.protectedContentTakedowns.some((item) => item.status === "active" && ((item.resourceType === "release" && item.resourceId === releaseId) || (item.resourceType === "global")))) return result(false, "SONG_UNAVAILABLE");
   const requirements = data.contentEntitlementRequirements.filter((item) => item.contentType === "release" && item.contentId === releaseId && item.status === "active");
-  if (requirements.length > 1 || (!requirements.length && release.publicVisibility !== true)) return result(false, "SONG_POLICY_INVALID");
+  const targets = parseReleasePublicationTargets(release.metadata);
+  if (!targets || requirements.length > 1 || (!requirements.length && release.publicVisibility !== true && targets.audience === "public")) return result(false, "SONG_POLICY_INVALID");
+  const audienceEntitlement = releasePublicationAudienceEntitlements[targets.audience];
+  if (snapshot.denied.includes(audienceEntitlement) || !snapshot.allowed.includes(audienceEntitlement)) return result(false, "SONG_ACCESS_DENIED");
   const requirement = requirements[0];
   const publicReleaseAt = requirement?.publicReleaseAt ?? release.releaseDate;
   if (!validDate(publicReleaseAt)) return result(false, "SONG_WINDOW_UNAVAILABLE");

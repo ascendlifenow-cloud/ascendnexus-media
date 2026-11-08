@@ -12,6 +12,7 @@ import { AdminReleaseMediaFields } from "./AdminReleaseMediaFields";
 import { AdminReleaseSeoFields } from "./AdminReleaseSeoFields";
 import { AdminReleaseSocialFields } from "./AdminReleaseSocialFields";
 import { AdminReleaseStatusFields } from "./AdminReleaseStatusFields";
+import { AdminReleasePublicationTargets } from "./AdminReleasePublicationTargets";
 
 interface AdminReleaseFormProps {
   state: AdminReleaseFormState;
@@ -49,6 +50,7 @@ export function AdminReleaseForm({
       <AdminReleaseSeoFields state={state} validation={validation} updateField={updateField} />
       <AdminReleaseSocialFields state={state} validation={validation} updateField={updateField} />
       <AdminReleaseStatusFields state={state} validation={validation} artist={selectedArtist} updateField={updateField} />
+      <AdminReleasePublicationTargets state={state} updateField={updateField} />
     </form>
   );
 }

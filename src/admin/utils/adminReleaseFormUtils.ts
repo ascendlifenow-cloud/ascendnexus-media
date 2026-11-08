@@ -4,8 +4,14 @@ import type { SeoMetadata } from "../../models/seo";
 import type { SocialShareMetadata, TwitterCardType } from "../../models/social";
 
 export type ReleasePublicVisibilityState = "public" | "not_public" | "needs_required_fields" | "artist_not_public";
+export const publicationAudiences = ["public", "free", "premium", "supporter", "vip"] as const;
+export type PublicationAudience = typeof publicationAudiences[number];
 
 export interface AdminReleaseFormState {
+  publicationAudience: PublicationAudience | "";
+  publicationHomepage: boolean;
+  publicationNewReleases: boolean;
+  originalMetadata?: SongReleaseAdminRecord["metadata"];
   releaseId?: string;
   title: string;
   slug: string;
@@ -128,7 +134,20 @@ const compactLinks = (links: AdminReleaseFormState["externalLinks"]): ReleaseExt
 };
 
 const buildReleaseMetadata = (state: AdminReleaseFormState): Record<string, string | number | boolean | null> | undefined => {
-  const metadata: Record<string, string | number | boolean | null> = {};
+  const metadata: Record<string, string | number | boolean | null> = { ...state.originalMetadata };
+  // Rebuild editable metadata so clearing a field still removes its saved value.
+  for (const key of [
+    "internalNotes", "coverArtAssetId", "coverArtStorageObjectId", "coverArtAlt",
+    "previousCoverArtAssetIds", "pendingCoverArtAssignment", "audioPreviewAssetId",
+    "audioPreviewStorageObjectId", "audioPreviewOriginalFileName", "audioPreviewDuration",
+    "audioPreviewFileSizeBytes", "audioPreviewMimeType", "previousAudioPreviewAssetIds",
+    "pendingAudioPreviewAssignment", "fullSongAssetId", "fullSongStorageObjectId",
+    "fullSongOriginalFileName", "fullSongDuration", "fullSongFileSizeBytes", "fullSongMimeType",
+    "previousFullSongAssetIds", "pendingFullSongAssignment",
+  ]) delete metadata[key];
+  metadata.publicationAudience = state.publicationAudience;
+  metadata.publicationHomepage = state.publicationHomepage;
+  metadata.publicationNewReleases = state.publicationNewReleases;
   if (state.internalNotes.trim()) metadata.internalNotes = state.internalNotes.trim();
   if (state.coverArtAssetId.trim()) metadata.coverArtAssetId = state.coverArtAssetId.trim();
   if (state.coverArtStorageObjectId.trim()) metadata.coverArtStorageObjectId = state.coverArtStorageObjectId.trim();
@@ -183,6 +202,9 @@ const maybeSocial = (state: AdminReleaseFormState): SocialShareMetadata | undefi
 };
 
 export const createEmptyReleaseFormState = (): AdminReleaseFormState => ({
+  publicationAudience: "public",
+  publicationHomepage: true,
+  publicationNewReleases: true,
   title: "",
   slug: "",
   songId: "",
@@ -241,6 +263,12 @@ export const createEmptyReleaseFormState = (): AdminReleaseFormState => ({
 
 export const mapReleaseToFormState = (release: SongReleaseAdminRecord): AdminReleaseFormState => ({
   ...createEmptyReleaseFormState(),
+  originalMetadata: { ...release.metadata },
+  publicationAudience: !Object.prototype.hasOwnProperty.call(release.metadata ?? {}, "publicationAudience") ? "public"
+    : publicationAudiences.includes(release.metadata?.publicationAudience as PublicationAudience)
+      ? release.metadata!.publicationAudience as PublicationAudience : "",
+  publicationHomepage: !Object.prototype.hasOwnProperty.call(release.metadata ?? {}, "publicationHomepage") || release.metadata?.publicationHomepage === true,
+  publicationNewReleases: !Object.prototype.hasOwnProperty.call(release.metadata ?? {}, "publicationNewReleases") || release.metadata?.publicationNewReleases === true,
   releaseId: release.releaseId,
   title: release.title,
   slug: release.slug,
@@ -336,6 +364,7 @@ export const getReleasePublicVisibilityState = (
   artist?: ArtistAdminRecord | null,
 ): ReleasePublicVisibilityState => {
   if (state.status !== "published") return "not_public";
+  if (state.publicationAudience !== "public") return "not_public";
   if (!state.title.trim() || !state.slug.trim() || !state.artistId.trim() || !state.releaseDate.trim()) return "needs_required_fields";
   if (!artist || artist.status !== "active") return "artist_not_public";
   return "public";
@@ -346,6 +375,9 @@ export const validateReleaseForm = (
   artist?: ArtistAdminRecord | null,
 ): AdminReleaseFormValidation => {
   const errors: Record<string, string> = {};
+  if (!publicationAudiences.includes(state.publicationAudience as PublicationAudience)) {
+    errors.publicationAudience = "Select a valid minimum audience before saving.";
+  }
   if (!state.title.trim()) errors.title = "Title is required.";
   if (state.status === "published" && !state.slug.trim()) errors.slug = "Slug is required before publishing.";
   if (state.slug.trim() && !validateReleaseSlug(state.slug)) errors.slug = "Slug must be lowercase, URL-safe, and hyphen-separated.";
