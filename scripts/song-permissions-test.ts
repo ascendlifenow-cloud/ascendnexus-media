@@ -206,6 +206,29 @@ try {
     assert.equal(response.status, 206);
     assert.equal(await response.text(), "345");
     assert.equal(response.headers.get("location"), null);
+    const originalWarn = console.warn;
+    const rejectionLogs: unknown[] = [];
+    const beforeOrigin400 = (await songUsageService.summary("vip", "fixture")).streamStarts;
+    globalThis.fetch = async (input, options) => {
+      if (String(input).startsWith("https://fixture-storage.invalid/")) return new Response(
+        "<Error><Code>InvalidArgument</Code><Message>SECRET_URL signature=SECRET_SIGNATURE</Message><Resource>SECRET_PATH</Resource></Error>",
+        { status: 400, headers: { "Content-Type": "application/xml" } },
+      );
+      return originalFetch(input, options);
+    };
+    try {
+      console.warn = (...args) => { rejectionLogs.push(args); };
+      const badOrigin = await authorize("vip");
+      const rejected = await request("streamEndpoint" in badOrigin ? badOrigin.streamEndpoint! : "", "vip", { headers: { Range: "bytes=3-5" } });
+      assert.equal(rejected.status, 502);
+      const body = await rejected.text();
+      assert.doesNotMatch(body, /InvalidArgument|SECRET_|fixture-storage|signature/);
+      const logged = rejectionLogs.find(item => Array.isArray(item) && item[0] === "[protected-delivery] upstream response rejected") as [string, Record<string, unknown>];
+      assert.equal(logged[1].upstreamErrorCode, "InvalidArgument");
+      assert.equal(logged[1].status, 400);
+      assert.doesNotMatch(JSON.stringify(rejectionLogs), /SECRET_|fixture-storage|signature|private-source/);
+      assert.equal((await songUsageService.summary("vip", "fixture")).streamStarts, beforeOrigin400);
+    } finally { console.warn = originalWarn; }
     for (const upstreamStatus of [403, 206]) {
       let cancelled = false;
       globalThis.fetch = async (input, options) => {
@@ -222,6 +245,34 @@ try {
       assert.equal((await rejected.json() as { code: string }).code, "PROTECTED_MEDIA_NOT_READY");
       assert.equal(cancelled, true, "Rejected upstream bodies must be cancelled before Node stream conversion.");
       assert.equal((await songUsageService.summary("vip", "fixture")).streamStarts, beforeFailure, "Rejected upstream must not consume a play.");
+    }
+    let finishCancellation!: () => void;
+    const pendingCancellation = new Promise<void>(resolve => { finishCancellation = resolve; });
+    let rejectionSignal: AbortSignal | undefined;
+    let cancellationStarted = false;
+    globalThis.fetch = async (input, options) => {
+      if (String(input).startsWith("https://fixture-storage.invalid/")) {
+        rejectionSignal = options?.signal ?? undefined;
+        return new Response(new ReadableStream({ cancel() { cancellationStarted = true; return pendingCancellation; } }), {
+          status: 206, headers: { "Content-Length": "999", "Content-Range": "bytes 0-998/999" },
+        });
+      }
+      return originalFetch(input, options);
+    };
+    const pendingAuthorization = await authorize("vip");
+    const beforePendingCancellation = (await songUsageService.summary("vip", "fixture")).streamStarts;
+    try {
+      const rejected = await request("streamEndpoint" in pendingAuthorization ? pendingAuthorization.streamEndpoint! : "", "vip", {
+        headers: { Range: "bytes=3-5", "x-fixture-timeout": "yes" },
+      });
+      assert.equal(rejected.status, 502, "Origin cleanup must not delay rejection until the delivery deadline.");
+      assert.equal((await rejected.json() as { code: string }).code, "PROTECTED_MEDIA_NOT_READY");
+      assert.equal(cancellationStarted, true);
+      assert.equal(rejectionSignal?.aborted, true, "Rejected origin requests must be aborted even while cancellation is pending.");
+      assert.equal((await songUsageService.summary("vip", "fixture")).streamStarts, beforePendingCancellation);
+    } finally {
+      finishCancellation();
+      await new Promise(resolve => setImmediate(resolve));
     }
     for (const wrongBytes of ["34", "3456"]) {
       globalThis.fetch = async (input, options) => {

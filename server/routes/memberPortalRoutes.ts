@@ -5,6 +5,10 @@ export const handleMemberPortalRoute = async (request: IncomingMessage, response
   const method = request.method ?? "GET";
   const path = url.pathname.replace(/\/+$/, "") || "/";
 
+  if (method === "GET" && (path === "/api/member/songs" || path === "/api/member/releases")) return memberPortalController.songs(request, response).then(() => true);
+  const songDetail = /^\/api\/member\/(?:songs|releases)\/([^/]+)$/.exec(path);
+  if (method === "GET" && songDetail) return memberPortalController.songDetail(request, response, decodeURIComponent(songDetail[1])).then(() => true);
+
   if (method === "GET" && path === "/api/member/dashboard") return memberPortalController.dashboard(request, response).then(() => true);
   if (method === "GET" && path === "/api/member/profile") return memberPortalController.profile(request, response).then(() => true);
   if (method === "PATCH" && path === "/api/member/profile") return memberPortalController.updateProfile(request, response).then(() => true);

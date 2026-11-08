@@ -3,6 +3,7 @@ import type { PublicSongRelease } from "../models/release";
 import { getAvailableGenres, getAvailableStyleTags } from "../utils/browseFilters";
 import { sortReleasesNewestFirst, sortReleasesOldestFirst } from "../utils/releaseSorting";
 import { publicMediaApiClient } from "./public/PublicMediaApiClient";
+import { memberSongCatalogApiService } from "./member/MemberSongCatalogApiService";
 
 export type ReleaseCatalogSortMode = "newest" | "oldest" | "title" | "artist";
 
@@ -37,11 +38,11 @@ const getReleaseDateTime = (release: PublicSongRelease): number => {
 };
 
 export class ReleaseCatalogService {
-  async getCatalogData(): Promise<ReleaseCatalogData> {
-    const [artists, releases] = await Promise.all([
+  async getCatalogData(memberScoped = false): Promise<ReleaseCatalogData> {
+    const { artists, releases } = memberScoped ? await memberSongCatalogApiService.catalog() : await Promise.all([
       publicMediaApiClient.listArtists(),
       publicMediaApiClient.listReleases(),
-    ]);
+    ]).then(([artists, releases]) => ({ artists, releases }));
     const activeArtistById = new Map(artists.map((artist) => [artist.artistId, artist]));
     const catalogReleases = releases
       .map((release) => {

@@ -6,6 +6,7 @@ import { memberDashboardService } from "../services/memberPortal/MemberDashboard
 import { memberPortalHealthService } from "../services/memberPortal/MemberPortalHealthService";
 import { memberPortalCacheService } from "../services/memberPortal/MemberPortalCacheService";
 import { mediaAuthorizationService } from "../services/media/MediaAuthorizationService";
+import { memberSongCatalogService } from "../services/memberPortal/MemberSongCatalogService";
 
 const privateMemberHeaders = (response: ServerResponse) => {
   response.setHeader("Cache-Control", "private, no-store, max-age=0");
@@ -14,6 +15,18 @@ const privateMemberHeaders = (response: ServerResponse) => {
 };
 
 export class MemberPortalController {
+  async songs(request: IncomingMessage, response: ServerResponse) {
+    privateMemberHeaders(response);
+    const session = await memberIdentityService.authenticateRequest(request);
+    sendJson(response, 200, { success: true, data: await memberSongCatalogService.getCatalog(session.member.memberId) }, { "Cache-Control": "private, no-store, max-age=0", "X-Robots-Tag": "noindex, nofollow" });
+  }
+
+  async songDetail(request: IncomingMessage, response: ServerResponse, slugOrId: string) {
+    privateMemberHeaders(response);
+    const session = await memberIdentityService.authenticateRequest(request);
+    sendJson(response, 200, { success: true, data: await memberSongCatalogService.getDetail(session.member.memberId, slugOrId) }, { "Cache-Control": "private, no-store, max-age=0", "X-Robots-Tag": "noindex, nofollow" });
+  }
+
   async dashboard(request: IncomingMessage, response: ServerResponse) {
     privateMemberHeaders(response);
     const session = await memberIdentityService.authenticateRequest(request);

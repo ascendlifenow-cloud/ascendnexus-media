@@ -1,5 +1,9 @@
 # Stripe Setup and Verification
 
+**Billing rollout paused by owner, 2026-11-08.** Do not enable checkout or live
+payments while member playback and catalog acceptance are unresolved. Approved
+prices remain recorded below; account setup does not constitute release approval.
+
 ## Owner-approved staging rollout — 2026-11-08
 
 Sandbox: **Ascend Nexus Media Staging Sandbox**. Approved recurring prices are

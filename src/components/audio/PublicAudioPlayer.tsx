@@ -1,4 +1,4 @@
-import { ListMusic, RotateCcw, Trash2, Volume2, VolumeX, X } from "lucide-react";
+import { ListMusic, LoaderCircle, Pause, Play, RotateCcw, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { usePublicAudioPlayer } from "../../hooks/public";
@@ -9,6 +9,7 @@ import { AudioPreviewButton } from "../AudioPreviewButton";
 import { Button } from "../ui/Button";
 import { PublicAudioProgress } from "./PublicAudioProgress";
 import { PublicAudioWaveform } from "./PublicAudioWaveform";
+import { CoverArtImage } from "../media/CoverArtImage";
 
 interface PublicAudioPlayerProps {
   release: PublicAudioReleaseSummary;
@@ -23,7 +24,7 @@ interface PublicAudioPlayerProps {
 
 export function PublicAudioPlayer({ release, preview, compact, showProgress = true, showTime = true, showWaveform = true, className, onPlay }: PublicAudioPlayerProps) {
   const player = usePublicAudioPlayer();
-  const active = player.isActive(release.releaseId);
+  const active = player.playbackMode === "preview" && player.isActive(release.releaseId);
   const status = active ? player.status : "idle";
   const isPlaying = active && status === "playing";
   const isLoading = active && (status === "loading" || status === "buffering");
@@ -96,32 +97,50 @@ export function PublicAudioPlayer({ release, preview, compact, showProgress = tr
 export function PublicGlobalAudioPlayer() {
   const player = usePublicAudioPlayer();
   const [queueOpen, setQueueOpen] = useState(false);
-  if ((!player.activeRelease || !player.activePreview || player.status === "idle") && player.queue.length === 0) return null;
+  if ((!player.activeRelease || player.status === "idle") && player.queue.length === 0) return null;
   const activeRelease = player.activeRelease ?? player.queue[0]?.release;
   const activePreview = player.activePreview ?? player.queue[0]?.preview;
-  if (!activeRelease || !activePreview) return null;
-  const duration = player.duration || activePreview.durationSeconds || 0;
+  if (!activeRelease) return null;
+  const duration = player.duration || (player.playbackMode === "preview" ? activePreview?.durationSeconds : 0) || 0;
   const isPlaying = player.status === "playing";
+  const usage = player.playbackMode === "full" && player.protectedUsage?.releaseId === player.activeRelease?.releaseId ? player.protectedUsage : undefined;
+  const togglePlayback = () => player.activeRelease && player.source
+    ? void player.toggle()
+    : void player.playQueued(activePreview ?? { releaseId: activeRelease.releaseId, url: "" }, activeRelease);
   if (typeof document === "undefined") return null;
   return createPortal(
     <aside
-      className="fixed bottom-3 left-3 right-3 z-[100] rounded-md border border-white/12 bg-anm-bg/94 p-3 shadow-2xl backdrop-blur-xl sm:left-auto sm:w-[30rem]"
+      className="fixed bottom-3 right-3 z-[100] max-h-[calc(100dvh-1.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border border-white/12 bg-anm-bg/94 p-3 shadow-2xl backdrop-blur-xl"
       role="region"
-      aria-label="Global audio preview player"
+      aria-label="Global audio player"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="flex items-center gap-3">
-        {activeRelease.coverArtUrl ? <img src={activeRelease.coverArtUrl} alt="" className="h-12 w-12 rounded object-cover" /> : null}
+      <div className="relative isolate aspect-square w-full overflow-hidden rounded-md bg-black/30">
+        <CoverArtImage src={activeRelease.coverArtUrl} title={activeRelease.title} artistName={activeRelease.artistName} size="card" priority alt={`${activeRelease.title} cover art`} className="h-full w-full" />
+        {usage ? <>
+          {usage.remainingFullPlays !== null && Number.isFinite(usage.remainingFullPlays) ? <span title="Included full plays remaining" aria-label={`${usage.remainingFullPlays} included full plays remaining`} className="absolute left-3 top-3 max-w-[calc(50%-1rem)] break-words rounded-full border border-white/30 bg-black/85 px-3 py-2 text-xs font-semibold text-white" role="status">{usage.remainingFullPlays} left</span> : null}
+          <span title="Server-recorded playback starts, not completed listens" aria-label={`${usage.streamStarts} server-recorded playback starts, not completed listens`} className="absolute right-3 top-3 max-w-[calc(50%-1rem)] break-words rounded-full border border-white/30 bg-black/85 px-3 py-2 text-xs font-semibold text-white" role="status">{usage.streamStarts} starts</span>
+        </> : null}
+        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+          <button type="button" title={player.muted ? "Unmute" : "Mute"} aria-label={player.muted ? "Unmute" : "Mute"} aria-pressed={player.muted} onClick={() => player.setMuted(!player.muted)} className="flex h-11 w-11 items-center justify-center rounded-full border border-white/40 bg-black/85 text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300">
+            {player.muted ? <VolumeX className="h-5 w-5" aria-hidden="true" /> : <Volume2 className="h-5 w-5" aria-hidden="true" />}
+          </button>
+          <button type="button" title={isPlaying ? "Pause" : "Play"} aria-label={`${isPlaying ? "Pause" : "Play"} ${activeRelease.title}`} disabled={player.status === "loading"} onClick={togglePlayback} className="flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-black/85 text-white shadow-lg transition hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-50">
+            {player.status === "loading" || player.status === "buffering" ? <LoaderCircle className="h-6 w-6 animate-spin motion-reduce:animate-none" aria-hidden="true" /> : isPlaying ? <Pause className="h-6 w-6" aria-hidden="true" /> : <Play className="h-6 w-6" aria-hidden="true" />}
+          </button>
+        </div>
+      </div>
+      <div className="mt-3 flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-white">{activeRelease.title}</p>
           <p className="truncate text-xs text-white/52">{activeRelease.artistName ?? "Ascend Nexus Media"}</p>
+          <p className="text-xs text-white/52">{player.playbackMode === "full" ? "Full song" : "30-second preview"}</p>
           <PublicAudioProgress compact currentTime={player.currentTime} duration={duration} bufferedEnd={Math.max(0, ...player.bufferedRanges.map((range) => range.end))} onSeek={player.seek} />
         </div>
-        <AudioPreviewButton isPlaying={isPlaying} isLoading={player.status === "loading" || player.status === "buffering"} isDisabled={false} label={isPlaying ? `Pause ${activeRelease.title}` : `Play ${activeRelease.title}`} compact onClick={() => player.activeRelease ? void player.toggle() : void player.playPreview(activePreview, activeRelease, { sourceContext: "streaming_queue" })} />
-        <Button type="button" variant="ghost" size="icon" onClick={() => setQueueOpen((value) => !value)} aria-label="Open streaming queue">
+        <Button type="button" variant="ghost" size="icon" onClick={() => setQueueOpen((value) => !value)} aria-label="Open streaming queue" title="Streaming queue" aria-expanded={queueOpen}>
           <ListMusic className="h-4 w-4" aria-hidden="true" />
         </Button>
-        <Button type="button" variant="ghost" size="icon" onClick={() => { player.stop(); player.clearQueue(); }} aria-label="Close audio player">
+        <Button type="button" variant="ghost" size="icon" onClick={() => { player.stop(); player.clearQueue(); }} aria-label="Close audio player" title="Close audio player">
           <X className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
@@ -129,7 +148,7 @@ export function PublicGlobalAudioPlayer() {
         <div className="mt-3 max-h-56 overflow-y-auto border-t border-white/10 pt-2" aria-label="Streaming queue">
           {player.queue.length ? player.queue.map((item, index) => (
             <div key={item.release.releaseId} className="flex items-center gap-2 py-2 text-sm">
-              <button type="button" className="min-w-0 flex-1 truncate text-left text-white/76 hover:text-cyanGlow" onClick={() => void player.playPreview(item.preview, item.release, { sourceContext: "streaming_queue" })}>
+              <button type="button" className="min-w-0 flex-1 truncate text-left text-white/76 hover:text-cyanGlow" onClick={() => void player.playQueued(item.preview, item.release)}>
                 {index + 1}. {item.release.title}
               </button>
               <Button type="button" variant="ghost" size="icon" onClick={() => player.removeFromQueue(item.release.releaseId)} aria-label={`Remove ${item.release.title} from queue`}>

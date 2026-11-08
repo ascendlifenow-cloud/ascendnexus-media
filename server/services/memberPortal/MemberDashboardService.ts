@@ -9,6 +9,7 @@ import { memberRecommendationService } from "./MemberRecommendationService";
 import { favoritesService, followingService, listeningHistoryService, notificationService, playlistService } from "../memberEngagement/MemberEngagementServices";
 import type { MemberEngagementResourceRef } from "../../models/memberEngagement/MemberEngagementModels";
 import type { PublicSongRelease } from "../../../src/models/release";
+import { memberSongCatalogService } from "./MemberSongCatalogService";
 
 const forbiddenPattern = /(private\/|signedUrl|signature=|token=|storagePath|privateObjectKey|full[-_]?song)/i;
 const safeImage = (value?: string) => value && !forbiddenPattern.test(value) ? value : undefined;
@@ -73,7 +74,8 @@ export class MemberDashboardService {
     } : undefined;
   }
 
-  async getRecentReleases(limit = 8): Promise<MemberDashboardContentCard[]> {
+  async getRecentReleases(limit = 8, member?: MemberAccountResponse): Promise<MemberDashboardContentCard[]> {
+    if (member) return (await memberSongCatalogService.list(member.memberId)).slice(0, limit);
     const releases = await publicContentDeliveryService.listPublicReleases();
     return releases.slice(0, limit).map(releaseCard);
   }
@@ -134,7 +136,7 @@ export class MemberDashboardService {
   async getEarlyAccess(member: MemberAccountResponse, limit = 6): Promise<MemberDashboardContentCard[]> {
     const entitlements = await effectiveEntitlementService.getForMember(member);
     if (!entitlements.allowed.includes("release.early_access")) return [];
-    return (await this.getRecentReleases(limit)).map((card) => ({
+    return (await this.getRecentReleases(limit, member)).map((card) => ({
       ...card,
       accessState: "allowed",
       accessLabel: "Early Access",
@@ -146,11 +148,10 @@ export class MemberDashboardService {
     const entitlements = await effectiveEntitlementService.getForMember(member);
     const exclusive = entitlements.allowed.some((key) => key.includes("premium") || key.includes("supporter") || key.includes("vip") || key === "audio.stream.full");
     if (!exclusive) return [];
-    return (await this.getRecentReleases(limit)).map((card) => ({
+    return (await this.getRecentReleases(limit, member)).map((card) => ({
       ...card,
       accessState: "allowed",
       accessLabel: "Exclusive",
-      streamAvailable: entitlements.allowed.includes("audio.stream.full"),
       reason: "Available to your current membership tier where content policy allows.",
     }));
   }
@@ -179,7 +180,7 @@ export class MemberDashboardService {
     const [membership, entitlements, recentReleases, recommendations, earlyAccess, exclusiveContent, memberGalleries, announcements, continueListening, favorites, follows, playlists, notifications, allReleases] = await Promise.all([
       this.getMembershipSummary(member),
       effectiveEntitlementService.getForMember(member),
-      this.getRecentReleases(),
+      this.getRecentReleases(8, member),
       memberRecommendationService.getRecommendations(member),
       this.getEarlyAccess(member),
       this.getExclusiveContent(member),

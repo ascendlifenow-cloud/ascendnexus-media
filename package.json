@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:member-song-catalog": "node --import tsx scripts/member-song-catalog-test.ts",
+    "test:streaming-queue": "node --import tsx scripts/streaming-queue-test.ts",
+    "test:protected-storage-diagnostics": "node --import tsx scripts/protected-storage-diagnostics-test.ts",
     "test:protected-delivery-health": "node --import tsx scripts/protected-delivery-health-test.ts",
     "test:staging-song-acceptance-safety": "node --import tsx scripts/staging-song-acceptance-safety-test.ts",
     "staging:song-acceptance": "node --import tsx scripts/staging-song-acceptance.ts",

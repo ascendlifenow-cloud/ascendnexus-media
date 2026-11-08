@@ -30,7 +30,7 @@ interface SongPlaybackActionsProps {
 export function SongPlaybackActions({ release, compact = false, className, onPreviewPlay, onDetails }: SongPlaybackActionsProps) {
   const player = usePublicAudioPlayer();
   const previewAvailable = Boolean(release.audioPreviewUrl);
-  const active = player.isActive(release.releaseId);
+  const active = player.playbackMode === "preview" && player.isActive(release.releaseId);
   const playing = active && (player.status === "playing" || player.status === "buffering");
   const preview = previewAvailable ? { releaseId: release.releaseId, url: release.audioPreviewUrl! } : undefined;
   const summary = {
@@ -51,13 +51,12 @@ export function SongPlaybackActions({ release, compact = false, className, onPre
   };
 
   const addToQueue = () => {
-    if (!preview) return;
-    player.enqueue(preview, summary);
+    player.enqueue(preview ?? { releaseId: release.releaseId, url: "" }, summary);
   };
 
   return (
     <div className={cx("flex flex-wrap items-center gap-2", className)} role="group" aria-label={`Actions for ${release.title}`}>
-      <Button type="button" variant="secondary" size="icon" className={controlClass} disabled={!preview} onClick={addToQueue} aria-label="Add to streaming queue">
+      <Button type="button" variant="secondary" size="icon" className={controlClass} onClick={addToQueue} aria-label="Add to streaming queue">
         <ListMusic className="h-4 w-4" aria-hidden="true" />
         <ActionTooltip label="Add to streaming queue" />
       </Button>

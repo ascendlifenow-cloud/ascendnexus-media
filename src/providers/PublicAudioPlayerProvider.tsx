@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { PublicAudioPlayerContext } from "../contexts/PublicAudioPlayerContext";
+import { PublicAudioPlayerContext, type PublicAudioPlayerContextValue } from "../contexts/PublicAudioPlayerContext";
 import { publicAudioSourceSelectionService } from "../services/audio/PublicAudioSourceSelectionService";
 import { publicAudioPreviewValidationService } from "../services/audio/PublicAudioPreviewValidationService";
 import { transitionAudioState } from "../state/audio/AudioPlaybackStateMachine";
@@ -12,6 +12,8 @@ import type {
 } from "../state/audio/audioPlayerTypes";
 import { clampAudioTime } from "../utils/audio/audioTimeUtils";
 import { createAudioPlaybackError, mapMediaError } from "../utils/audio/audioErrorUtils";
+import { protectedMediaApiService } from "../member/services/ProtectedMediaApiService";
+import { authShellChangedEvent } from "../services/auth/AuthenticationShellService";
 
 const initialState: PublicAudioPlayerState = {
   status: "idle",
@@ -35,6 +37,25 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const stateRef = useRef<PublicAudioPlayerState>(initialState);
   const [state, setState] = useState<PublicAudioPlayerState>(initialState);
+  const [playbackMode, setPlaybackMode] = useState<"preview" | "full">("preview");
+  const [protectedUsage, setProtectedUsage] = useState<PublicAudioPlayerContextValue["protectedUsage"]>(undefined);
+  const protectedStarted = useRef(false);
+  const usageRequest = useRef(0);
+  const operation = useRef(0);
+  const protectedSession = useRef<{ expiresAt: number; sessionId?: string } | undefined>(undefined);
+  const protectedTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const queuedRequest = useRef<{ preview: PublicAudioPreviewContract; release: PublicAudioReleaseSummary } | undefined>(undefined);
+  const cancelProtected = useCallback(() => {
+    operation.current++;
+    usageRequest.current++;
+    protectedStarted.current = false;
+    setProtectedUsage(undefined);
+    protectedSession.current = undefined;
+    protectedTimers.current.forEach(clearTimeout);
+    protectedTimers.current = [];
+    clearTimeout(pollTimer.current);
+  }, []);
   const [queue, setQueue] = useState<Array<{ preview: PublicAudioPreviewContract; release: PublicAudioReleaseSummary }>>([]);
   const queueRef = useRef<Array<{ preview: PublicAudioPreviewContract; release: PublicAudioReleaseSummary }>>([]);
 
@@ -83,6 +104,8 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
   }, []);
 
   const stop = useCallback(() => {
+    cancelProtected();
+    queuedRequest.current = undefined;
     const audio = audioRef.current;
     if (audio) {
       audio.pause();
@@ -102,11 +125,36 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       lastEvent: "stop",
       version: current.version + 1,
     }));
-  }, [clearMediaSession, updateState]);
+  }, [cancelProtected, clearMediaSession, updateState]);
 
   const clear = stop;
 
+  const refreshUsage = useCallback(async (release: PublicAudioReleaseSummary) => {
+    const generation = operation.current;
+    const request = ++usageRequest.current;
+    try {
+      const usage = await protectedMediaApiService.songUsage(release.slug || release.releaseId, AbortSignal.timeout(10000));
+      if (generation !== operation.current || request !== usageRequest.current) return;
+      if (!usage.canContinue) throw new Error("Access changed");
+      // These are delivery starts and remaining allowances, never completed listens.
+      if (protectedStarted.current) {
+        const validCount = (count: number) => Number.isSafeInteger(count) && count >= 0;
+        if (!validCount(usage.streamStarts) || (usage.remainingFullPlays !== null && !validCount(usage.remainingFullPlays))) throw new Error("Invalid usage");
+        setProtectedUsage({ releaseId: release.releaseId, streamStarts: usage.streamStarts, remainingFullPlays: usage.remainingFullPlays });
+      }
+    } catch {
+      if (generation !== operation.current || request !== usageRequest.current) return;
+      stop();
+      updateState({ status: "unavailable", activeRelease: release, error: createAudioPlaybackError("AUDIO_SOURCE_LOAD_FAILED", "Full-song access could not be verified. Select the queued song to try again.", false) });
+    }
+  }, [stop, updateState]);
+
   const play = useCallback(async () => {
+    if (protectedSession.current && Date.now() >= protectedSession.current.expiresAt) {
+      stop();
+      updateState({ status: "unavailable", error: createAudioPlaybackError("AUDIO_SOURCE_LOAD_FAILED", "Full-song access expired. Select the queued song to authorize again.", false) });
+      return;
+    }
     const audio = audioRef.current;
     if (!audio || !stateRef.current.source) {
       updateState({ status: "unavailable", error: createAudioPlaybackError("AUDIO_PREVIEW_NOT_AVAILABLE", "No public audio preview is available.", false) });
@@ -126,9 +174,11 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
         lastEvent: "play_rejected",
       });
     }
-  }, [setStatus, updateState]);
+  }, [setStatus, stop, updateState]);
 
   const loadPreview = useCallback(async (preview: PublicAudioPreviewContract, release: PublicAudioReleaseSummary, options: { autoplay?: boolean; sourceContext?: string } = {}) => {
+    stop();
+    setPlaybackMode("preview");
     const validation = publicAudioPreviewValidationService.validatePreview(preview);
     const source = publicAudioSourceSelectionService.selectPreferredSource(preview);
     if (!validation.valid || !source) {
@@ -170,7 +220,67 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       version: current.version + 1,
     }));
     if (options.autoplay) await play();
-  }, [play, updateMediaSession, updateState]);
+  }, [play, stop, updateMediaSession, updateState]);
+
+  const playQueued = useCallback(async (preview: PublicAudioPreviewContract, release: PublicAudioReleaseSummary) => {
+    stop();
+    queuedRequest.current = { preview, release };
+    const requestId = operation.current;
+    const current = () => requestId === operation.current;
+    setPlaybackMode("full");
+    updateState({ status: "loading", activeRelease: release, lastEvent: "queue_authorizing" });
+    const fail = () => {
+      if (!current()) return;
+      stop();
+      setPlaybackMode("full");
+      updateState({ status: "unavailable", activeRelease: release, error: createAudioPlaybackError("AUDIO_SOURCE_LOAD_FAILED", "Full-song access could not be verified. Select the queued song to try again, or use the explicit preview button.", false) });
+    };
+    try {
+      // Only an explicit unauthenticated response selects guest preview playback.
+      const base = String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
+      const response = await fetch(`${base}/api/auth/session`, { credentials: "include", cache: "no-store", headers: { "X-Auth-Scope": "member" }, signal: AbortSignal.timeout(10000) });
+      if (!current()) return;
+      if (response.status === 401) {
+        await loadPreview(preview, release, { autoplay: true, sourceContext: "guest_streaming_queue" });
+        return;
+      }
+      const identity = await response.json();
+      if (!response.ok || identity.success !== true || identity.data?.authenticated !== true) throw new Error("Session unavailable");
+      const authorization = await protectedMediaApiService.authorizeReleaseStream(release.slug || release.releaseId, { component: "streaming_queue" });
+      if (!current()) return;
+      const endpoint = authorization.streamEndpoint;
+      // Protected delivery is deliberately separate from public preview URL validation.
+      // Accept only the server gateway's opaque, same-origin authorization reference.
+      if (!authorization.authorized || !endpoint || !/^\/api\/member\/media\/stream\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(endpoint)
+        || !authorization.expiresAt || !publicAudioSourceSelectionService.canPlayMimeType(authorization.mimeType)) throw new Error("Invalid protected source");
+      const schedule = (expiresAt: string) => {
+        const expires = Date.parse(expiresAt);
+        const remaining = expires - Date.now();
+        if (!Number.isFinite(expires) || remaining <= 0) throw new Error("Expired access");
+        protectedTimers.current.forEach(clearTimeout);
+        protectedTimers.current = [];
+        protectedSession.current = { expiresAt: expires, sessionId: authorization.playbackSessionId };
+        protectedTimers.current.push(setTimeout(fail, remaining));
+        if (authorization.refreshAllowed) protectedTimers.current.push(setTimeout(() => {
+          void protectedMediaApiService.refreshStream(endpoint).then((result) => { if (current()) schedule(result.expiresAt); }).catch(fail);
+        }, Math.max(1000, remaining - Math.min(30000, remaining / 2))));
+      };
+      schedule(authorization.expiresAt);
+      const poll = async () => {
+        await refreshUsage(release);
+        if (current()) pollTimer.current = setTimeout(() => { void poll(); }, 15000);
+      };
+      pollTimer.current = setTimeout(() => { void poll(); }, 15000);
+      const audio = audioRef.current;
+      if (!audio) { fail(); return; }
+      audio.src = endpoint;
+      audio.preload = "metadata";
+      audio.load();
+      updateMediaSession(release);
+      updateState({ status: "loading", activeRelease: release, activePreview: undefined, source: endpoint, duration: authorization.duration ?? 0, error: undefined, lastEvent: "full_song_authorized" });
+      await play();
+    } catch { fail(); }
+  }, [loadPreview, play, refreshUsage, stop, updateMediaSession, updateState]);
 
   const playPreview = useCallback(async (preview: PublicAudioPreviewContract, release: PublicAudioReleaseSummary, options: { sourceContext?: string } = {}) => {
     const current = stateRef.current;
@@ -189,8 +299,8 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
     const currentId = stateRef.current.activeRelease?.releaseId;
     const currentIndex = queueRef.current.findIndex((item) => item.release.releaseId === currentId);
     const next = queueRef.current[currentIndex >= 0 ? currentIndex + 1 : 0];
-    if (next) await loadPreview(next.preview, next.release, { autoplay: true, sourceContext: "streaming_queue" });
-  }, [loadPreview]);
+    if (next) await playQueued(next.preview, next.release);
+  }, [playQueued]);
 
   const pause = useCallback(() => {
     audioRef.current?.pause();
@@ -225,21 +335,30 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
   }, [updateState]);
 
   const retry = useCallback(async () => {
+    if (queuedRequest.current) { await playQueued(queuedRequest.current.preview, queuedRequest.current.release); return; }
     const { activePreview, activeRelease } = stateRef.current;
     if (!activePreview || !activeRelease) return;
     await loadPreview(activePreview, activeRelease, { autoplay: true, sourceContext: "retry" });
-  }, [loadPreview]);
+  }, [loadPreview, playQueued]);
 
   const invalidateActiveRelease = useCallback((releaseId: string, reason = "release_unavailable") => {
     if (stateRef.current.activeRelease?.releaseId !== releaseId) return;
-    audioRef.current?.pause();
+    stop();
     updateState({
       status: "unavailable",
       source: undefined,
       error: createAudioPlaybackError("AUDIO_RELEASE_UNPUBLISHED", "This preview is no longer available.", false, { releaseId, safeDetails: { reason } }),
       lastEvent: "release_invalidated",
     });
-  }, [updateState]);
+  }, [stop, updateState]);
+
+  useEffect(() => {
+    const changed = () => { stop(); clearQueue(); };
+    const storage = (event: StorageEvent) => { if (event.key === authShellChangedEvent || event.key === null) changed(); };
+    window.addEventListener(authShellChangedEvent, changed);
+    window.addEventListener("storage", storage);
+    return () => { cancelProtected(); window.removeEventListener(authShellChangedEvent, changed); window.removeEventListener("storage", storage); };
+  }, [cancelProtected, clearQueue, stop]);
 
   const isActive = useCallback((releaseId: string) => stateRef.current.activeRelease?.releaseId === releaseId, []);
   const getPlaybackState = useCallback((releaseId: string) => (stateRef.current.activeRelease?.releaseId === releaseId ? stateRef.current.status : "idle"), []);
@@ -250,40 +369,66 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
     audioRef.current = audio;
 
     const updateTiming = (eventName: string) => {
+      if (!stateRef.current.source) return;
       const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : stateRef.current.activePreview?.durationSeconds ?? 0;
       updateState({ currentTime: clampAudioTime(audio.currentTime, duration), duration, bufferedRanges: getBufferedRanges(audio), lastEvent: eventName });
     };
     const setReady = () => {
+      if (!stateRef.current.source) return;
       updateTiming("loadedmetadata");
       setStatus("ready", "loadedmetadata");
     };
     const setPlaying = () => {
+      if (!stateRef.current.source) { audio.pause(); return; }
+      const session = protectedSession.current;
+      if (session && stateRef.current.activeRelease) {
+        protectedStarted.current = true;
+        void refreshUsage(stateRef.current.activeRelease);
+      }
+      if (session?.sessionId) void protectedMediaApiService.playbackState(session.sessionId, "playing").catch(() => {
+        if (protectedSession.current === session) stop();
+      });
       updateTiming("playing");
       setStatus("playing", "playing");
       if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
     };
     const setPaused = () => {
+      if (!stateRef.current.source) return;
+      const session = protectedSession.current;
+      if (session?.sessionId) void protectedMediaApiService.playbackState(session.sessionId, "paused").catch(() => {
+        if (protectedSession.current === session) stop();
+      });
       updateTiming("pause");
       if (stateRef.current.status !== "ended" && stateRef.current.status !== "idle") setStatus("paused", "pause");
       if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused";
     };
     const setEnded = () => {
-      updateState({ status: "ended", currentTime: stateRef.current.duration || 0, lastEvent: "ended" });
+      if (!stateRef.current.source) return;
+      const session = protectedSession.current;
+      if (session?.sessionId) void protectedMediaApiService.playbackState(session.sessionId, "completed").catch(() => undefined);
+      cancelProtected();
+      audio.removeAttribute("src");
+      audio.load();
+      updateState({ status: "ended", source: undefined, currentTime: stateRef.current.duration || 0, lastEvent: "ended" });
       if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
       void playNext();
     };
     const setError = () => {
-      updateState({ status: "error", error: mapMediaError(audio.error, stateRef.current.activeRelease?.releaseId), lastEvent: "error" });
+      if (!stateRef.current.source) return;
+      const releaseId = stateRef.current.activeRelease?.releaseId;
+      if (protectedSession.current) stop();
+      updateState({ status: "error", error: mapMediaError(audio.error, releaseId), lastEvent: "error" });
     };
     const setBuffering = () => {
       updateTiming("waiting");
       if (stateRef.current.status === "playing") setStatus("buffering", "waiting");
     };
     const setStalled = () => {
+      if (!stateRef.current.source) return;
       updateState({ status: "buffering", error: createAudioPlaybackError("AUDIO_STALLED", "Audio preview loading stalled.", true, { releaseId: stateRef.current.activeRelease?.releaseId }), lastEvent: "stalled" });
     };
 
-    audio.addEventListener("loadstart", () => setStatus("loading", "loadstart"));
+    audio.addEventListener("loadstart", () => { if (stateRef.current.source) setStatus("loading", "loadstart"); });
     audio.addEventListener("loadedmetadata", setReady);
     audio.addEventListener("loadeddata", () => updateTiming("loadeddata"));
     audio.addEventListener("canplay", () => updateTiming("canplay"));
@@ -308,11 +453,14 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       audioRef.current = null;
       clearMediaSession();
     };
-  }, [clearMediaSession, playNext, setStatus, updateState]);
+  }, [cancelProtected, clearMediaSession, playNext, refreshUsage, setStatus, stop, updateState]);
 
   const value = useMemo(
     () => ({
       ...state,
+      playbackMode,
+      protectedUsage,
+      playQueued,
       queue,
       enqueue,
       removeFromQueue,
@@ -334,7 +482,7 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       isActive,
       getPlaybackState,
     }),
-    [clear, clearQueue, enqueue, getPlaybackState, invalidateActiveRelease, isActive, loadPreview, pause, play, playNext, playPreview, queue, removeFromQueue, retry, seek, seekBy, setMuted, setVolume, state, stop, toggle],
+    [clear, clearQueue, enqueue, getPlaybackState, invalidateActiveRelease, isActive, loadPreview, pause, play, playbackMode, protectedUsage, playQueued, playNext, playPreview, queue, removeFromQueue, retry, seek, seekBy, setMuted, setVolume, state, stop, toggle],
   );
 
   return <PublicAudioPlayerContext.Provider value={value}>{children}</PublicAudioPlayerContext.Provider>;

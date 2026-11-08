@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import type { ArtistPublicProfile } from "../models/artist";
 import type { PublicSongRelease } from "../models/release";
 import { formatReleaseDate } from "../utils/format";
-import { CoverArtImage } from "./media/CoverArtImage";
 import { SongStyleTags } from "./SongStyleTags";
 import { ExternalLinksPanel } from "./links";
 import { SongPlaybackActions } from "./songs/SongPlaybackActions";
@@ -26,14 +25,11 @@ export function SongHero({ song, artist, onPlayPreview }: SongHeroProps) {
     <section className="relative overflow-hidden bg-anm-page-gradient pt-32">
       <div className="absolute inset-0 bg-anm-sunrise-glow" />
       <div className="relative anm-container grid gap-10 pb-16 lg:grid-cols-[0.82fr_1.18fr] lg:items-center">
-        <CoverArtImage
-          src={song.coverArtLargeUrl ?? song.coverArtUrl ?? song.coverArtThumbnailUrl}
+        <MemberProtectedAudioPlayer
+          coverArtUrl={song.coverArtLargeUrl ?? song.coverArtUrl ?? song.coverArtThumbnailUrl}
+          releaseSlug={song.slug}
           title={song.title}
           artistName={artistName}
-          size="hero"
-          priority
-          alt={`${song.title} cover art by ${artistName}`}
-          className="shadow-glow"
         />
         <div>
           <p className="anm-eyebrow">{song.genre || "Song Release"}</p>
@@ -73,9 +69,6 @@ export function SongHero({ song, artist, onPlayPreview }: SongHeroProps) {
               audioPreviewUrl: song.audioPreviewUrl,
               release: song,
             }} onPreviewPlay={onPlayPreview} />
-          </div>
-          <div className="mt-3">
-            <MemberProtectedAudioPlayer releaseSlug={song.slug} title={song.title} />
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
             <Button type="button" onClick={() => setLyricsOpen((value) => !value)} variant="ghost" size="lg" aria-expanded={lyricsOpen}>

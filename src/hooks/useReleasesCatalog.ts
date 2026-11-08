@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { ReleaseCatalogService, type ReleaseCatalogSortMode } from "../services/ReleaseCatalogService";
+import { MemberPortalContext } from "../member/contexts/MemberPortalContext";
 
 const releaseCatalogService = new ReleaseCatalogService();
 const sortModes: ReleaseCatalogSortMode[] = ["newest", "oldest", "title", "artist"];
@@ -11,6 +12,8 @@ const getSortMode = (value: string | null): ReleaseCatalogSortMode =>
   sortModes.includes(value as ReleaseCatalogSortMode) ? (value as ReleaseCatalogSortMode) : "newest";
 
 export function useReleasesCatalog() {
+  const portal = useContext(MemberPortalContext);
+  const memberScoped = useLocation().pathname.startsWith("/member/");
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get("q") ?? "";
   const [searchQuery, setSearchQuery] = useState(queryParam);
@@ -20,8 +23,11 @@ export function useReleasesCatalog() {
   const sortMode = getSortMode(searchParams.get("sort"));
 
   const query = useQuery({
-    queryKey: ["release-catalog"],
-    queryFn: () => releaseCatalogService.getCatalogData(),
+    queryKey: memberScoped ? ["member-release-catalog", portal?.session.member.memberId, portal?.session.sessionId, portal?.session.member.authorizationVersion, portal?.dashboard.generatedAt] : ["release-catalog"],
+    enabled: !memberScoped || Boolean(portal?.session.authenticated),
+    queryFn: () => releaseCatalogService.getCatalogData(memberScoped),
+    gcTime: memberScoped ? 0 : 5 * 60_000,
+    staleTime: 0,
   });
 
   useEffect(() => {

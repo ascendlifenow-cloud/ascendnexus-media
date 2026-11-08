@@ -12,6 +12,7 @@ import { resolveInsideRoot } from "../../utils/media/mediaPathUtils";
 import { backendStorageProviderRegistry } from "../../storage/StorageProviderRegistry";
 import { evaluateSongAction, recordSongDelivery, songMediaMatches } from "../access/SongUsageService";
 import { protectedDeliveryTelemetryService, type DeliveryStage } from "./ProtectedDeliveryTelemetryService";
+import { readProtectedStorageErrorCode } from "./ProtectedStorageErrorDiagnostics";
 
 type Action = "stream" | "download";
 type Data = Awaited<ReturnType<typeof jsonDatabase.read>>;
@@ -200,9 +201,16 @@ export class ProtectedMediaGatewayService {
           if (upstream.status !== range.status || !upstream.body || upstream.headers.get("content-length") !== String(length) ||
             (upstream.headers.get("content-encoding") && upstream.headers.get("content-encoding") !== "identity") ||
             (range.status === 206 ? upstream.headers.get("content-range") !== `bytes ${range.start}-${range.end}/${size}` : upstream.headers.has("content-range"))) {
+            const upstreamErrorCode = upstream.status >= 400 ? await readProtectedStorageErrorCode(upstream, abort.signal) : "not_an_error_response";
             console.warn("[protected-delivery] upstream response rejected", { provider: validation.storage.provider, status: upstream.status, partial: range.status === 206,
-              lengthMatches: upstream.headers.get("content-length") === String(length), rangeMatches: upstream.headers.get("content-range") === `bytes ${range.start}-${range.end}/${size}` });
-            await upstream.body?.cancel().catch(() => undefined);
+              lengthMatches: upstream.headers.get("content-length") === String(length), rangeMatches: upstream.headers.get("content-range") === `bytes ${range.start}-${range.end}/${size}`,
+              upstreamErrorCode, nodeVersion: process.version, regionIsAuto: mediaBackendConfig.region === "auto",
+              forcePathStyle: mediaBackendConfig.forcePathStyle, bucketMatchesConfigured: validation.storage.bucket === mediaBackendConfig.bucket,
+              r2ApiEndpoint: new URL(signed).hostname.endsWith(".r2.cloudflarestorage.com"),
+              proxyEnvironmentPresent: ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].some(key => Boolean(process.env[key])),
+            });
+            // Cleanup must not hold the denial open; finally also aborts the origin request.
+            void upstream.body?.cancel().catch(() => undefined);
             throw denied("PROTECTED_MEDIA_NOT_READY", 502);
           }
           source = Readable.fromWeb(upstream.body as never);
