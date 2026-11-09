@@ -2,14 +2,15 @@ import { MongoClient, BSON } from "mongodb";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 
-const execute = process.argv.includes("--execute-approved-eight");
+const approvedCount = process.argv.includes("--approved-nineteen") ? 19 : 8;
+const execute = process.argv.includes(approvedCount === 19 ? "--execute-approved-nineteen" : "--execute-approved-eight");
 const { EJSON } = BSON;
 if (!process.argv.includes("--environment=staging") || !/stag(?:ing|ging)/i.test(process.env.MONGODB_DATABASE ?? "") || !process.env.MONGODB_URI) throw new Error("Explicit staging configuration required.");
 process.env.NODE_ENV = "staging";
 process.env.MEDIA_STORAGE_PROVIDER = "r2";
 process.env.MEDIA_STORAGE_FORCE_PATH_STYLE = "true";
 const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
-const journalPath = "production/anmx-003/staging-full-song-repair.json";
+const journalPath = approvedCount === 19 ? "production/anmx-003/staging-full-song-repair-nineteen.json" : "production/anmx-003/staging-full-song-repair.json";
 let phase = "inventory";
 try {
   await client.connect();
@@ -20,7 +21,7 @@ try {
   let journal: any;
   try { journal = EJSON.parse(await readFile(journalPath, "utf8")); } catch (error: any) { if (error.code !== "ENOENT") throw error; }
   if (!journal) {
-    if (candidates.length !== 8) throw new Error("Expected exactly eight approved objects.");
+    if (candidates.length !== approvedCount) throw new Error("Candidate count does not match the explicitly approved scope.");
     const entries = [];
     for (const storage of candidates) {
       const url = new URL(storage.publicUrl);
@@ -36,7 +37,7 @@ try {
     }
     journal = { environment: "staging", database: process.env.MONGODB_DATABASE, createdAt: new Date().toISOString(), entries };
   }
-  if (journal.environment !== "staging" || journal.database !== process.env.MONGODB_DATABASE || journal.entries.length !== 8) throw new Error("Journal scope mismatch.");
+  if (journal.environment !== "staging" || journal.database !== process.env.MONGODB_DATABASE || journal.entries.length !== approvedCount) throw new Error("Journal scope mismatch.");
   if (!execute) {
     console.log(JSON.stringify({ environment: "staging", approvedObjects: journal.entries.length, previewCollisions: 0, mutated: false }));
   } else {
@@ -94,7 +95,8 @@ try {
         entry.state = "complete"; entry.completedAt = new Date().toISOString(); await save();
       }
     }
-    await db.collection("admin_audit_events").updateOne({ auditEventId: "staging-eight-full-song-storage-repair-2026-10-28" }, { $setOnInsert: { auditEventId: "staging-eight-full-song-storage-repair-2026-10-28", action: "protected_media_storage_repaired", actorId: "approved-maintenance", entityType: "media_storage", summary: "Eight staging full-song objects moved to verified private storage; public copies retired with owner approval.", createdAt: new Date().toISOString(), metadata: { environment: "staging", count: 8, previewAssetsChanged: false } } }, { upsert: true });
+    const auditEventId = approvedCount === 19 ? "staging-nineteen-full-song-storage-repair-2026-11-08" : "staging-eight-full-song-storage-repair-2026-10-28";
+    await db.collection("admin_audit_events").updateOne({ auditEventId }, { $setOnInsert: { auditEventId, action: "protected_media_storage_repaired", actorId: "approved-maintenance", entityType: "media_storage", summary: `${approvedCount} staging full-song objects moved to verified private storage; public copies retired with owner approval.`, createdAt: new Date().toISOString(), metadata: { environment: "staging", count: approvedCount, previewAssetsChanged: false } } }, { upsert: true });
     console.log(JSON.stringify({ environment: "staging", repaired: journal.entries.filter((e: any) => e.state === "complete").length, privateCopiesVerified: true, oldPublicCopiesUnavailable: true, previewAssetsChanged: false, recoveryJournal: journalPath }));
   }
 } catch (error) { const safe = error instanceof Error && /^(Expected exactly|Unexpected storage|Preview collision|Ambiguous asset|Journal scope|Source metadata|Copy verification|Private prefix|Concurrent |Retirement precondition|Public object|Public delivery)/.test(error.message) ? error.message : "Staging repair stopped safely; inspect the private recovery journal before retrying."; console.error(JSON.stringify({ error: safe, phase })); process.exitCode = 1; }

@@ -3,7 +3,7 @@ export async function publicJsonRequest<T>(url: string, allowMissing = false, ti
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetch(url, { signal: controller.signal });
+    const response = await fetch(url, { signal: controller.signal, cache: "no-cache" });
     if (response.status === 404 && allowMissing) return undefined;
     if (!response.ok) throw new Error(`Public API request failed: ${response.status}`);
     return await response.json() as T;

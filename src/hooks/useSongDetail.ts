@@ -1,3 +1,4 @@
+import { publicationRefreshOptions } from "./publicationFreshness";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "react-router-dom";
 import { useContext } from "react";
@@ -11,12 +12,13 @@ export const useSongDetail = () => {
   const memberScoped = useLocation().pathname.startsWith("/member/");
 
   const query = useQuery({
+    ...publicationRefreshOptions,
     queryKey: memberScoped ? ["member-song-detail", portal?.session.member.memberId, portal?.session.sessionId, portal?.session.member.authorizationVersion, portal?.dashboard.generatedAt, songSlug] : ["song-detail", songSlug],
     enabled: Boolean(songSlug) && (!memberScoped || Boolean(portal?.session.authenticated)),
     queryFn: async () => {
       return (await (memberScoped ? memberSongCatalogApiService.detail(songSlug ?? "") : publicMediaApiClient.getReleaseDetail(songSlug ?? ""))) ?? { song: undefined, artist: undefined, moreReleases: [] };
     },
-    staleTime: memberScoped ? 0 : 5 * 60_000,
+    staleTime: memberScoped ? 0 : publicationRefreshOptions.staleTime,
     gcTime: memberScoped ? 0 : 5 * 60_000,
   });
 

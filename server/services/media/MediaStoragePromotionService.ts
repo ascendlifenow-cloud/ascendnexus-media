@@ -1,6 +1,5 @@
 import type { MediaAccessLevel, MediaStorageObject } from "../../models/mediaModels";
 import { MediaApiError } from "../../utils/media/mediaErrorUtils";
-import { mediaBackendConfig } from "../../config/mediaBackendConfig";
 import { backendStorageProviderRegistry } from "../../storage/StorageProviderRegistry";
 import { mediaAuditPersistenceService } from "./MediaAuditPersistenceService";
 import { mediaAssetPersistenceService } from "./MediaAssetPersistenceService";
@@ -23,8 +22,8 @@ export class MediaStoragePromotionService {
     if (storageObject.assetId) await assertProductionAssetAllowed(storageObject.assetId);
     const links = (await jsonDatabase.listCollection("mediaAssetLinks")).filter((link) => link.assetId === storageObject.assetId && link.status === "active");
     for (const link of links) await assertProductionReleaseAllowed(link.entityId);
-    if (storageObject.assetType === "full_song" && !options.forceFullSongPublic) {
-      throw new MediaApiError("MEDIA_PERMISSION_DENIED", "Full song assets cannot be promoted to public storage by default.", 403, "storage");
+    if (await this.isProtectedStorage(storageObject)) {
+      throw new MediaApiError("MEDIA_PERMISSION_DENIED", "Full song and protected stream assets cannot be promoted to public storage.", 403, "storage");
     }
     return this.promoteStorageObject(storageObject, options);
   }
@@ -63,13 +62,60 @@ export class MediaStoragePromotionService {
   async validatePromotionReadiness(assetId: string) {
     const asset = await mediaAssetPersistenceService.get(assetId);
     if (!asset) throw new MediaApiError("MEDIA_UPLOAD_NOT_FOUND", "Media asset was not found.", 404, "database");
-    if (asset.assetType === "full_song") return { ready: false, blockingIssues: ["Full-song assets are private-only by default."] };
     const source = (await mediaStoragePersistenceService.list()).find((object) => object.assetId === assetId || object.storageObjectId === asset.metadata?.storageObjectId);
+    if (asset.assetType === "full_song" || (source && await this.isProtectedStorage(source))) {
+      return { ready: false, blockingIssues: ["Full song and protected stream assets cannot be promoted to public storage."] };
+    }
     return {
       ready: Boolean(source && source.status !== "deleted"),
       sourceStorageObjectId: source?.storageObjectId,
       blockingIssues: source ? [] : ["No source storage object exists for this asset."],
     };
+  }
+
+  private async isProtectedStorage(storageObject: MediaStorageObject): Promise<boolean> {
+    const [objects, assets, releases, links, requirements, resources] = await Promise.all([
+      mediaStoragePersistenceService.list(),
+      jsonDatabase.listCollection("mediaAssets"),
+      jsonDatabase.listCollection("releaseRecords"),
+      jsonDatabase.listCollection("mediaAssetLinks"),
+      jsonDatabase.listCollection("contentEntitlementRequirements"),
+      jsonDatabase.listCollection("protectedMediaResources"),
+    ]);
+    const storageIds = new Set([storageObject.storageObjectId]);
+    const assetIds = new Set<string>();
+    const related = new Set<MediaStorageObject>([storageObject]);
+    // Follow storage aliases and copies, not preview-generation sourceAssetId provenance.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const before = storageIds.size + assetIds.size + related.size;
+      for (const object of related) {
+        storageIds.add(object.storageObjectId);
+        if (object.assetId) assetIds.add(object.assetId);
+        if (typeof object.metadata?.sourceStorageObjectId === "string") storageIds.add(object.metadata.sourceStorageObjectId);
+      }
+      for (const asset of assets) {
+        const ids = [asset.metadata?.storageObjectId, asset.metadata?.sourceStorageObjectId, asset.metadata?.publicStorageObjectId];
+        if (assetIds.has(asset.assetId) || ids.some((id) => typeof id === "string" && storageIds.has(id))) {
+          assetIds.add(asset.assetId);
+          for (const id of ids) if (typeof id === "string") storageIds.add(id);
+        }
+      }
+      for (const object of objects) {
+        if (storageIds.has(object.storageObjectId) || (object.assetId && assetIds.has(object.assetId))
+          || (typeof object.metadata?.sourceStorageObjectId === "string" && storageIds.has(object.metadata.sourceStorageObjectId))
+          || [...related].some((other) => other.provider === object.provider && other.bucket === object.bucket && other.storagePath === object.storagePath)) related.add(object);
+      }
+      changed = before !== storageIds.size + assetIds.size + related.size;
+    }
+    return [...related].some((object) => object.assetType === "full_song")
+      || assets.some((asset) => assetIds.has(asset.assetId) && asset.assetType === "full_song")
+      || releases.some((release) => assetIds.has(String(release.metadata?.fullSongAssetId ?? "")) || storageIds.has(String(release.metadata?.fullSongStorageObjectId ?? "")))
+      || links.some((link) => link.status === "active" && assetIds.has(link.assetId) && ["fullSongAssetId", "fullSongStorageObjectId", "fullSongUrl"].includes(link.fieldKey))
+      || requirements.some((requirement) => Boolean(requirement.streamAssetId && assetIds.has(requirement.streamAssetId)))
+      || resources.some((resource) => assetIds.has(resource.mediaAssetId)
+        || [...related].some((object) => object.provider === resource.storageProvider && object.storagePath === resource.privateObjectKey));
   }
 
   async promoteAsset(assetId: string, options: StoragePromotionOptions = {}) {

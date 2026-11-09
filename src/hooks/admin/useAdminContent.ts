@@ -1,3 +1,4 @@
+import { announcePublicationChange } from "../publicationFreshness";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   SeedBackedAdminArtistService,
@@ -63,6 +64,7 @@ export const useCreateAdminArtist = () => {
   return useMutation({
     mutationFn: (payload: CreateArtistDto) => artistService.createArtist(payload),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.all });
     },
   });
@@ -74,6 +76,7 @@ export const useUpdateAdminArtist = () => {
     mutationFn: ({ artistId, payload }: { artistId: string; payload: UpdateArtistDto }) =>
       artistService.updateArtist(artistId, payload),
     onSuccess: (_result, variables) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.detail(variables.artistId) });
     },
@@ -85,6 +88,7 @@ export const usePublishAdminArtist = () => {
   return useMutation({
     mutationFn: (artistId: string) => artistService.publishArtist(artistId),
     onSuccess: (_result, artistId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.detail(artistId) });
     },
@@ -96,6 +100,7 @@ export const useUnpublishAdminArtist = () => {
   return useMutation({
     mutationFn: (artistId: string) => artistService.unpublishArtist(artistId),
     onSuccess: (_result, artistId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.detail(artistId) });
     },
@@ -107,6 +112,7 @@ export const useArchiveAdminArtist = () => {
   return useMutation({
     mutationFn: (artistId: string) => artistService.archiveArtist(artistId),
     onSuccess: (_result, artistId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.detail(artistId) });
     },
@@ -118,6 +124,7 @@ export const useRestoreAdminArtist = () => {
   return useMutation({
     mutationFn: (artistId: string) => artistService.restoreArtist(artistId),
     onSuccess: (_result, artistId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.detail(artistId) });
     },
@@ -129,6 +136,7 @@ export const useDeleteAdminArtist = () => {
   return useMutation({
     mutationFn: (artistId: string) => artistService.deleteArtist(artistId),
     onSuccess: (_result, artistId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminArtistsKeys.detail(artistId) });
     },
@@ -153,6 +161,7 @@ export const useCreateAdminRelease = () => {
   return useMutation({
     mutationFn: (payload: CreateReleaseDto) => releaseService.createRelease(payload),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.all });
     },
   });
@@ -164,6 +173,7 @@ export const useUpdateAdminRelease = () => {
     mutationFn: ({ releaseId, payload }: { releaseId: string; payload: UpdateReleaseDto }) =>
       releaseService.updateRelease(releaseId, payload),
     onSuccess: (_result, variables) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.detail(variables.releaseId) });
     },
@@ -175,6 +185,7 @@ export const usePublishAdminRelease = () => {
   return useMutation({
     mutationFn: (releaseId: string) => releaseService.publishRelease(releaseId),
     onSuccess: (_result, releaseId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.detail(releaseId) });
     },
@@ -186,6 +197,7 @@ export const useArchiveAdminRelease = () => {
   return useMutation({
     mutationFn: (releaseId: string) => releaseService.archiveRelease(releaseId),
     onSuccess: (_result, releaseId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.detail(releaseId) });
     },
@@ -197,6 +209,7 @@ export const useUnpublishAdminRelease = () => {
   return useMutation({
     mutationFn: (releaseId: string) => releaseService.unpublishRelease(releaseId),
     onSuccess: (_result, releaseId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.detail(releaseId) });
     },
@@ -208,6 +221,7 @@ export const useRestoreAdminRelease = () => {
   return useMutation({
     mutationFn: (releaseId: string) => releaseService.restoreRelease(releaseId),
     onSuccess: (_result, releaseId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.detail(releaseId) });
     },
@@ -232,6 +246,7 @@ export const useCreateAdminMediaAsset = () => {
   return useMutation({
     mutationFn: (payload: CreateMediaAssetDto) => mediaService.createMediaAsset(payload),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminMediaKeys.all });
     },
   });
@@ -243,6 +258,7 @@ export const useUpdateAdminMediaAsset = () => {
     mutationFn: ({ assetId, payload }: { assetId: string; payload: UpdateMediaAssetDto }) =>
       mediaService.updateMediaAsset(assetId, payload),
     onSuccess: (_result, variables) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminMediaKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminMediaKeys.detail(variables.assetId) });
       void queryClient.invalidateQueries({ queryKey: adminReleasesKeys.all });
@@ -255,6 +271,7 @@ export const useArchiveAdminMediaAsset = () => {
   return useMutation({
     mutationFn: (assetId: string) => mediaService.archiveMediaAsset(assetId),
     onSuccess: (_result, assetId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminMediaKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminMediaKeys.detail(assetId) });
     },
@@ -266,6 +283,7 @@ export const useDeleteAdminMediaAsset = () => {
   return useMutation({
     mutationFn: (assetId: string) => mediaService.deleteMediaAsset(assetId),
     onSuccess: (result, assetId) => {
+      announcePublicationChange(queryClient);
       if (result.ok) {
         queryClient.setQueriesData({ queryKey: adminMediaKeys.lists() }, (current: unknown) => {
           if (
@@ -308,6 +326,7 @@ export const useCreateAdminGalleryItem = () => {
   return useMutation({
     mutationFn: (payload: CreateGalleryItemDto) => galleryService.createGalleryItem(payload),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.all });
     },
   });
@@ -319,6 +338,7 @@ export const useUpdateAdminGalleryItem = () => {
     mutationFn: ({ galleryItemId, payload }: { galleryItemId: string; payload: UpdateGalleryItemDto }) =>
       galleryService.updateGalleryItem(galleryItemId, payload),
     onSuccess: (_result, variables) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.detail(variables.galleryItemId) });
     },
@@ -330,6 +350,7 @@ export const useArchiveAdminGalleryItem = () => {
   return useMutation({
     mutationFn: (galleryItemId: string) => galleryService.archiveGalleryItem(galleryItemId),
     onSuccess: (_result, galleryItemId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.detail(galleryItemId) });
     },
@@ -341,6 +362,7 @@ export const usePublishAdminGalleryItem = () => {
   return useMutation({
     mutationFn: (galleryItemId: string) => galleryService.publishGalleryItem(galleryItemId),
     onSuccess: (_result, galleryItemId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.detail(galleryItemId) });
     },
@@ -352,6 +374,7 @@ export const useUnpublishAdminGalleryItem = () => {
   return useMutation({
     mutationFn: (galleryItemId: string) => galleryService.unpublishGalleryItem(galleryItemId),
     onSuccess: (_result, galleryItemId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.detail(galleryItemId) });
     },
@@ -363,6 +386,7 @@ export const useRestoreAdminGalleryItem = () => {
   return useMutation({
     mutationFn: (galleryItemId: string) => galleryService.restoreGalleryItem(galleryItemId),
     onSuccess: (_result, galleryItemId) => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.all });
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.detail(galleryItemId) });
     },
@@ -374,6 +398,7 @@ export const useReorderAdminGalleryItems = () => {
   return useMutation({
     mutationFn: (items: Array<{ galleryItemId: string; sortOrder: number }>) => galleryService.reorderGalleryItems(items),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminGalleryKeys.all });
     },
   });
@@ -404,6 +429,7 @@ export const useUpdateAdminSeoMetadata = () => {
     mutationFn: ({ entityType, entityId, payload }: { entityType: AdminMetadataEntityType; entityId: string; payload: SeoMetadata }) =>
       metadataService.updateSeoMetadata(entityType, entityId, payload),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminMetadataKeys.all });
     },
   });
@@ -415,6 +441,7 @@ export const useUpdateAdminSocialMetadata = () => {
     mutationFn: ({ entityType, entityId, payload }: { entityType: AdminMetadataEntityType; entityId: string; payload: SocialShareMetadata }) =>
       metadataService.updateSocialMetadata(entityType, entityId, payload),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminMetadataKeys.all });
     },
   });
@@ -431,6 +458,7 @@ export const useUpdateAdminSiteConfig = () => {
   return useMutation({
     mutationFn: (payload: UpdateSiteConfigDto) => siteConfigService.updateSiteConfig(payload),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminSiteConfigKeys.all });
     },
   });
@@ -441,6 +469,7 @@ export const usePublishAdminSiteConfig = () => {
   return useMutation({
     mutationFn: () => siteConfigService.publishSiteConfig(),
     onSuccess: () => {
+      announcePublicationChange(queryClient);
       void queryClient.invalidateQueries({ queryKey: adminSiteConfigKeys.all });
     },
   });

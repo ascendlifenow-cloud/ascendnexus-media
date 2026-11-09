@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { announcePublicationChange } from "../../hooks/publicationFreshness";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MediaPublicationOperation, MediaPublicationResult } from "../../models/publication";
 import { adminMediaPublicationService } from "../services/AdminMediaPublicationService";
 
 const activeStatuses = new Set(["requested", "validating", "waiting_for_processing", "promoting_storage", "updating_records", "activating_delivery", "verifying_sync", "rolling_back"]);
 
 export const usePublicationOperation = (publicationOperationId: string | undefined) => {
+  const queryClient = useQueryClient();
+  const lastAnnouncement = useRef<string | undefined>(undefined);
   const [operation, setOperation] = useState<MediaPublicationOperation | undefined>();
   const [result, setResult] = useState<MediaPublicationResult | undefined>();
   const [errors, setErrors] = useState<string[]>([]);
@@ -14,11 +18,17 @@ export const usePublicationOperation = (publicationOperationId: string | undefin
     if (!publicationOperationId) return;
     setLoading(true);
     const response = await adminMediaPublicationService.getPublicationOperation(publicationOperationId);
+    const completed = response.publicationOperation;
+    const signature = completed && `${completed.publicationOperationId}:${completed.status}`;
+    if (response.success && completed && !activeStatuses.has(completed.status) && signature !== lastAnnouncement.current) {
+      lastAnnouncement.current = signature;
+      announcePublicationChange(queryClient);
+    }
     setOperation(response.publicationOperation);
     setResult(response.result);
     setErrors(response.errors ?? []);
     setLoading(false);
-  }, [publicationOperationId]);
+  }, [publicationOperationId, queryClient]);
 
   useEffect(() => {
     void refresh();

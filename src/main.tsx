@@ -7,6 +7,7 @@ import { PublicConsentProvider } from "./providers/PublicConsentProvider";
 import { AppRouter } from "./routes/AppRouter";
 import { ApplicationErrorBoundary } from "./components/ApplicationErrorBoundary";
 import "./styles.css";
+import { subscribePublicationChanges } from "./hooks/publicationFreshness";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,6 +17,9 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+const unsubscribePublicationChanges = subscribePublicationChanges(queryClient);
+if (import.meta.hot) import.meta.hot.dispose(unsubscribePublicationChanges);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

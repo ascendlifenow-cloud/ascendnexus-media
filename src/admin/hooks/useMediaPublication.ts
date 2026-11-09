@@ -1,9 +1,12 @@
+import { useQueryClient } from "@tanstack/react-query";
+import { announcePublicationChange } from "../../hooks/publicationFreshness";
 import { useCallback, useState } from "react";
 import type { MediaPublicationEntityType, MediaPublicationOperation, MediaPublicationOptions, MediaPublicationResult } from "../../models/publication";
 import { adminMediaPublicationService } from "../services/AdminMediaPublicationService";
 import { useEntityPublicationReadiness } from "./useEntityPublicationReadiness";
 
 export const useMediaPublication = (entityType: MediaPublicationEntityType | undefined, entityId: string | undefined) => {
+  const queryClient = useQueryClient();
   const readiness = useEntityPublicationReadiness(entityType, entityId);
   const [operation, setOperation] = useState<MediaPublicationOperation | undefined>();
   const [result, setResult] = useState<MediaPublicationResult | undefined>();
@@ -18,41 +21,45 @@ export const useMediaPublication = (entityType: MediaPublicationEntityType | und
       action === "unpublish" ? await adminMediaPublicationService.unpublishEntity(entityType, entityId, options) :
       action === "archive" ? await adminMediaPublicationService.archiveEntity(entityType, entityId, options) :
       await adminMediaPublicationService.restoreEntity(entityType, entityId, options);
+    if (response.success) announcePublicationChange(queryClient);
     setOperation(response.publicationOperation);
     setResult(response.result);
     setErrors(response.errors ?? []);
     await readiness.refresh();
     setBusy(false);
-  }, [entityType, entityId, readiness]);
+  }, [entityType, entityId, readiness, queryClient]);
 
   const retry = useCallback(async () => {
     if (!operation) return;
     setBusy(true);
     const response = await adminMediaPublicationService.retryPublication(operation.publicationOperationId);
+    if (response.success) announcePublicationChange(queryClient);
     setOperation(response.publicationOperation);
     setResult(response.result);
     setErrors(response.errors ?? []);
     setBusy(false);
-  }, [operation]);
+  }, [operation, queryClient]);
 
   const rollback = useCallback(async () => {
     if (!operation) return;
     setBusy(true);
     const response = await adminMediaPublicationService.rollbackPublication(operation.publicationOperationId);
+    if (response.success) announcePublicationChange(queryClient);
     setOperation(response.publicationOperation);
     setResult(response.result);
     setErrors(response.errors ?? []);
     setBusy(false);
-  }, [operation]);
+  }, [operation, queryClient]);
 
   const cancel = useCallback(async () => {
     if (!operation) return;
     setBusy(true);
     const response = await adminMediaPublicationService.cancelPublication(operation.publicationOperationId);
+    if (response.success) announcePublicationChange(queryClient);
     setOperation(response.publicationOperation);
     setErrors(response.errors ?? []);
     setBusy(false);
-  }, [operation]);
+  }, [operation, queryClient]);
 
   return {
     ...readiness,

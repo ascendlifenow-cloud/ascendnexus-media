@@ -1,3 +1,4 @@
+import { publicationRefreshOptions } from "./publicationFreshness";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -23,6 +24,7 @@ export function useReleasesCatalog() {
   const sortMode = getSortMode(searchParams.get("sort"));
 
   const query = useQuery({
+    ...publicationRefreshOptions,
     queryKey: memberScoped ? ["member-release-catalog", portal?.session.member.memberId, portal?.session.sessionId, portal?.session.member.authorizationVersion, portal?.dashboard.generatedAt] : ["release-catalog"],
     enabled: !memberScoped || Boolean(portal?.session.authenticated),
     queryFn: () => releaseCatalogService.getCatalogData(memberScoped),

@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:client-publication-freshness": "node --import tsx scripts/client-publication-freshness-test.ts",
+    "test:media-promotion-safety": "node --import tsx scripts/media-promotion-referential-safety-test.ts",
+    "test:release-full-song-readiness": "node --import tsx scripts/release-full-song-readiness-test.ts",
+    "staging:published-content-verify": "node --import tsx scripts/staging-published-content-verify.ts",
     "test:release-publication-targets": "node --import tsx scripts/release-publication-targets-test.ts",
     "test:release-publication-enforcement": "node --import tsx scripts/release-publication-enforcement-test.ts",
     "test:admin-release-publication-targets": "node --import tsx scripts/admin-release-publication-targets-test.ts",
