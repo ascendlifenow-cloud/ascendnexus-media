@@ -39,6 +39,7 @@ export function AdminReleaseForm({
 
   return (
     <form className="grid gap-5" onSubmit={(event) => event.preventDefault()}>
+      <AdminReleasePublicationTargets state={state} updateField={updateField} />
       <AdminReleaseArtistFields state={state} validation={validation} artists={artists} updateField={updateField} />
       <AdminReleaseIdentityFields state={state} validation={validation} isEditMode={isEditMode} updateField={updateField} />
       <AdminReleaseDetailsFields state={state} validation={validation} updateField={updateField} />
@@ -50,7 +51,6 @@ export function AdminReleaseForm({
       <AdminReleaseSeoFields state={state} validation={validation} updateField={updateField} />
       <AdminReleaseSocialFields state={state} validation={validation} updateField={updateField} />
       <AdminReleaseStatusFields state={state} validation={validation} artist={selectedArtist} updateField={updateField} />
-      <AdminReleasePublicationTargets state={state} updateField={updateField} />
     </form>
   );
 }

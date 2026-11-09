@@ -82,7 +82,7 @@ export function ReleasePublishReadinessDrawer({
       >
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-white/10 px-4 py-4">
           <div className="min-w-0">
-            <p className="text-[0.68rem] font-bold uppercase tracking-[0.2em] text-anm-gold">Edit Release Workflow</p>
+            <p className="text-xs font-semibold text-anm-gold">Review & Publish</p>
             <h2 id="release-readiness-panel-title" className="mt-1 truncate text-xl font-black tracking-normal text-white">{release.title || "Untitled release"}</h2>
           </div>
           <Button type="button" variant="ghost" size="sm" onClick={onClose} aria-label="Close release publish readiness panel">
@@ -104,7 +104,7 @@ export function ReleasePublishReadinessDrawer({
               )}
               onClick={() => onSectionChange(section)}
             >
-              {section}
+              {section === "readiness" ? "Readiness & Placement" : section === "history" ? "Publication Impact" : "Preview"}
             </button>
           ))}
         </div>

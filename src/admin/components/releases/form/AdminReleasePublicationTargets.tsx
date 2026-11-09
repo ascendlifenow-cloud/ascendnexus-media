@@ -19,7 +19,7 @@ export function AdminReleasePublicationTargets({ state, updateField }: AdminRele
   const id = useId();
   return (
     <fieldset className="grid min-w-0 gap-4 border-t border-white/10 pt-5">
-      <legend className="text-lg font-semibold text-white">Publication Destinations</legend>
+      <legend className="text-lg font-semibold text-white">Audience & Website Sections</legend>
       <FieldShell label="Minimum Audience" htmlFor={`${id}-audience`}
         error={state.publicationAudience === "" ? "Select a valid minimum audience before saving." : undefined}>
         <SelectInput id={`${id}-audience`} value={state.publicationAudience}
@@ -38,6 +38,12 @@ export function AdminReleasePublicationTargets({ state, updateField }: AdminRele
           </label>
         ))}
       </div>
+      <p role="status" className="text-sm text-white/65">
+        {state.publicationAudience ? audienceLabels[state.publicationAudience] : "Audience not selected"}
+        {" · Songs catalog"}
+        {state.publicationHomepage ? " · Homepage" : ""}
+        {state.publicationNewReleases ? " · New Releases" : ""}
+      </p>
     </fieldset>
   );
 }

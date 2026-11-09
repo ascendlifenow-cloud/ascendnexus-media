@@ -11,13 +11,13 @@ export function AdminTopbar({ mobileNavOpen, onToggleMobileNav }: AdminTopbarPro
   const { session, logout } = useAdminAuth();
 
   return (
-    <header className="sticky top-0 z-30 border-b border-white/10 bg-anm-bg/88 px-4 py-3 backdrop-blur-xl lg:px-6">
+    <header className="sticky top-0 z-40 h-[73px] border-b border-white/10 bg-anm-bg/88 px-4 py-3 backdrop-blur-xl lg:px-6">
       <div className="flex min-h-12 items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-anm-blue">Internal</p>
-          <p className="text-sm font-semibold text-white/72">Ascend Nexus Media Admin</p>
+          <p className="truncate text-sm font-semibold text-white/72">Ascend Nexus Media Admin</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <div className="hidden items-center gap-2 rounded-md border border-anm-success/25 bg-anm-success/10 px-3 py-2 text-xs font-semibold text-anm-success sm:inline-flex">
             <ShieldCheck className="h-4 w-4" aria-hidden />
             {session?.user.displayName ?? "Admin"}

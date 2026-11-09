@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Eye, PanelRightOpen, Save } from "lucide-react";
+import { Check, Eye, PanelRightOpen, Save, UploadCloud } from "lucide-react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { PublicErrorState, PublicLoadingErrorState } from "../../components/fallback";
 import { GridSkeleton } from "../../components/loading";
@@ -107,7 +107,7 @@ export function AdminReleaseFormPage() {
       }
       return { ...readiness, publicVisibility: "not_public" as const };
     },
-    [mediaAssets, releasePreviewRecord, selectedArtist],
+    [mediaAssets, releasePreviewRecord, selectedArtist, formState.publicationAudience],
   );
   const publicPreview = releaseReadiness.ready && formState.publicationAudience === "public"
     ? mapReleaseAdminToPublicRelease({ ...releasePreviewRecord, status: "published" }, selectedArtist?.status === "active" ? [selectedArtist.artistId] : [])
@@ -181,6 +181,7 @@ export function AdminReleaseFormPage() {
   };
 
   const publishSavedRelease = async () => {
+    if (activeOperation !== "idle") return;
     if (!releaseReadiness.ready) {
       openReadinessPanel("readiness");
       failAction("Publish readiness is blocked. Resolve the listed issues before publishing.");
@@ -350,17 +351,7 @@ export function AdminReleaseFormPage() {
             onOpenPanel={() => openReadinessPanel("readiness")}
           />
           <AdminReleaseValidationSummary validation={validation} submitError={submitError} />
-          <AdminReleaseForm
-            state={formState}
-            validation={validation}
-            artists={artists}
-            mediaAssets={mediaAssets}
-            selectedArtist={selectedArtist}
-            isEditMode={isEditMode}
-            updateField={updateField}
-            updateExternalLink={updateExternalLink}
-          />
-          <div className="flex flex-wrap items-center gap-2 rounded-anm-card border border-white/10 bg-white/[0.035] p-3">
+          <div role="region" aria-label="Release publishing actions" className="sticky top-[73px] z-30 flex flex-wrap items-center gap-2 border-y border-white/10 bg-[#10131d]/95 p-3 shadow-lg backdrop-blur">
             <Button
               type="button"
               variant="glass"
@@ -383,7 +374,16 @@ export function AdminReleaseFormPage() {
             </Button>
             <Button type="button" variant="glass" onClick={() => openReadinessPanel("readiness")} disabled={activeOperation !== "idle"}>
               <PanelRightOpen className="h-4 w-4" aria-hidden />
-              Publish Readiness
+              Review Publication
+            </Button>
+            <Button type="button" variant="primary"
+              onClick={() => void publishSavedRelease()}
+              disabled={activeOperation !== "idle" || formState.status === "archived"}
+              isLoading={activeAction === "save_and_republish"}>
+              <UploadCloud className="h-4 w-4" aria-hidden />
+              {activeAction === "save_and_republish"
+                ? "Publishing..."
+                : formState.status === "published" ? "Save & Republish" : "Save & Publish"}
             </Button>
             <Button type="button" variant="glass" onClick={() => openReadinessPanel("preview")} disabled={activeOperation !== "idle"}>
               <Eye className="h-4 w-4" aria-hidden />
@@ -392,12 +392,22 @@ export function AdminReleaseFormPage() {
             <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
               {saveStateBadge}
               {isDirty ? (
-                <span className="text-xs font-medium text-white/50">Save before checking readiness.</span>
+                <span className="text-xs font-medium text-white/50">Changes will be saved before publication.</span>
               ) : workflowMessage ? (
                 <span className="text-xs font-medium text-emerald-100/70">{workflowMessage}</span>
               ) : null}
             </div>
           </div>
+          <AdminReleaseForm
+            state={formState}
+            validation={validation}
+            artists={artists}
+            mediaAssets={mediaAssets}
+            selectedArtist={selectedArtist}
+            isEditMode={isEditMode}
+            updateField={updateField}
+            updateExternalLink={updateExternalLink}
+          />
           <ReleasePublishReadinessDrawer
             open={panelOpen}
             activeSection={panelSection}

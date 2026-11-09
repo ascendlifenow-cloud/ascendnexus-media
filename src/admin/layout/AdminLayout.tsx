@@ -37,7 +37,7 @@ export function AdminLayout() {
         className="grid min-h-screen transition-[grid-template-columns] duration-200 ease-anm-out motion-reduce:transition-none lg:grid-cols-[var(--admin-sidebar-width)_1fr]"
         style={{ "--admin-sidebar-width": sidebar.collapsed ? "var(--admin-sidebar-collapsed-width)" : "var(--admin-sidebar-expanded-width)" } as CSSProperties}
       >
-        <div className="hidden lg:block">
+        <div className="sticky top-0 hidden h-screen lg:block">
           <AdminSidebar />
         </div>
         <div className="min-w-0">

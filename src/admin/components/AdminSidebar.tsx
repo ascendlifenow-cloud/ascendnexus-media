@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { Search, X } from "lucide-react";
 import { BrandLogo } from "../../components/BrandLogo";
 import { cx } from "../../utils/format";
 import { useAdminAuth } from "../hooks/useAdminAuth";
@@ -18,7 +20,11 @@ export function AdminSidebar({ onNavigate, mobile = false }: AdminSidebarProps) 
   const badges = useAdminNavigationBadges();
   const mode = mobile ? "expanded" : sidebar.mode;
   const expanded = mode === "expanded";
-  const groups = getAdminNavigationGroups(hasPermission);
+  const [search, setSearch] = useState("");
+  const term = expanded ? search.trim().toLowerCase() : "";
+  const groups = getAdminNavigationGroups(hasPermission)
+    .map((group) => ({ ...group, entries: group.entries.filter((entry) => !term || `${group.label} ${entry.label}`.toLowerCase().includes(term)) }))
+    .filter((group) => group.entries.length);
 
   return (
     <aside
@@ -35,9 +41,17 @@ export function AdminSidebar({ onNavigate, mobile = false }: AdminSidebarProps) 
         {expanded ? <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/42">Admin Portal</p> : null}
         {!mobile ? <AdminSidebarToggle mode={mode} onToggle={sidebar.toggle} /> : null}
       </div>
-      <nav className="mt-6 grid gap-5 overflow-y-auto pr-1" aria-label="Admin navigation">
+      {expanded ? <div className="relative mt-4">
+        <Search aria-hidden className="pointer-events-none absolute left-3 top-3 h-4 w-4 text-white/45" />
+        <input aria-label="Find admin page" placeholder="Find a page" value={search} onChange={(event) => setSearch(event.target.value)}
+          className="h-10 w-full rounded-md border border-white/15 bg-black/20 pl-9 pr-9 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-anm-gold" />
+        {search ? <button type="button" aria-label="Clear menu search" title="Clear menu search" onClick={() => setSearch("")}
+          className="absolute right-0 top-0 flex h-10 w-9 items-center justify-center text-white/70"><X aria-hidden className="h-4 w-4" /></button> : null}
+      </div> : null}
+      <nav className="mt-4 min-h-0 flex-1 content-start grid gap-3 overflow-y-auto pr-1" aria-label="Admin navigation">
+        {!groups.length ? <p role="status" className="px-3 text-sm text-white/60">No matching pages.</p> : null}
         {groups.map((group) => (
-          <AdminSidebarGroup key={group.groupKey} group={group} mode={mode} badges={badges} onNavigate={onNavigate} />
+          <AdminSidebarGroup key={group.groupKey} group={group} mode={mode} badges={badges} forceExpanded={Boolean(term)} onNavigate={onNavigate} />
         ))}
       </nav>
       <div

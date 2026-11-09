@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import React, { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { AdminReleasePublicationTargets } from "../src/admin/components/releases/form/AdminReleasePublicationTargets";
 import {
   createEmptyReleaseFormState, getReleasePublicVisibilityState, mapReleaseToFormState,
   publicationAudiences, toCreateReleaseDto, toUpdateReleaseDto, validateReleaseForm,
 } from "../src/admin/utils/adminReleaseFormUtils";
 import type { ArtistAdminRecord, SongReleaseAdminRecord } from "../src/models/admin";
+
+// The standalone tsx runner uses the classic JSX runtime rather than Vite's automatic runtime.
+Object.assign(globalThis, { React });
 
 const base = {
   ...toCreateReleaseDto(createEmptyReleaseFormState()),
@@ -36,6 +42,12 @@ for (const audience of publicationAudiences) {
       assert.equal(getReleasePublicVisibilityState({ ...state, status: "published" }, artist),
         audience === "public" ? "public" : "not_public");
       assert.equal(getReleasePublicVisibilityState(state, artist), "not_public");
+      const markup = renderToStaticMarkup(createElement(AdminReleasePublicationTargets, {
+        state, updateField: () => {},
+      }));
+      assert.ok(markup.includes("Audience &amp; Website Sections"));
+      assert.ok(markup.includes("Songs catalog"));
+      assert.equal((markup.match(/checked=""/g) ?? []).length, Number(homepage) + Number(newReleases));
     }
   }
 }
