@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { protectedMediaApiService } from "../../services/ProtectedMediaApiService";
+import { protectedMediaApiService, protectedStreamUrl } from "../../services/ProtectedMediaApiService";
 import { authShellChangedEvent } from "../../../services/auth/AuthenticationShellService";
 import { LoaderCircle, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { CoverArtImage } from "../../../components/media/CoverArtImage";
@@ -70,7 +70,7 @@ export function MemberProtectedAudioPlayer({ mediaId, releaseSlug, title, coverA
       if (!authorization.authorized || !authorization.streamEndpoint || !/^\/api\/member\/media\/stream\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(authorization.streamEndpoint)
         || !authorization.expiresAt || !Number.isFinite(Date.parse(authorization.expiresAt)) || Date.parse(authorization.expiresAt) <= Date.now()) throw new Error("No valid protected stream endpoint returned.");
       if (requestId !== operation.current) return;
-      setSource(authorization.streamEndpoint);
+      setSource(protectedStreamUrl(authorization.streamEndpoint));
       playbackSession.current = authorization.playbackSessionId;
       setStatus("ready");
       const schedule = (expiresAt: string) => {
@@ -117,7 +117,7 @@ export function MemberProtectedAudioPlayer({ mediaId, releaseSlug, title, coverA
           </button>
         </div>
       </div>
-      <audio ref={audioRef} preload="none" muted={muted} src={source || undefined}
+      <audio ref={audioRef} crossOrigin="use-credentials" preload="none" muted={muted} src={source || undefined}
         onLoadedMetadata={() => setDuration(Number.isFinite(audioRef.current?.duration) ? audioRef.current!.duration : 0)}
         onTimeUpdate={() => setPosition(audioRef.current?.currentTime ?? 0)}
         onEnded={() => { report("completed"); operation.current++; clearSource(); setStatus("completed"); }}

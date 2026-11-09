@@ -14,7 +14,7 @@ export interface PlaylistReleaseReference {
   coverArtThumbnailUrl?: string;
 }
 
-export function AddReleaseToPlaylistButton({ release, compact = false, className }: { release: PlaylistReleaseReference; compact?: boolean; className?: string }) {
+export function AddReleaseToPlaylistButton({ release, compact = false, className, placement = "below" }: { release: PlaylistReleaseReference; compact?: boolean; className?: string; placement?: "above" | "below" }) {
   const [open, setOpen] = useState(false);
   const [playlists, setPlaylists] = useState<PlaylistSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,9 @@ export function AddReleaseToPlaylistButton({ release, compact = false, className
         <ActionTooltip label={loading ? "Loading playlists" : "Add to playlist"} />
       </Button>
       {open ? (
-        <div className="absolute left-0 top-full z-30 mt-2 min-w-64 rounded-md border border-white/15 bg-night p-2 shadow-2xl">
+        <div className={placement === "above"
+          ? "fixed bottom-48 left-3 z-[120] max-h-[50dvh] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border border-white/15 bg-night p-2 shadow-2xl"
+          : "absolute left-0 top-full z-30 mt-2 min-w-64 rounded-md border border-white/15 bg-night p-2 shadow-2xl"}>
           {playlists.map((playlist) => (
             <button key={playlist.playlistId} type="button" onClick={() => void add(playlist)} className="block w-full rounded px-3 py-2 text-left text-sm text-white/76 hover:bg-white/10">
               {playlist.name}

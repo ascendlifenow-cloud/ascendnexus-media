@@ -9,6 +9,7 @@ import { buildMemberNavigation } from "../navigation/memberNavigation";
 import { useMemberPortal } from "../hooks/useMemberPortal";
 import { authenticationShellService } from "../../services/auth/AuthenticationShellService";
 import { PublicGlobalAudioPlayer } from "../../components/audio/PublicAudioPlayer";
+import { MemberSongSelectionProvider } from "../components/media/MemberSongSelection";
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
   `flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${isActive ? "bg-cyanGlow/18 text-white" : "text-white/68 hover:bg-white/8 hover:text-white"}`;
@@ -25,7 +26,7 @@ export function MemberLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-night text-white">
+    <MemberSongSelectionProvider><div className="min-h-screen bg-night pb-48 text-white">
       <a href="#member-main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-4 focus:py-2 focus:text-night">Skip to member content</a>
       <header className="sticky top-0 z-40 border-b border-white/10 bg-night/92 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 sm:px-6 lg:px-8">
@@ -65,6 +66,6 @@ export function MemberLayout() {
         </main>
       </div>
       <PublicGlobalAudioPlayer />
-    </div>
+    </div></MemberSongSelectionProvider>
   );
 }

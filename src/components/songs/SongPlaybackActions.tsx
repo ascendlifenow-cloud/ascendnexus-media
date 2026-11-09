@@ -25,9 +25,11 @@ interface SongPlaybackActionsProps {
   className?: string;
   onPreviewPlay?: () => void;
   onDetails?: () => void;
+  detailsTo?: string;
+  playlistPlacement?: "above" | "below";
 }
 
-export function SongPlaybackActions({ release, compact = false, className, onPreviewPlay, onDetails }: SongPlaybackActionsProps) {
+export function SongPlaybackActions({ release, compact = false, className, onPreviewPlay, onDetails, detailsTo, playlistPlacement }: SongPlaybackActionsProps) {
   const player = usePublicAudioPlayer();
   const previewAvailable = Boolean(release.audioPreviewUrl);
   const active = player.playbackMode === "preview" && player.isActive(release.releaseId);
@@ -60,9 +62,9 @@ export function SongPlaybackActions({ release, compact = false, className, onPre
         <ListMusic className="h-4 w-4" aria-hidden="true" />
         <ActionTooltip label="Add to streaming queue" />
       </Button>
-      <AddReleaseToPlaylistButton release={release} compact={compact} className={controlClass} />
+      <AddReleaseToPlaylistButton release={release} compact={compact} className={controlClass} placement={playlistPlacement} />
       {release.slug ? (
-        <LinkButton to={`/songs/${release.slug}`} variant="secondary" size="icon" className={controlClass} aria-label={`Open song details for ${release.title}`} onClick={onDetails}>
+        <LinkButton to={detailsTo ?? `/songs/${release.slug}`} variant="secondary" size="icon" className={controlClass} aria-label={`Open song details for ${release.title}`} onClick={onDetails}>
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
           <ActionTooltip label="Song details" />
         </LinkButton>

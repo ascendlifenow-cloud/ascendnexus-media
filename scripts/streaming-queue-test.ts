@@ -64,7 +64,7 @@ function harness() {
       if (name === "react") return react;
       if (name === "react/jsx-runtime") return { jsx: (_: any, props: any) => props.value };
       if (name.includes("PublicAudioPlayerContext")) return { PublicAudioPlayerContext: { Provider: {} } };
-      if (name.includes("ProtectedMediaApiService")) return { protectedMediaApiService: service };
+      if (name.includes("ProtectedMediaApiService")) return { protectedMediaApiService: service, protectedStreamUrl: (endpoint: string) => endpoint };
       if (name.includes("AuthenticationShellService")) return { authShellChangedEvent: "auth" };
       if (name.includes("SourceSelection")) return { publicAudioSourceSelectionService: { selectPreferredSource: (p: any) => p.url, canPlayMimeType: () => true } };
       if (name.includes("PreviewValidation")) return { publicAudioPreviewValidationService: { validatePreview: (p: any) => ({ valid: Boolean(p.url), blockingIssues: [] }) } };

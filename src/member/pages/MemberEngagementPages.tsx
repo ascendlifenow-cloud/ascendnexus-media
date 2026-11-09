@@ -1,7 +1,6 @@
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
-import { SongPlaybackActions } from "../../components/songs/SongPlaybackActions";
 import { Trash2 } from "lucide-react";
 import { memberEngagementApiService } from "../services/MemberEngagementApiService";
 import { useMemberPortal } from "../hooks/useMemberPortal";
@@ -67,15 +66,7 @@ export function MemberPlaylistsPage() {
             <Button variant="secondary" size="sm" onClick={() => void remove(playlist.playlistId)}><Trash2 className="h-4 w-4" aria-hidden /> Remove Playlist</Button>
           </div>
           {playlist.items.length ? (
-            <div className="divide-y divide-white/8">
-              {playlist.items.map((item) => (
-                <article key={item.contentId} className="grid gap-3 py-3 sm:grid-cols-[3.5rem_minmax(0,1fr)_minmax(13rem,0.8fr)] sm:items-center">
-                  <div className="aspect-square overflow-hidden rounded-md bg-white/8">{item.imageUrl ? <img src={item.imageUrl} alt="" loading="lazy" className="h-full w-full object-cover" /> : null}</div>
-                  <div className="min-w-0"><p className="truncate font-semibold text-white">{item.title}</p><p className="mt-1 text-xs text-white/46">{item.subtitle || item.accessLabel}</p></div>
-                  <SongPlaybackActions compact release={{ releaseId: item.contentId, title: item.title, slug: item.href.split("/").pop(), artistName: item.subtitle, coverArtUrl: item.imageUrl, audioPreviewUrl: item.audioPreviewUrl }} />
-                </article>
-              ))}
-            </div>
+            <CardGrid items={playlist.items} empty="This playlist is empty." />
           ) : <p className="rounded-md border border-dashed border-white/12 p-5 text-sm text-white/52">Use Add To Playlist on a recent release to begin this list.</p>}
         </Panel>
       )) : <Panel><p className="text-sm text-white/58">Create your first playlist, then add songs from the member dashboard.</p></Panel>}

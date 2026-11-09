@@ -110,7 +110,7 @@ export function PublicGlobalAudioPlayer() {
   if (typeof document === "undefined") return null;
   return createPortal(
     <aside
-      className="fixed bottom-3 right-3 z-[100] max-h-[calc(100dvh-1.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border border-white/12 bg-anm-bg/94 p-3 shadow-2xl backdrop-blur-xl"
+      className="fixed bottom-[var(--member-song-player-bottom,0.75rem)] right-3 z-[100] max-h-[calc(100dvh-var(--member-song-player-bottom,0.75rem)-0.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border border-white/12 bg-anm-bg/94 p-3 shadow-2xl backdrop-blur-xl md:bottom-3 md:max-h-[calc(100dvh-1.5rem)]"
       role="region"
       aria-label="Global audio player"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}

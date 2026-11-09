@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createServer } from "node:http";
 
 const root = await mkdtemp(join(tmpdir(), "anmx-song-permissions-"));
-Object.assign(process.env, { NODE_ENV: "test", APP_ENV: "test", MONGODB_URI: "", MEDIA_DATA_ROOT: root, MEDIA_STORAGE_PROVIDER: "local", MEDIA_STORAGE_LOCAL_ROOT: root, MEDIA_WORKERS_ENABLED: "false" });
+Object.assign(process.env, { NODE_ENV: "test", APP_ENV: "test", MONGODB_URI: "", MEDIA_DATA_ROOT: root, MEDIA_STORAGE_PROVIDER: "local", MEDIA_STORAGE_LOCAL_ROOT: root, MEDIA_WORKERS_ENABLED: "false", CORS_ALLOWED_ORIGINS: "http://localhost:5303" });
 const { jsonDatabase } = await import("../server/services/media/JsonDatabase");
 const { membershipCatalogService } = await import("../server/services/membership/MembershipCatalogService");
 const { membershipAssignmentService } = await import("../server/services/membership/MembershipAssignmentService");
@@ -78,11 +78,14 @@ try {
     }) as typeof structuredClone;
     try { return await run(); } finally { globalThis.structuredClone = clone; }
   };
-  const bytes = await withoutCatalogClone(() => request(endpoint, "free", { headers: { Range: "bytes=2-4" } }));
+  const bytes = await withoutCatalogClone(() => request(endpoint, "free", { headers: { Range: "bytes=2-4", Origin: "http://localhost:5303" } }));
   assert.equal(bytes.status, 206);
   assert.equal(await bytes.text(), "234");
   assert.equal(bytes.headers.get("content-range"), "bytes 2-4/10");
   assert.equal(bytes.headers.get("cache-control"), "private, no-store");
+  assert.equal(bytes.headers.get("access-control-allow-origin"), "http://localhost:5303");
+  assert.equal(bytes.headers.get("access-control-allow-credentials"), "true");
+  assert.ok(bytes.headers.get("access-control-expose-headers")?.includes("Content-Range"));
   const suffix = await request(endpoint, "free", { headers: { Range: "bytes=-2" } });
   assert.equal(await suffix.text(), "89");
   assert.equal((await request(endpoint, "free", { headers: { Range: "bytes=0-1,4-5" } })).status, 416);

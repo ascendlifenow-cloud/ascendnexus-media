@@ -6,6 +6,7 @@ import { SongCardActions } from "./SongCardActions";
 import { SongCardMeta } from "./SongCardMeta";
 import { SongCardTags } from "./SongCardTags";
 import { getSongCardArtistData, type SongCardProps } from "./songCardTypes";
+import { MemberSongTile, useMemberSongSelection } from "../../member/components/media/MemberSongSelection";
 
 const variantClasses = {
   carousel: "group flex h-full min-h-[27rem] flex-col overflow-hidden",
@@ -30,6 +31,7 @@ export function ReleaseSongCard({
   onPreviewPlay,
 }: SongCardProps) {
   const artistData = getSongCardArtistData(artist);
+  const selection = useMemberSongSelection();
 
   if (!release) {
     return (
@@ -41,6 +43,11 @@ export function ReleaseSongCard({
 
   const title = release.title?.trim() || "Untitled release";
   const artistName = artistData.artistName || "Ascend Nexus Media";
+  if (selection) return <MemberSongTile item={{
+    contentType: "release", contentId: release.releaseId, title, subtitle: artistName,
+    href: `/member/songs/${release.slug}`, imageUrl: release.coverArtUrl ?? release.coverArtThumbnailUrl,
+    audioPreviewUrl: release.audioPreviewUrl, accessState: "allowed", accessLabel: "Member",
+  }} />;
   const isCompact = variant === "compact";
   const isFeatured = variant === "featured";
   const isRelated = variant === "related";

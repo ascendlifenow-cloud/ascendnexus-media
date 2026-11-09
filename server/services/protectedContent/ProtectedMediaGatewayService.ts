@@ -13,6 +13,7 @@ import { backendStorageProviderRegistry } from "../../storage/StorageProviderReg
 import { evaluateSongAction, recordSongDelivery, songMediaMatches } from "../access/SongUsageService";
 import { protectedDeliveryTelemetryService, type DeliveryStage } from "./ProtectedDeliveryTelemetryService";
 import { readProtectedStorageErrorCode } from "./ProtectedStorageErrorDiagnostics";
+import { buildCorsHeaders } from "../../utils/security/securityHeaderUtils";
 
 type Action = "stream" | "download";
 type Data = Awaited<ReturnType<typeof jsonDatabase.read>>;
@@ -143,6 +144,8 @@ export class ProtectedMediaGatewayService {
   }
 
   private async deliver(request: IncomingMessage, response: ServerResponse, reference: string, action: Action) {
+    for (const [key, value] of Object.entries(buildCorsHeaders(request))) response.setHeader(key, value);
+    response.setHeader("Access-Control-Expose-Headers", "Accept-Ranges, Content-Range, Content-Length");
     let source: Readable | undefined;
     let sourceFailed = false;
     let stage: DeliveryStage = "authorization";

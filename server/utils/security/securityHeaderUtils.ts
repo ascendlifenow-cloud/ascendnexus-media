@@ -104,9 +104,9 @@ export const buildCorsHeaders = (request: IncomingMessage): Record<string, strin
     "Vary": "Origin",
     "Access-Control-Allow-Credentials": credentialed ? "true" : "false",
     "Access-Control-Allow-Headers": credentialed
-      ? "Content-Type, Authorization, X-Admin-Dev-Token, X-CSRF-Token, X-Auth-Scope, If-None-Match, If-Modified-Since, Idempotency-Key"
+      ? "Content-Type, Authorization, X-Admin-Dev-Token, X-CSRF-Token, X-Auth-Scope, If-None-Match, If-Modified-Since, Idempotency-Key, Range"
       : "Content-Type, If-None-Match, If-Modified-Since, Idempotency-Key",
-    "Access-Control-Allow-Methods": credentialed ? "GET,POST,PATCH,PUT,DELETE,OPTIONS" : "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": credentialed ? "GET,HEAD,POST,PATCH,PUT,DELETE,OPTIONS" : "GET,POST,OPTIONS",
   };
 };
 

@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { FormEvent, ReactNode } from "react";
 import type { MemberDashboardContentCard, MemberReadinessSummary } from "../services/memberPortalTypes";
-import { SongPlaybackActions } from "../../components/songs/SongPlaybackActions";
+import { MemberSongTile } from "../components/media/MemberSongSelection";
 
 export const PageHeader = ({ eyebrow, title, children }: { eyebrow: string; title: string; children?: ReactNode }) => (
   <section className="mb-6">
@@ -23,7 +23,7 @@ export const MemberAccessBadge = ({ label }: { label: string }) => (
 );
 
 export const ContentCard = ({ item }: { item: MemberDashboardContentCard }) => (
-  <article className="group grid min-h-48 overflow-hidden rounded-md border border-white/10 bg-black/20 transition hover:border-cyanGlow/40">
+  item.contentType === "release" ? <MemberSongTile item={item} /> : <article className="group grid min-h-48 overflow-hidden rounded-md border border-white/10 bg-black/20 transition hover:border-cyanGlow/40">
     <Link to={item.href}>{item.imageUrl ? <img src={item.imageUrl} alt="" className="h-32 w-full object-cover" loading="lazy" /> : <div className="h-32 bg-white/8" />}</Link>
     <div className="p-4">
       <div className="flex items-start justify-between gap-3">
@@ -32,13 +32,12 @@ export const ContentCard = ({ item }: { item: MemberDashboardContentCard }) => (
       </div>
       {item.subtitle ? <p className="mt-2 line-clamp-2 text-sm text-white/58">{item.subtitle}</p> : null}
       <p className="mt-3 text-xs text-white/42">{item.previewAvailable ? "Preview ready" : item.streamAvailable ? "Stream authorization on demand" : "Details available"}</p>
-      {item.contentType === "release" ? <SongPlaybackActions compact className="mt-4" release={{ releaseId: item.contentId, title: item.title, slug: item.href.split("/").pop(), artistName: item.subtitle, coverArtUrl: item.imageUrl, audioPreviewUrl: item.audioPreviewUrl }} /> : null}
     </div>
   </article>
 );
 
 export const CardGrid = ({ items, empty }: { items: MemberDashboardContentCard[]; empty: string }) => (
-  items.length ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{items.map((item) => <ContentCard key={`${item.contentType}-${item.contentId}`} item={item} />)}</div> : <p className="rounded-md border border-white/10 bg-black/20 p-4 text-sm text-white/58">{empty}</p>
+  items.length ? <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">{items.map((item) => <ContentCard key={`${item.contentType}-${item.contentId}`} item={item} />)}</div> : <p className="rounded-md border border-white/10 bg-black/20 p-4 text-sm text-white/58">{empty}</p>
 );
 
 export const ReadinessPanel = ({ summary }: { summary: MemberReadinessSummary }) => (

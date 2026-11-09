@@ -12,7 +12,7 @@ import type {
 } from "../state/audio/audioPlayerTypes";
 import { clampAudioTime } from "../utils/audio/audioTimeUtils";
 import { createAudioPlaybackError, mapMediaError } from "../utils/audio/audioErrorUtils";
-import { protectedMediaApiService } from "../member/services/ProtectedMediaApiService";
+import { protectedMediaApiService, protectedStreamUrl } from "../member/services/ProtectedMediaApiService";
 import { authShellChangedEvent } from "../services/auth/AuthenticationShellService";
 
 const initialState: PublicAudioPlayerState = {
@@ -201,9 +201,9 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
     if (!audio) return;
     if (stateRef.current.source !== source) {
       audio.pause();
+      audio.crossOrigin = "anonymous";
       audio.src = source;
       audio.preload = "metadata";
-      audio.crossOrigin = "anonymous";
       audio.load();
     }
     updateMediaSession(release);
@@ -273,11 +273,13 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       pollTimer.current = setTimeout(() => { void poll(); }, 15000);
       const audio = audioRef.current;
       if (!audio) { fail(); return; }
-      audio.src = endpoint;
+      audio.crossOrigin = "use-credentials";
+      const source = protectedStreamUrl(endpoint);
+      audio.src = source;
       audio.preload = "metadata";
       audio.load();
       updateMediaSession(release);
-      updateState({ status: "loading", activeRelease: release, activePreview: undefined, source: endpoint, duration: authorization.duration ?? 0, error: undefined, lastEvent: "full_song_authorized" });
+      updateState({ status: "loading", activeRelease: release, activePreview: undefined, source, duration: authorization.duration ?? 0, error: undefined, lastEvent: "full_song_authorized" });
       await play();
     } catch { fail(); }
   }, [loadPreview, play, refreshUsage, stop, updateMediaSession, updateState]);
