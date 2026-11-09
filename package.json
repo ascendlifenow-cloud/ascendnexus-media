@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:member-session-activity": "node --import tsx scripts/member-session-activity-test.ts",
     "test:admin-workflow-navigation": "node --import tsx scripts/admin-workflow-navigation-test.ts",
     "test:client-publication-freshness": "node --import tsx scripts/client-publication-freshness-test.ts",
     "test:media-promotion-safety": "node --import tsx scripts/media-promotion-referential-safety-test.ts",

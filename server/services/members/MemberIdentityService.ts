@@ -486,10 +486,13 @@ export class MemberIdentityService {
   }
 
   private async touchSession(sessionId: string) {
-    await jsonDatabase.update((data) => {
-      const session = data.memberSessions.find((item) => item.sessionId === sessionId);
-      if (session) session.lastActiveAt = new Date().toISOString();
+    // Patch only activity metadata so parallel requests cannot replace each other's session snapshots.
+    const session = await jsonDatabase.patchCollectionRecord("memberSessions", { sessionId, status: "active" }, {
+      lastActiveAt: new Date().toISOString(),
     });
+    if (!session || !this.isSessionUsable(session)) {
+      throw new AuthApiError("MEMBER_SESSION_INVALID", "Member session is invalid or expired.", 401);
+    }
   }
 
   private sanitizeSession(session: MemberSession, currentSessionId?: string): MemberSessionResponse {

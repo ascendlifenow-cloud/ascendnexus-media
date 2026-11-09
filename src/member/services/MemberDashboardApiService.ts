@@ -1,4 +1,5 @@
 import type { MemberDashboardResponse, MemberPreferences, MemberAccountResponse, MemberSessionResponse } from "./memberPortalTypes";
+import { MemberApiError } from "../../services/member/MemberApiError";
 
 const apiBase = () => String(import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
@@ -19,7 +20,7 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
     },
   });
   const payload = await response.json().catch(() => ({ success: false, errors: [`Request failed with ${response.status}`] })) as ApiResponse<T>;
-  if (!response.ok || !payload.success) throw new Error(payload.errors?.[0] ?? `Member portal request failed with ${response.status}`);
+  if (!response.ok || !payload.success) throw new MemberApiError(payload.errors?.[0] ?? `Member portal request failed with ${response.status}`, response.status);
   return payload.data;
 };
 

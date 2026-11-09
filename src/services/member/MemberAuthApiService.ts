@@ -1,4 +1,5 @@
 import type { MemberAccountResponse, MemberSessionResponse } from "../../../server/models/members/MemberModels";
+import { MemberApiError } from "./MemberApiError";
 
 const apiBase = () => {
   const value = import.meta.env.VITE_API_URL || "";
@@ -22,7 +23,7 @@ const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
     },
   });
   const payload = await response.json().catch(() => ({ success: false, errors: [`Request failed with ${response.status}`] })) as ApiResponse<T>;
-  if (!response.ok || !payload.success) throw new Error(payload.errors?.[0] ?? `Request failed with ${response.status}`);
+  if (!response.ok || !payload.success) throw new MemberApiError(payload.errors?.[0] ?? `Request failed with ${response.status}`, response.status);
   return payload.data;
 };
 
