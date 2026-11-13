@@ -6,15 +6,17 @@ import ts from "typescript";
 const item = { contentId: "song", contentType: "release", title: "Selected Song", href: "/member/songs/selected-song", imageUrl: "/cover.jpg", audioPreviewUrl: "/preview.mp3" };
 let selected: typeof item | null = item;
 let plays = 0;
+let previews = 0;
+let mode = "full";
 const player = { status: "idle", playQueued: (preview: any, release: any) => {
   assert.equal(preview.releaseId, "song"); assert.equal(release.slug, "selected-song"); plays++;
-} };
+}, playPreview: () => { previews++; } };
 const exports: Record<string, any> = {};
 const jsx = (type: any, props: any) => ({ type, props });
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL("../src/member/components/media/MemberSongSelection.tsx", import.meta.url), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
 }).outputText, { exports, document: { body: {} }, require(name: string) {
-  if (name === "react") return { createContext: () => ({ Provider: "SelectionProvider" }), useContext: () => ({ selected, select: (next: typeof item) => { selected = next; } }), useState: () => [selected, (next: typeof item | null) => { selected = next; }], useEffect: () => {} };
+  if (name === "react") return { createContext: () => ({ Provider: "SelectionProvider" }), useContext: () => ({ selected, select: (next: typeof item) => { selected = next; } }), useState: (initial: unknown) => initial === "full" ? [mode, (next: string) => { mode = next; }] : [selected, (next: typeof item | null) => { selected = next; }], useEffect: () => {} };
   if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
   if (name === "react-router-dom") return { useLocation: () => ({ pathname: "/member" }) };
   if (name === "react-dom") return { createPortal: (value: any) => value };
@@ -37,6 +39,13 @@ assert.match(menu.find(node => node.type === "aside").props.className, /fixed bo
 menu.find(node => node.props?.["aria-label"] === "Play full song").props.onClick();
 assert.equal(plays, 1);
 assert.equal(menu.filter(node => node.type === "SongPlaybackActions").length, 1);
+assert.equal(menu.find(node => node.type === "SongPlaybackActions").props.hidePreview, true);
+menu.find(node => node.type === "button" && node.props.children === "Preview · 30 sec").props.onClick();
+assert.equal(previews, 0, "Mode selection does not autoplay");
+menu = nodes(exports.MemberSongSelectionProvider({ children: null }));
+menu.find(node => node.props?.["aria-label"] === "Play preview").props.onClick();
+assert.equal(previews, 1);
+assert.equal(plays, 1, "Explicit preview never authorizes a full song");
 menu.find(node => node.props?.["aria-label"] === "Close song actions").props.onClick();
 menu = nodes(exports.MemberSongSelectionProvider({ children: null }));
 assert.equal(menu.some(node => node.type === "aside"), false);

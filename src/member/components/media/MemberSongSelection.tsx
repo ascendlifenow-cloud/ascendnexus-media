@@ -17,6 +17,7 @@ export const songActionRelease = (item: MemberDashboardContentCard) => ({
 
 export function MemberSongSelectionProvider({ children }: { children: ReactNode }) {
   const [selected, select] = useState<MemberDashboardContentCard | null>(null);
+  const [mode, setMode] = useState<"preview" | "full">("full");
   const location = useLocation();
   const player = usePublicAudioPlayer();
   useEffect(() => select(null), [location.pathname]);
@@ -29,13 +30,14 @@ export function MemberSongSelectionProvider({ children }: { children: ReactNode 
     document.documentElement.style.setProperty("--member-song-player-bottom", selected ? "12rem" : "0.75rem");
     return () => { document.documentElement.style.removeProperty("--member-song-player-bottom"); };
   }, [selected]);
-  const active = selected && player.activeRelease?.releaseId === selected.contentId;
+  const active = selected && player.activeRelease?.releaseId === selected.contentId && player.playbackMode === mode;
   const busy = active && ["loading", "buffering"].includes(player.status);
   const playing = active && player.status === "playing";
   const play = () => {
     if (!selected) return;
-    if (active && player.playbackMode === "full" && player.source) void player.toggle();
-    else void player.playQueued({ releaseId: selected.contentId, url: selected.audioPreviewUrl ?? "" }, songActionRelease(selected));
+    if (active && player.source && !["error", "unavailable"].includes(player.status)) void player.toggle();
+    else if (mode === "preview" && selected.audioPreviewUrl) void player.playPreview({ releaseId: selected.contentId, url: selected.audioPreviewUrl }, songActionRelease(selected));
+    else if (mode === "full") void player.playQueued({ releaseId: selected.contentId, url: selected.audioPreviewUrl ?? "" }, songActionRelease(selected));
   };
   return <SelectionContext.Provider value={{ selected, select }}>
     {children}
@@ -44,12 +46,19 @@ export function MemberSongSelectionProvider({ children }: { children: ReactNode 
         <div className="min-w-0 flex-1"><p className="truncate font-semibold">{selected.title}</p><p className="truncate text-xs text-white/60">{selected.subtitle}</p></div>
         <button type="button" title="Close song actions" aria-label="Close song actions" onClick={() => select(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-white/10"><X className="h-4 w-4" aria-hidden /></button>
       </div>
+      <div className="mb-3 grid grid-cols-2 gap-1 rounded-md border border-white/15 p-1" role="group" aria-label="Playback mode">
+        {(["preview", "full"] as const).map(value => <button key={value} type="button" aria-pressed={mode === value} onClick={() => setMode(value)}
+          disabled={value === "preview" && !selected.audioPreviewUrl}
+          className={`min-h-9 rounded px-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-40 ${mode === value ? "bg-cyan-300/20 text-white" : "text-white/60 hover:bg-white/5"}`}>
+          {value === "preview" ? "Preview · 30 sec" : "Full Song"}
+        </button>)}
+      </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" title={playing ? "Pause full song" : "Play full song"} aria-label={playing ? "Pause full song" : "Play full song"} disabled={Boolean(busy)} onClick={play}
+        <button type="button" title={`${playing ? "Pause" : "Play"} ${mode === "full" ? "full song" : "preview"}`} aria-label={`${playing ? "Pause" : "Play"} ${mode === "full" ? "full song" : "preview"}`} disabled={Boolean(busy) || (mode === "preview" && !selected.audioPreviewUrl)} onClick={play}
           className="flex h-11 w-11 items-center justify-center rounded-full border border-cyan-300/40 bg-cyan-300/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 disabled:opacity-60">
           {busy ? <LoaderCircle className="h-5 w-5 animate-spin motion-reduce:animate-none" aria-hidden /> : playing ? <Pause className="h-5 w-5" aria-hidden /> : <Play className="h-5 w-5" aria-hidden />}
         </button>
-        <SongPlaybackActions key={selected.contentId} compact release={songActionRelease(selected)} detailsTo={selected.href} playlistPlacement="above" />
+        <SongPlaybackActions key={selected.contentId} compact hidePreview release={songActionRelease(selected)} detailsTo={selected.href} playlistPlacement="above" />
       </div>
       {active && player.error ? <p role="alert" className="mt-2 text-xs text-rose-100">{player.error.message}</p> : null}
       {busy ? <p role="status" className="mt-2 text-xs text-white/70">Preparing playback...</p> : null}

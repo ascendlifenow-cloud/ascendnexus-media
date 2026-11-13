@@ -252,6 +252,18 @@ export class S3CompatibleStorageAdapter implements BackendStorageProviderAdapter
     });
   }
 
+  async readObject(storageObject: MediaStorageObject, options: { range?: string; signal?: AbortSignal }): Promise<Response> {
+    this.assertConfigured();
+    if (storageObject.provider !== this.getProviderName() || storageObject.bucket !== mediaBackendConfig.bucket) throw new Error("Storage resource configuration mismatch.");
+    if (options.range && !/^bytes=\d+-\d+$/.test(options.range)) throw new Error("Invalid storage range.");
+    const url = this.objectUrl(storageObject.storagePath);
+    if (url.protocol !== "https:") throw new Error("Secure storage endpoint required.");
+    const headers = this.signedHeaders("GET", url, storageObject.storagePath, {});
+    headers.set("Accept-Encoding", "identity");
+    if (options.range) headers.set("Range", options.range);
+    return fetch(url, { method: "GET", headers, signal: options.signal, redirect: "error" });
+  }
+
   getPublicUrl(storagePath: string): string | undefined {
     if (!isPublicStoragePath(storagePath, mediaBackendConfig.publicPrefix)) return undefined;
     const base = mediaBackendConfig.cdnEnabled && mediaBackendConfig.cdnBaseUrl

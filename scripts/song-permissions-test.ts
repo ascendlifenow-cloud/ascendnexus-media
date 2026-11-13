@@ -195,7 +195,7 @@ try {
   const originalFetch = globalThis.fetch;
   try {
     await jsonDatabase.update((data) => { data.mediaStorageObjects[0].provider = "r2"; });
-    backendStorageProviderRegistry.getActiveProvider = () => ({ getProviderName: () => "r2", getSignedUrl: async () => "https://fixture-storage.invalid/private-source?signature=synthetic" }) as never;
+    backendStorageProviderRegistry.getActiveProvider = () => ({ getProviderName: () => "r2", readObject: async (_storage: unknown, options: { range?: string; signal?: AbortSignal }) => fetch("https://fixture-storage.invalid/private-source", { redirect: "error", signal: options.signal, headers: options.range ? { Range: options.range } : {} }) }) as never;
     globalThis.fetch = async (input, options) => {
       if (String(input).startsWith("https://fixture-storage.invalid/")) {
         assert.equal(options?.redirect, "error");

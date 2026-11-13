@@ -33,6 +33,7 @@ export interface BackendStorageProviderAdapter {
   delete(storagePath: string): Promise<boolean>;
   fileExists(storagePath: string): Promise<{ exists: boolean; storagePath: string; provider: string; metadata?: Record<string, unknown> }>;
   getObjectMetadata?(storagePath: string): Promise<Record<string, unknown> | undefined>;
+  readObject?(storageObject: MediaStorageObject, options: { range?: string; signal?: AbortSignal }): Promise<Response>;
   getSignedUrl(storageObject: MediaStorageObject, expirationSeconds: number, purpose: string): Promise<string | undefined>;
   getPublicUrl(storagePath: string): string | undefined;
   getHealthStatus(): Promise<{

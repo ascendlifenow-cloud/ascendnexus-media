@@ -196,11 +196,10 @@ export class ProtectedMediaGatewayService {
           source = handle.createReadStream({ start: range.start, end: range.end, autoClose: false });
         } else {
           if (!["r2", "s3"].includes(validation.storage.provider)) throw denied("PROTECTED_MEDIA_NOT_READY", 404);
-          const signed = await provider.getSignedUrl(validation.storage, 60, action);
-          if (!signed || new URL(signed).protocol !== "https:") throw denied("PROTECTED_MEDIA_NOT_READY", 404);
-          const upstream = await fetch(signed, { redirect: "error", signal: abort.signal, headers: {
-            "Accept-Encoding": "identity", ...(range.status === 206 ? { Range: `bytes=${range.start}-${range.end}` } : {}),
-          } });
+          if (!provider.readObject) throw denied("PROTECTED_MEDIA_NOT_READY", 404);
+          const upstream = await provider.readObject(validation.storage, {
+            signal: abort.signal, range: range.status === 206 ? `bytes=${range.start}-${range.end}` : undefined,
+          });
           if (upstream.status !== range.status || !upstream.body || upstream.headers.get("content-length") !== String(length) ||
             (upstream.headers.get("content-encoding") && upstream.headers.get("content-encoding") !== "identity") ||
             (range.status === 206 ? upstream.headers.get("content-range") !== `bytes ${range.start}-${range.end}/${size}` : upstream.headers.has("content-range"))) {
@@ -209,7 +208,7 @@ export class ProtectedMediaGatewayService {
               lengthMatches: upstream.headers.get("content-length") === String(length), rangeMatches: upstream.headers.get("content-range") === `bytes ${range.start}-${range.end}/${size}`,
               upstreamErrorCode, nodeVersion: process.version, regionIsAuto: mediaBackendConfig.region === "auto",
               forcePathStyle: mediaBackendConfig.forcePathStyle, bucketMatchesConfigured: validation.storage.bucket === mediaBackendConfig.bucket,
-              r2ApiEndpoint: new URL(signed).hostname.endsWith(".r2.cloudflarestorage.com"),
+              r2ApiEndpoint: Boolean(mediaBackendConfig.endpoint && new URL(mediaBackendConfig.endpoint).hostname.endsWith(".r2.cloudflarestorage.com")),
               proxyEnvironmentPresent: ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].some(key => Boolean(process.env[key])),
             });
             // Cleanup must not hold the denial open; finally also aborts the origin request.

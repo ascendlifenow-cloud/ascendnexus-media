@@ -27,9 +27,10 @@ interface SongPlaybackActionsProps {
   onDetails?: () => void;
   detailsTo?: string;
   playlistPlacement?: "above" | "below";
+  hidePreview?: boolean;
 }
 
-export function SongPlaybackActions({ release, compact = false, className, onPreviewPlay, onDetails, detailsTo, playlistPlacement }: SongPlaybackActionsProps) {
+export function SongPlaybackActions({ release, compact = false, className, onPreviewPlay, onDetails, detailsTo, playlistPlacement, hidePreview = false }: SongPlaybackActionsProps) {
   const player = usePublicAudioPlayer();
   const previewAvailable = Boolean(release.audioPreviewUrl);
   const active = player.playbackMode === "preview" && player.isActive(release.releaseId);
@@ -71,10 +72,10 @@ export function SongPlaybackActions({ release, compact = false, className, onPre
       ) : (
         <Button type="button" variant="disabled" size="icon" className={controlClass} disabled aria-label="Song details unavailable"><ExternalLink className="h-4 w-4" aria-hidden="true" /><ActionTooltip label="Song details unavailable" /></Button>
       )}
-      <Button type="button" variant="primary" size="icon" className={controlClass} disabled={!preview} onClick={() => void togglePreview()} aria-label={previewAvailable ? `${playing ? "Pause" : "Play"} 30 second preview of ${release.title}` : `Preview unavailable for ${release.title}`}>
+      {!hidePreview ? <Button type="button" variant="primary" size="icon" className={controlClass} disabled={!preview} onClick={() => void togglePreview()} aria-label={previewAvailable ? `${playing ? "Pause" : "Play"} 30 second preview of ${release.title}` : `Preview unavailable for ${release.title}`}>
         {playing ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
         <ActionTooltip label={previewAvailable ? (playing ? "Pause preview" : "Preview 30 seconds") : "Preview unavailable"} />
-      </Button>
+      </Button> : null}
     </div>
   );
 }

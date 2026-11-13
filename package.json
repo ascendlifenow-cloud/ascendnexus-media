@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:protected-storage-read": "node --import tsx scripts/protected-storage-read-test.ts",
     "test:member-song-selection": "node --import tsx scripts/member-song-selection-test.ts",
     "test:protected-media-client-routing": "node --import tsx scripts/protected-media-client-routing-test.ts",
     "test:member-session-activity": "node --import tsx scripts/member-session-activity-test.ts",
