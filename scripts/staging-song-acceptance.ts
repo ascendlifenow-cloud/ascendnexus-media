@@ -174,6 +174,10 @@ try {
       const value = await authorize(tier);
       check(`${tier}_stream_authorized`, value.status === 200 && value.data?.authorized === true);
       authorized.set(tier, value.data.streamEndpoint);
+      const streamed = await request(value.data.streamEndpoint, tier, { headers: { Range: "bytes=0-43", Origin: "https://staging.ascendnexusmedia.com" } });
+      const streamedBytes = Buffer.from(await streamed.arrayBuffer());
+      check(`${tier}_stream_range_bytes`, streamed.status === 206 && streamedBytes.equals(audio.subarray(0, 44)) && streamed.headers.get("cache-control") === "private, no-store");
+      check(`${tier}_credentialed_media_cors`, streamed.headers.get("access-control-allow-origin") === "https://staging.ascendnexusmedia.com" && streamed.headers.get("access-control-allow-credentials") === "true");
     }
     check("stream_right_does_not_imply_download", (await post(downloadPath, "premium")).status === 403);
     const download = await post(downloadPath, "vip");
@@ -189,7 +193,10 @@ try {
     await db.collection("member_accounts").updateOne({ memberId: `${prefix}-premium`, "metadata.testRunId": runId }, { $inc: { "metadata.authorizationVersion": 1 } });
     check("downgrade_rejects_old_stream", (await request(authorized.get("premium")!, "premium")).status === 403);
     await db.collection("member_accounts").updateOne({ memberId: `${prefix}-vip`, "metadata.testRunId": runId }, { $set: { status: "Suspended" } });
-    check("suspension_rejects_old_stream", (await request(authorized.get("vip")!, "vip")).status === 403);
+    const suspended = await request(authorized.get("vip")!, "vip");
+    const suspendedBody = await suspended.json().catch(() => ({}));
+    observations.suspension = { status: suspended.status, code: suspendedBody.code };
+    check("suspension_rejects_old_stream", suspended.status === 401 && suspendedBody.code === "PROTECTED_CONTENT_AUTHENTICATION_REQUIRED");
     await db.collection("member_membership_assignments").updateOne({ memberId: `${prefix}-supporter`, "metadata.testRunId": runId }, { $set: { endsAt: new Date(Date.now() - 1000).toISOString() } });
     check("expired_membership_rejects_old_full_token", (await request(authorized.get("supporter")!, "supporter")).status === 403);
     await post("/api/auth/logout", "free");
