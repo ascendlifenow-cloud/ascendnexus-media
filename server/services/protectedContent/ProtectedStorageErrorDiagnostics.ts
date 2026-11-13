@@ -29,7 +29,13 @@ export async function readProtectedStorageErrorCode(response: Response, signal: 
         length += part.byteLength;
         // S3 errors are XML; inspect only the bounded Code field, not Message/Resource/RequestId.
         const code = /<Code>\s*([A-Za-z]{1,64})\s*<\/Code>/.exec(new TextDecoder().decode(bytes.subarray(0, length)))?.[1];
-        if (code) return safeCodes.has(code) ? code : "unavailable";
+        if (code) {
+          if (!safeCodes.has(code)) return "unavailable";
+          const xml = new TextDecoder().decode(bytes.subarray(0, length));
+          // Fixed categories only; provider messages can echo credentials and must never be returned.
+          if (code === "InvalidArgument" && /(?:access.?key|credential)[^<]{0,160}(?:length|characters|size)/i.test(xml)) return "InvalidArgumentCredentialLength";
+          return code;
+        }
       }
       return "unavailable";
     };

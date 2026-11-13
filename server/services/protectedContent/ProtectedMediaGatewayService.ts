@@ -208,6 +208,8 @@ export class ProtectedMediaGatewayService {
               lengthMatches: upstream.headers.get("content-length") === String(length), rangeMatches: upstream.headers.get("content-range") === `bytes ${range.start}-${range.end}/${size}`,
               upstreamErrorCode, nodeVersion: process.version, regionIsAuto: mediaBackendConfig.region === "auto",
               forcePathStyle: mediaBackendConfig.forcePathStyle, bucketMatchesConfigured: validation.storage.bucket === mediaBackendConfig.bucket,
+              accessKeyIdLength: mediaBackendConfig.accessKeyId?.length ?? 0,
+              secretAccessKeyLength: mediaBackendConfig.secretAccessKey?.length ?? 0,
               r2ApiEndpoint: Boolean(mediaBackendConfig.endpoint && new URL(mediaBackendConfig.endpoint).hostname.endsWith(".r2.cloudflarestorage.com")),
               proxyEnvironmentPresent: ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"].some(key => Boolean(process.env[key])),
             });

@@ -3,6 +3,7 @@ import { readProtectedStorageErrorCode } from "../server/services/protectedConte
 
 const signal = new AbortController().signal;
 const response = (body: string) => new Response(body, { status: 400 });
+assert.equal(await readProtectedStorageErrorCode(response("<Error><Code>InvalidArgument</Code><Message>Credential access key has length 40, should be 32: SECRET_VALUE</Message></Error>"), signal), "InvalidArgumentCredentialLength");
 for (const code of ["InvalidArgument", "SignatureDoesNotMatch", "AuthorizationQueryParametersError", "RequestTimeTooSkewed"]) {
   assert.equal(await readProtectedStorageErrorCode(response(`<Error><Code>${code}</Code><Message>SECRET_URL</Message></Error>`), signal), code);
 }
