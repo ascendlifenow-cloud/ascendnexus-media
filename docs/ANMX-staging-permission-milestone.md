@@ -6,11 +6,15 @@ Date: 2026-10-28 (America/Denver).
 
 The older deployed playback blocker below is historical, not the current status. Following owner-approved replacement of the staging API's invalid R2 credential pair on November 13, isolated run `3a7c24b2-838d-487b-be4e-399788b35414` passed all 41 checks on runtime revision `3de5bd8`. Coverage included actual private range bytes for Free/Premium/Supporter/VIP, Free limits, separate single-use downloads, downgrade, suspension, expiration and logout rejection. Test fixtures were cleaned up. The owner subsequently confirmed full playback and preview playback working. This does not certify production or all browser workflows.
 
-The next bounded increment corrects the protected download client's website/API host mismatch, validates gateway-only download endpoints and prevents concurrent authorization clicks. Client routing regression coverage rejects external URLs, traversal, query strings, fragments and stream endpoints supplied as downloads. These changes are local until separately deployed and checked on staging.
+Commit `ddb880a` corrected the protected download client's website/API host mismatch, validated gateway-only download endpoints and prevented concurrent authorization clicks. Cloudflare build and Render deployment succeeded; seven anonymous read-only staging checks passed. The component was not yet mounted in the song experience, so this was not browser download acceptance.
+
+The follow-on increment connects the control below the song-detail artwork only when the current server usage summary permits downloading. `POST /api/member/releases/:releaseIdOrSlug/download-authorize` resolves the action-specific asset server-side, rechecks publication and download policy and uses the existing member/session-bound single-use gateway. Client asset IDs, tier values and expiration requests cannot control this selection. The response is private/no-store and noindex. No tier benefits or release download settings are changed by this code increment.
+
+The button authorizes only on click, validates the returned gateway address and expiry, cancels pending results on logout/cross-tab account change/unmount, and prevents concurrent requests. Local button lifecycle, seven-action API routing, synthetic HTTP song-permission tests, streaming regressions, typecheck and build passed. Mocked lifecycle checks are not signed-in browser acceptance. The isolated staging harness now tests the release-based download endpoint rather than the legacy media-ID endpoint; deployed evidence must be recorded separately.
 
 Payments remain paused pending application acceptance. Creative production remains private: The Spare Key Choir still requires real final audio and owner approval of the exact release bundle. No publication or billing activation is authorized by this milestone.
 
-Next acceptance: deploy the download increment to staging, check the member download interaction, then verify the listening-to-playlist workflow and account-change cleanup in a signed-in browser. Preserve separate stream/download authorization and existing working playback.
+Next acceptance: deploy the connected download increment, run isolated staging download and playback checks, check the member download interaction, then verify the listening-to-playlist workflow and account-change cleanup in a signed-in browser. Preserve separate stream/download authorization and existing working playback.
 
 ## Gateway Memory Increment, 2026-10-30
 

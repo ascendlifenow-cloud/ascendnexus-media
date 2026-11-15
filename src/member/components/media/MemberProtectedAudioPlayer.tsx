@@ -3,6 +3,7 @@ import { protectedMediaApiService, protectedStreamUrl } from "../../services/Pro
 import { authShellChangedEvent } from "../../../services/auth/AuthenticationShellService";
 import { LoaderCircle, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { CoverArtImage } from "../../../components/media/CoverArtImage";
+import { ProtectedDownloadButton } from "./ProtectedDownloadButton";
 
 export function MemberProtectedAudioPlayer({ mediaId, releaseSlug, title, coverArtUrl, artistName }: { mediaId?: string; releaseSlug?: string; title: string; coverArtUrl?: string; artistName?: string }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -126,6 +127,7 @@ export function MemberProtectedAudioPlayer({ mediaId, releaseSlug, title, coverA
         onPlaying={() => { setPlaying(true); setStarted(true); report("playing"); const current = operation.current; if (releaseSlug) void protectedMediaApiService.songUsage(releaseSlug).then((next) => { if (operation.current === current) setUsage(next); }).catch(() => undefined); }} />
       {source ? <label className="mt-3 flex items-center gap-3 text-xs text-white/70"><span>Seek</span><input aria-label="Song playback position" className="min-w-0 flex-1 accent-cyan-300" type="range" min={0} max={duration || 0} step={0.1} value={Math.min(position, duration)} disabled={!duration} onChange={(event) => { if (audioRef.current) audioRef.current.currentTime = Number(event.target.value); setPosition(Number(event.target.value)); }} /></label> : null}
       <p className="mt-3 text-xs text-white/70" role="status">{usage ? usage.mode === "unlimited" ? "Unlimited full-song streaming" : usage.remainingFullPlays === 0 ? "Included play used" : usage.remainingFullPlays === 1 ? "1 included full play available" : "Full streaming unavailable" : status === "unavailable" ? "Sign in to check full-song access" : status.replace(/_/g, " ")}</p>
+      {usage?.canDownload && releaseSlug ? <div className="mt-3"><ProtectedDownloadButton key={releaseSlug} releaseSlug={releaseSlug} /></div> : null}
       {error ? <p className="mt-3 text-sm text-rose-100">{error}</p> : null}
     </div>
   );

@@ -67,4 +67,10 @@ export const protectedMediaApiService = {
       body: "{}",
     }));
   },
+  async authorizeReleaseDownload(releaseSlugOrId: string, signal?: AbortSignal) {
+    return parse<ProtectedStreamAuthorization>(await fetch(apiUrl(`/api/member/releases/${encodeURIComponent(releaseSlugOrId)}/download-authorize`), {
+      method: "POST", headers: { "Content-Type": "application/json", "X-Auth-Scope": "member" },
+      credentials: "include", cache: "no-store", signal: signal ?? AbortSignal.timeout(15000), body: "{}",
+    }));
+  },
 };

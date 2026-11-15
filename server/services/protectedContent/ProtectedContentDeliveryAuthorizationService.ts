@@ -102,6 +102,20 @@ export class ProtectedContentDeliveryAuthorizationService {
     return this.authorize(subject, { mediaId: input.mediaId, sessionId: input.sessionId, action: "download", entitlementKey: "audio.download" });
   }
 
+  async authorizeReleaseDownload(subject: AccessSubject, input: { releaseSlugOrId: string; sessionId: string }) {
+    if (!subject.member) return { authorized: false, safeAccessState: "authentication_required", errorCode: "PROTECTED_CONTENT_AUTHENTICATION_REQUIRED" };
+    const data = await jsonDatabase.read();
+    const release = data.releaseRecords.find((item) => item.slug === input.releaseSlugOrId || item.releaseId === input.releaseSlugOrId);
+    if (!release || release.status !== "published" || release.publicationState !== "published"
+      || !evaluateSongAction(data, subject.member.memberId, release.releaseId, "download").allowed) {
+      return { authorized: false, safeAccessState: "unavailable", errorCode: "PROTECTED_CONTENT_UNAVAILABLE" };
+    }
+    const requirement = data.contentEntitlementRequirements.find((item) => item.contentType === "release" && item.contentId === release.releaseId && item.status === "active");
+    const mediaId = requirement?.downloadAssetId ?? (typeof release.metadata?.fullSongAssetId === "string" ? release.metadata.fullSongAssetId : "");
+    if (!mediaId || !songMediaMatches(data, release.releaseId, mediaId, "download")) return { authorized: false, safeAccessState: "unavailable", errorCode: "PROTECTED_CONTENT_UNAVAILABLE" };
+    return this.authorizeDownload(subject, { mediaId, sessionId: input.sessionId });
+  }
+
   private async authorize(subject: AccessSubject, input: { mediaId: string; sessionId: string; action: "stream" | "download"; entitlementKey: string; authorizationEntitlementKey?: string; metadata?: Record<string, unknown> }) {
     await ensureSongUsagePersistence();
     await this.ensureDefaultProfiles();

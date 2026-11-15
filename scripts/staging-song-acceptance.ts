@@ -116,7 +116,7 @@ try {
     }
     const post = (path: string, tier?: string, body: unknown = {}) => request(path, tier, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const streamPath = `/api/member/releases/${releaseId}/stream-authorize`;
-    const downloadPath = `/api/member/media/${assetId}/download-authorize`;
+    const downloadPath = `/api/member/releases/${releaseId}/download-authorize`;
     const usage = async (tier: string) => (await (await request(`/api/member/releases/${releaseId}/usage`, tier)).json()).data;
     const authorize = async (tier: string) => { const response = await post(streamPath, tier); return { status: response.status, data: (await response.json()).data }; };
     phase = "privacy_and_authentication";

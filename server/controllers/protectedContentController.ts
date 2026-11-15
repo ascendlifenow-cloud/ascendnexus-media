@@ -46,6 +46,15 @@ export class ProtectedContentController {
     sendJson(response, result.authorized ? 200 : 403, { success: Boolean(result.authorized), data: result, errors: result.authorized ? undefined : ["Protected content is unavailable."] });
   }
 
+  async authorizeReleaseDownload(request: IncomingMessage, response: ServerResponse, releaseSlugOrId: string) {
+    const session = await memberIdentityService.authenticateRequest(request);
+    const result = await protectedContentDeliveryAuthorizationService.authorizeReleaseDownload(
+      { type: "member", member: session.member }, { releaseSlugOrId, sessionId: session.sessionId },
+    );
+    sendJson(response, result.authorized ? 200 : 403, { success: Boolean(result.authorized), data: result, errors: result.authorized ? undefined : ["Protected content is unavailable."] },
+      { "Cache-Control": "private, no-store", "X-Robots-Tag": "noindex, nofollow" });
+  }
+
   async stream(request: IncomingMessage, response: ServerResponse, reference: string) {
     await protectedMediaGatewayService.stream(request, response, reference);
   }

@@ -17,6 +17,7 @@ for (const base of ["", "https://api.example.test", "https://api.example.test/"]
   await api.authorizeReleaseStream("test song");
   await api.authorizeStream("test-media");
   await api.authorizeDownload("test-media");
+  await api.authorizeReleaseDownload("test song");
   await api.songUsage("test song");
   await api.playbackState("test-session", "playing");
   await api.refreshStream("/api/member/media/stream/id.token");
@@ -33,4 +34,4 @@ for (const base of ["", "https://api.example.test", "https://api.example.test/"]
     assert.throws(() => exports.protectedStreamUrl(endpoint), /Invalid playback source/);
   }
 }
-console.log("Protected media client routing passed: all six API actions share the configured identity host, credentials included, gateway-only URL resolution, external and traversal sources rejected.");
+console.log("Protected media client routing passed: all seven API actions share the configured identity host, credentials included, gateway-only URL resolution, external and traversal sources rejected.");
