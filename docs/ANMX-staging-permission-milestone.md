@@ -2,6 +2,16 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Current Milestone Update, 2026-11-15
+
+The older deployed playback blocker below is historical, not the current status. Following owner-approved replacement of the staging API's invalid R2 credential pair on November 13, isolated run `3a7c24b2-838d-487b-be4e-399788b35414` passed all 41 checks on runtime revision `3de5bd8`. Coverage included actual private range bytes for Free/Premium/Supporter/VIP, Free limits, separate single-use downloads, downgrade, suspension, expiration and logout rejection. Test fixtures were cleaned up. The owner subsequently confirmed full playback and preview playback working. This does not certify production or all browser workflows.
+
+The next bounded increment corrects the protected download client's website/API host mismatch, validates gateway-only download endpoints and prevents concurrent authorization clicks. Client routing regression coverage rejects external URLs, traversal, query strings, fragments and stream endpoints supplied as downloads. These changes are local until separately deployed and checked on staging.
+
+Payments remain paused pending application acceptance. Creative production remains private: The Spare Key Choir still requires real final audio and owner approval of the exact release bundle. No publication or billing activation is authorized by this milestone.
+
+Next acceptance: deploy the download increment to staging, check the member download interaction, then verify the listening-to-playlist workflow and account-change cleanup in a signed-in browser. Preserve separate stream/download authorization and existing working playback.
+
 ## Gateway Memory Increment, 2026-10-30
 
 Staging readiness still identifies `281618e`. The protected range acceptance blocker is not considered resolved by a generic ready response.

@@ -25,6 +25,10 @@ for (const base of ["", "https://api.example.test", "https://api.example.test/"]
     assert.equal(call.options.credentials, "include");
   }
   assert.equal(exports.protectedStreamUrl("/api/member/media/stream/id.token"), `${base.replace(/\/+$/, "")}/api/member/media/stream/id.token`);
+  assert.equal(exports.protectedDownloadUrl("/api/member/media/download/id.token"), `${base.replace(/\/+$/, "")}/api/member/media/download/id.token`);
+  for (const endpoint of ["https://evil.test/file", "//evil.test/file", "/api/member/media/download/../x", "/api/member/media/download/id.token?leak=1", "/api/member/media/stream/id.token", "/api/member/media/download/id.token#fragment", "/api/member/media/download/id%2ftoken"]) {
+    assert.throws(() => exports.protectedDownloadUrl(endpoint), /Invalid download source/);
+  }
   for (const endpoint of ["https://evil.test/file", "//evil.test/file", "/api/member/media/stream/../x", "/api/member/media/stream/id.token?leak=1"]) {
     assert.throws(() => exports.protectedStreamUrl(endpoint), /Invalid playback source/);
   }

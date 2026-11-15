@@ -19,6 +19,10 @@ export const protectedStreamUrl = (endpoint: string) => {
   if (!/^\/api\/member\/media\/stream\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(endpoint)) throw new Error("Invalid playback source.");
   return apiUrl(endpoint);
 };
+export const protectedDownloadUrl = (endpoint: string) => {
+  if (!/^\/api\/member\/media\/download\/[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(endpoint)) throw new Error("Invalid download source.");
+  return apiUrl(endpoint);
+};
 
 const parse = async <T>(response: Response): Promise<T> => {
   const payload = await response.json().catch(() => ({}));
