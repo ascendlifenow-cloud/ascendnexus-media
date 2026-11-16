@@ -1,4 +1,5 @@
 import { ExternalLink, ListMusic, Play, Pause } from "lucide-react";
+import { useContext } from "react";
 import { usePublicAudioPlayer } from "../../hooks/public";
 import type { PublicSongRelease } from "../../models/release";
 import { AddReleaseToPlaylistButton } from "../../member/components/engagement/AddReleaseToPlaylistButton";
@@ -6,6 +7,7 @@ import { Button } from "../ui/Button";
 import { LinkButton } from "../ui/LinkButton";
 import { cx } from "../../utils/format";
 import { ActionTooltip } from "../ui/ActionTooltip";
+import { MemberPortalContext } from "../../member/contexts/MemberPortalContext";
 
 export interface SongPlaybackActionRelease {
   releaseId: string;
@@ -32,6 +34,7 @@ interface SongPlaybackActionsProps {
 
 export function SongPlaybackActions({ release, compact = false, className, onPreviewPlay, onDetails, detailsTo, playlistPlacement, hidePreview = false }: SongPlaybackActionsProps) {
   const player = usePublicAudioPlayer();
+  const memberArea = useContext(MemberPortalContext);
   const previewAvailable = Boolean(release.audioPreviewUrl);
   const active = player.playbackMode === "preview" && player.isActive(release.releaseId);
   const playing = active && (player.status === "playing" || player.status === "buffering");
@@ -63,7 +66,7 @@ export function SongPlaybackActions({ release, compact = false, className, onPre
         <ListMusic className="h-4 w-4" aria-hidden="true" />
         <ActionTooltip label="Add to streaming queue" />
       </Button>
-      <AddReleaseToPlaylistButton release={release} compact={compact} className={controlClass} placement={playlistPlacement} />
+      {memberArea ? <AddReleaseToPlaylistButton release={release} compact={compact} className={controlClass} placement={playlistPlacement} /> : null}
       {release.slug ? (
         <LinkButton to={detailsTo ?? `/songs/${release.slug}`} variant="secondary" size="icon" className={controlClass} aria-label={`Open song details for ${release.title}`} onClick={onDetails}>
           <ExternalLink className="h-4 w-4" aria-hidden="true" />

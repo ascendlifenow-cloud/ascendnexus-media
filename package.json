@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:song-action-area": "node --import tsx scripts/song-action-area-test.ts",
     "test:member-playlist-lifecycle": "node --import tsx scripts/member-playlist-lifecycle-test.ts",
     "test:playlist-idempotency": "node --import tsx scripts/playlist-idempotency-test.ts",
     "test:protected-download-button": "node --import tsx scripts/protected-download-button-test.ts",

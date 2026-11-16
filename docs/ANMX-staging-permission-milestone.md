@@ -2,6 +2,12 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Owner Acceptance and Public Actions, 2026-11-16
+
+Owner confirmed that adding a song produces one playlist entry and signing out clears private content. This is manual acceptance of those two flows, not full mobile, accessibility or production certification. The follow-on public-action correction renders Add to Playlist only under the authenticated member-area context. Guest public pages, signed-in browsing outside that area and admin song previews retain preview/queue/detail actions but do not mount the playlist picker. Existing backend playlist ownership and session checks remain authoritative. Regression test: `test:song-action-area`.
+
+Next bounded milestone remains signed-in mobile player/picker usability, followed by catalog/media-assignment and publication-placement regression checks. Payments remain paused and creative publication remains unapproved.
+
 ## Playlist and Account Cleanup Increment, 2026-11-16
 
 The playlist picker now reloads current member-owned lists each time it opens, serializes pending adds, refreshes the member dashboard after a successful save and supports Escape dismissal with an expanded-state announcement. Pending requests and cached playlist names are cleared on same-tab and cross-tab authentication changes, selected-release changes and unmount. Late responses cannot repopulate a cleared picker or trigger another account's dashboard refresh. Engagement responses request no-store caching; playlist requests are bounded and abortable. A failed dashboard refresh does not falsely report that an already-saved song was not added.
