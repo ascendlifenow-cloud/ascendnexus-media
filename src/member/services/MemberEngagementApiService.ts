@@ -19,6 +19,7 @@ export interface EngagementResourceRef {
 const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   const response = await fetch(`${apiBase()}${path}`, {
     credentials: "include",
+    cache: "no-store",
     ...init,
     headers: { "Content-Type": "application/json", "X-Auth-Scope": "member", ...(init.headers ?? {}) },
   });
@@ -34,10 +35,10 @@ export const memberEngagementApiService = {
   following: () => request<Array<Record<string, unknown>>>("/api/member/following"),
   follow: (resource: EngagementResourceRef) => request<Record<string, unknown>>("/api/member/following", { method: "POST", body: JSON.stringify(resource) }),
   unfollow: (followId: string) => request<void>(`/api/member/following/${encodeURIComponent(followId)}`, { method: "DELETE" }),
-  playlists: () => request<Array<Record<string, unknown>>>("/api/member/playlists"),
+  playlists: (signal?: AbortSignal) => request<Array<Record<string, unknown>>>("/api/member/playlists", { signal: signal ?? AbortSignal.timeout(15000) }),
   createPlaylist: (input: { name: string; description?: string }) => request<Record<string, unknown>>("/api/member/playlists", { method: "POST", body: JSON.stringify(input) }),
   deletePlaylist: (playlistId: string) => request<void>(`/api/member/playlists/${encodeURIComponent(playlistId)}`, { method: "DELETE" }),
-  addPlaylistItem: (playlistId: string, resource: EngagementResourceRef) => request<Array<Record<string, unknown>>>(`/api/member/playlists/${encodeURIComponent(playlistId)}/items`, { method: "POST", body: JSON.stringify(resource) }),
+  addPlaylistItem: (playlistId: string, resource: EngagementResourceRef, signal?: AbortSignal) => request<Array<Record<string, unknown>>>(`/api/member/playlists/${encodeURIComponent(playlistId)}/items`, { method: "POST", body: JSON.stringify(resource), signal: signal ?? AbortSignal.timeout(15000) }),
   history: () => request<{ listening: Array<Record<string, unknown>>; viewing: Array<Record<string, unknown>> }>("/api/member/history"),
   recordPlayback: (resource: EngagementResourceRef & { eventType?: string; lastPositionSeconds?: number; durationSeconds?: number }) => request<Array<Record<string, unknown>>>("/api/member/history", { method: "POST", body: JSON.stringify(resource) }),
   recent: () => request<{ continueListening: Array<Record<string, unknown>>; recentlyPlayed: Array<Record<string, unknown>>; recentlyViewed: Array<Record<string, unknown>> }>("/api/member/recent"),

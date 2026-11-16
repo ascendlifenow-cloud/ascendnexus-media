@@ -165,6 +165,7 @@ export class PlaylistService {
     await jsonDatabase.update((data) => {
       const playlist = data.memberPlaylists.find((item) => item.playlistId === playlistId && item.memberId === member.memberId && item.status === "active");
       if (!playlist) throw new AuthApiError("MEMBER_PLAYLIST_NOT_FOUND", "Playlist was not found.", 404);
+      if (data.memberPlaylistItems.some((item) => item.memberId === member.memberId && item.playlistId === playlistId && item.resource.resourceType === safe.resourceType && item.resource.resourceId === safe.resourceId)) return;
       const position = data.memberPlaylistItems.filter((item) => item.playlistId === playlistId && item.memberId === member.memberId).length + 1;
       data.memberPlaylistItems.push({ playlistItemId: id("playlist-item"), playlistId, memberId: member.memberId, resource: safe, position, addedAt: timestamp, schemaVersion: 1 });
       playlist.updatedAt = timestamp;

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { memberAuthApiService } from "../../services/member/MemberAuthApiService";
 import { PublicPageLoader } from "../../components/loading";
@@ -8,6 +8,7 @@ import type { MemberDashboardResponse, MemberPortalSession } from "../services/m
 import { MemberPortalContext } from "../contexts/MemberPortalContext";
 import { MemberApiError } from "../../services/member/MemberApiError";
 import { Button } from "../../components/ui/Button";
+import { authShellChangedEvent } from "../../services/auth/AuthenticationShellService";
 
 const isSafeReturnPath = (path: string) => path.startsWith("/member") && !path.startsWith("//") && !path.includes("://");
 
@@ -18,29 +19,49 @@ export function MemberRouteGuard({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [blocked, setBlocked] = useState<"auth" | "suspended" | "disabled" | "unavailable" | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const generation = useRef(0);
+  const refreshSequence = useRef(0);
 
   const refreshDashboard = useCallback(async () => {
-    setDashboard(await memberDashboardApiService.dashboard());
+    const current = generation.current;
+    const sequence = ++refreshSequence.current;
+    try {
+      const next = await memberDashboardApiService.dashboard();
+      if (current === generation.current && sequence === refreshSequence.current) setDashboard(next);
+    } catch (error) {
+      if (current === generation.current && sequence === refreshSequence.current && error instanceof MemberApiError && [401, 403].includes(error.status)) {
+        setSession(null); setDashboard(null); setBlocked(error.status === 401 ? "auth" : "unavailable");
+      }
+      throw error;
+    }
   }, []);
 
   useEffect(() => {
     let active = true;
+    const current = ++generation.current;
     setLoading(true);
     setBlocked(null);
     setSession(null);
     setDashboard(null);
     Promise.all([memberAuthApiService.session(), memberDashboardApiService.dashboard()])
       .then(([nextSession, nextDashboard]) => {
-        if (!active) return;
+        if (!active || current !== generation.current) return;
         setSession(nextSession as MemberPortalSession);
         setDashboard(nextDashboard);
         if (nextSession.member.status === "Suspended") setBlocked("suspended");
         if (nextSession.member.status === "Disabled" || nextSession.member.status === "Deleted") setBlocked("disabled");
       })
-      .catch((error: unknown) => active && setBlocked(error instanceof MemberApiError && error.status === 401 ? "auth" : "unavailable"))
-      .finally(() => active && setLoading(false));
+      .catch((error: unknown) => active && current === generation.current && setBlocked(error instanceof MemberApiError && error.status === 401 ? "auth" : "unavailable"))
+      .finally(() => active && current === generation.current && setLoading(false));
+    const changed = () => { generation.current++; setSession(null); setDashboard(null); setLoading(true); setAttempt(value => value + 1); };
+    const storage = (event: StorageEvent) => { if (event.key === authShellChangedEvent || event.key === null) changed(); };
+    window.addEventListener(authShellChangedEvent, changed);
+    window.addEventListener("storage", storage);
     return () => {
       active = false;
+      generation.current++;
+      window.removeEventListener(authShellChangedEvent, changed);
+      window.removeEventListener("storage", storage);
     };
   }, [attempt]);
 

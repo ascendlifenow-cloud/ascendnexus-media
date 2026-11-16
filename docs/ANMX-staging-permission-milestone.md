@@ -2,6 +2,16 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Playlist and Account Cleanup Increment, 2026-11-16
+
+The playlist picker now reloads current member-owned lists each time it opens, serializes pending adds, refreshes the member dashboard after a successful save and supports Escape dismissal with an expanded-state announcement. Pending requests and cached playlist names are cleared on same-tab and cross-tab authentication changes, selected-release changes and unmount. Late responses cannot repopulate a cleared picker or trigger another account's dashboard refresh. Engagement responses request no-store caching; playlist requests are bounded and abortable. A failed dashboard refresh does not falsely report that an already-saved song was not added.
+
+Member route hydration now responds to authentication changes by immediately removing private dashboard/session state and revalidating. Dashboard refreshes are generation-bound and ordered; a late response from an earlier account or request cannot replace current content. Authorization failures during refresh discard private state. This is not a new authentication or entitlement engine, and it does not certify all remote revocation or account-version propagation paths.
+
+Server-side playlist adds ignore a repeated resource type/ID within the same member-owned playlist. Existing duplicates are not deleted, reordered or migrated. Synthetic local persistence tests cover concurrent/repeated adds and cross-member rejection; multi-instance Mongo concurrency remains a separate acceptance boundary.
+
+Local evidence: `test:member-playlist-lifecycle`, `test:playlist-idempotency`, `test:streaming-queue`, `test:member-song-selection`, typecheck and production build. Hook lifecycle tests are mocked, not signed-in browser E2E. Staging deployment and signed-in visual verification must be recorded separately. No existing accounts, playlists, songs, billing settings or publication states were changed during local testing.
+
 ## Current Milestone Update, 2026-11-15
 
 The older deployed playback blocker below is historical, not the current status. Following owner-approved replacement of the staging API's invalid R2 credential pair on November 13, isolated run `3a7c24b2-838d-487b-be4e-399788b35414` passed all 41 checks on runtime revision `3de5bd8`. Coverage included actual private range bytes for Free/Premium/Supporter/VIP, Free limits, separate single-use downloads, downgrade, suspension, expiration and logout rejection. Test fixtures were cleaned up. The owner subsequently confirmed full playback and preview playback working. This does not certify production or all browser workflows.

@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:member-playlist-lifecycle": "node --import tsx scripts/member-playlist-lifecycle-test.ts",
+    "test:playlist-idempotency": "node --import tsx scripts/playlist-idempotency-test.ts",
     "test:protected-download-button": "node --import tsx scripts/protected-download-button-test.ts",
     "test:protected-storage-read": "node --import tsx scripts/protected-storage-read-test.ts",
     "test:member-song-selection": "node --import tsx scripts/member-song-selection-test.ts",
