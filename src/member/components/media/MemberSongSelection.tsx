@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { LoaderCircle, Pause, Play, X } from "lucide-react";
@@ -18,6 +18,7 @@ export const songActionRelease = (item: MemberDashboardContentCard) => ({
 export function MemberSongSelectionProvider({ children }: { children: ReactNode }) {
   const [selected, select] = useState<MemberDashboardContentCard | null>(null);
   const [mode, setMode] = useState<"preview" | "full">("full");
+  const panel = useRef<HTMLElement | null>(null);
   const location = useLocation();
   const player = usePublicAudioPlayer();
   useEffect(() => select(null), [location.pathname]);
@@ -27,8 +28,17 @@ export function MemberSongSelectionProvider({ children }: { children: ReactNode 
     return () => window.removeEventListener(authShellChangedEvent, clear);
   }, []);
   useEffect(() => {
-    document.documentElement.style.setProperty("--member-song-player-bottom", selected ? "12rem" : "0.75rem");
-    return () => { document.documentElement.style.removeProperty("--member-song-player-bottom"); };
+    const update = () => {
+      const height = panel.current?.getBoundingClientRect().height;
+      document.documentElement.style.setProperty("--member-song-player-bottom", selected
+        ? `calc(${Math.ceil(height ?? 168)}px + 1.5rem + env(safe-area-inset-bottom, 0px))`
+        : "max(0.75rem, env(safe-area-inset-bottom, 0px))");
+    };
+    update();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : undefined;
+    if (panel.current) observer?.observe(panel.current);
+    window.addEventListener("resize", update);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", update); document.documentElement.style.removeProperty("--member-song-player-bottom"); };
   }, [selected]);
   const active = selected && player.activeRelease?.releaseId === selected.contentId && player.playbackMode === mode;
   const busy = active && ["loading", "buffering"].includes(player.status);
@@ -41,7 +51,7 @@ export function MemberSongSelectionProvider({ children }: { children: ReactNode 
   };
   return <SelectionContext.Provider value={{ selected, select }}>
     {children}
-    {selected && createPortal(<aside aria-label="Selected song actions" className="fixed bottom-3 left-3 z-[110] w-[min(24rem,calc(100vw-1.5rem))] rounded-md border border-cyan-300/30 bg-[#10131d] p-3 text-white shadow-2xl">
+    {selected && createPortal(<aside ref={panel} aria-label="Selected song actions" style={{ bottom: "max(0.75rem, env(safe-area-inset-bottom, 0px))" }} className="fixed bottom-3 left-3 z-[110] max-h-[55dvh] w-[min(24rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border border-cyan-300/30 bg-[#10131d] p-3 text-white shadow-2xl">
       <div className="mb-2 flex items-start gap-3">
         <div className="min-w-0 flex-1"><p className="truncate font-semibold">{selected.title}</p><p className="truncate text-xs text-white/60">{selected.subtitle}</p></div>
         <button type="button" title="Close song actions" aria-label="Close song actions" onClick={() => select(null)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full hover:bg-white/10"><X className="h-4 w-4" aria-hidden /></button>

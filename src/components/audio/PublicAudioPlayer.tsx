@@ -115,7 +115,7 @@ export function PublicGlobalAudioPlayer() {
       aria-label="Global audio player"
       style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
     >
-      <div className="relative isolate aspect-square w-full overflow-hidden rounded-md bg-black/30">
+      <div className="relative isolate mx-auto aspect-square w-full max-w-48 overflow-hidden rounded-md bg-black/30 sm:max-w-none">
         <CoverArtImage src={activeRelease.coverArtUrl} title={activeRelease.title} artistName={activeRelease.artistName} size="card" priority alt={`${activeRelease.title} cover art`} className="h-full w-full" />
         {usage ? <>
           {usage.remainingFullPlays !== null && Number.isFinite(usage.remainingFullPlays) ? <span title="Included full plays remaining" aria-label={`${usage.remainingFullPlays} included full plays remaining`} className="absolute left-3 top-3 max-w-[calc(50%-1rem)] break-words rounded-full border border-white/30 bg-black/85 px-3 py-2 text-xs font-semibold text-white" role="status">{usage.remainingFullPlays} left</span> : null}

@@ -13,10 +13,18 @@ const player = { status: "idle", playQueued: (preview: any, release: any) => {
 }, playPreview: () => { previews++; } };
 const exports: Record<string, any> = {};
 const jsx = (type: any, props: any) => ({ type, props });
+const effects: Array<() => any> = [];
+const styles = new Map<string, string>();
+let height = 248;
+let resized: () => void = () => {};
+let disconnected = false;
 vm.runInNewContext(ts.transpileModule(readFileSync(new URL("../src/member/components/media/MemberSongSelection.tsx", import.meta.url), "utf8"), {
   compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
-}).outputText, { exports, document: { body: {} }, require(name: string) {
-  if (name === "react") return { createContext: () => ({ Provider: "SelectionProvider" }), useContext: () => ({ selected, select: (next: typeof item) => { selected = next; } }), useState: (initial: unknown) => initial === "full" ? [mode, (next: string) => { mode = next; }] : [selected, (next: typeof item | null) => { selected = next; }], useEffect: () => {} };
+}).outputText, { exports, document: { body: {}, documentElement: { style: { setProperty: (key: string, value: string) => styles.set(key, value), removeProperty: (key: string) => styles.delete(key) } } },
+  window: { addEventListener() {}, removeEventListener() {} },
+  ResizeObserver: class { constructor(callback: () => void) { resized = callback; } observe() {} disconnect() { disconnected = true; } },
+  require(name: string) {
+  if (name === "react") return { createContext: () => ({ Provider: "SelectionProvider" }), useContext: () => ({ selected, select: (next: typeof item) => { selected = next; } }), useState: (initial: unknown) => initial === "full" ? [mode, (next: string) => { mode = next; }] : [selected, (next: typeof item | null) => { selected = next; }], useRef: () => ({ current: { getBoundingClientRect: () => ({ height }) } }), useEffect: (effect: () => any) => { effects.push(effect); } };
   if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
   if (name === "react-router-dom") return { useLocation: () => ({ pathname: "/member" }) };
   if (name === "react-dom") return { createPortal: (value: any) => value };
@@ -34,6 +42,13 @@ assert.equal(tile[0].props["aria-pressed"], true);
 assert.ok(tile.some(node => node.type === "CoverArtImage"));
 assert.ok(tile.some(node => node.type === "span" && node.props.children === item.title));
 let menu = nodes(exports.MemberSongSelectionProvider({ children: null }));
+const cleanupLayout = effects[2]();
+assert.match(styles.get("--member-song-player-bottom")!, /248px/);
+height = 319.2; resized();
+assert.match(styles.get("--member-song-player-bottom")!, /320px/);
+assert.match(styles.get("--member-song-player-bottom")!, /safe-area-inset-bottom/);
+assert.match(menu.find(node => node.type === "aside").props.className, /max-h-\[55dvh\].*overflow-y-auto/);
+cleanupLayout(); assert.equal(disconnected, true); assert.equal(styles.size, 0);
 assert.equal(plays, 0, "Selecting a song must not authorize or preload playback");
 assert.match(menu.find(node => node.type === "aside").props.className, /fixed bottom-3 left-3/);
 menu.find(node => node.props?.["aria-label"] === "Play full song").props.onClick();

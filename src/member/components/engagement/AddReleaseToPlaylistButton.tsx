@@ -96,10 +96,10 @@ export function AddReleaseToPlaylistButton({ release, compact = false, className
       </Button>
       {open ? (
         <div id={panelId} role="group" aria-label="Choose a playlist" aria-busy={loading} className={placement === "above"
-          ? "fixed bottom-48 left-3 z-[120] max-h-[50dvh] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border border-white/15 bg-night p-2 shadow-2xl"
+          ? "fixed bottom-[var(--member-song-player-bottom,12rem)] left-3 z-[120] max-h-[calc(100dvh-var(--member-song-player-bottom,12rem)-0.75rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-y-auto rounded-md border border-white/15 bg-night p-2 shadow-2xl"
           : "absolute left-0 top-full z-30 mt-2 min-w-64 rounded-md border border-white/15 bg-night p-2 shadow-2xl"}>
           {playlists.map((playlist) => (
-            <button key={playlist.playlistId} type="button" disabled={loading} onClick={() => void add(playlist)} className="block w-full rounded px-3 py-2 text-left text-sm text-white/76 hover:bg-white/10 disabled:opacity-50">
+            <button key={playlist.playlistId} type="button" disabled={loading} onClick={() => void add(playlist)} className="block min-h-11 w-full break-words rounded px-3 py-2 text-left text-sm text-white/76 hover:bg-white/10 disabled:opacity-50">
               {playlist.name}
             </button>
           ))}

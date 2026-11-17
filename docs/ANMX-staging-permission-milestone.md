@@ -2,6 +2,12 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Responsive Player Spacing Increment, 2026-11-16
+
+The selected-song menu measures its rendered height with ResizeObserver and a window-resize fallback. The floating player and above-menu playlist picker consume the same bottom offset, including device safe-area spacing, rather than assuming a fixed 12rem/48-unit menu. Menu and picker content have viewport-bounded scrolling. The floating player's artwork remains square but is limited to 12rem on narrow screens; tablet/desktop sizing is unchanged. Playlist choices have minimum 44px touch height and wrap long names.
+
+The selected-song regression invokes the real layout effect with mocked element measurements, verifies the offset changes from a 248px panel to a rounded 320px panel and confirms observer/style cleanup. Existing playlist lifecycle and streaming safeguards remain in place. This is a structural layout test, not a signed-in device screenshot or decoder test. Browser viewport checks and staging deployment evidence are reported separately. No playback grants, quotas, billing, catalog or publication changes are included.
+
 ## Member Mix Playback Increment, 2026-11-16
 
 Premade member mixes and personal playlist sections now offer three icon controls: Play Mix (replaces the temporary queue), Add Mix to Queue and Remove Mix from Queue. Only distinct release cards currently marked streamable enter bulk additions. Appending does not request a session or authorize media. Playing loads the ordered queue and invokes the existing protected player for the first song only; subsequent songs use the existing on-demand next-song authorization. Denied access is not silently replaced by a preview or skipped through an authorization loop. Removing a mix removes its queue entries, not personal playlist records, and does not stop an already-playing source.
