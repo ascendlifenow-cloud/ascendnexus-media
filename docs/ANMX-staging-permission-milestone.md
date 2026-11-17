@@ -2,6 +2,14 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Member Mix Playback Increment, 2026-11-16
+
+Premade member mixes and personal playlist sections now offer three icon controls: Play Mix (replaces the temporary queue), Add Mix to Queue and Remove Mix from Queue. Only distinct release cards currently marked streamable enter bulk additions. Appending does not request a session or authorize media. Playing loads the ordered queue and invokes the existing protected player for the first song only; subsequent songs use the existing on-demand next-song authorization. Denied access is not silently replaced by a preview or skipped through an authorization loop. Removing a mix removes its queue entries, not personal playlist records, and does not stop an already-playing source.
+
+Personal playlists and Continue Listening now project saved references through the current authorized catalog cards. This replaces stale saved metadata and the previous hardcoded nonstreamable flag; unavailable references are omitted rather than returned with an allowed label. Visible playlist counts match projected items. Saved records remain intact, so temporarily unavailable songs may reappear when authorization returns.
+
+Local tests: `test:member-mix-actions`, `test:member-song-catalog`, `test:streaming-queue`, typecheck and production build. Tests cover no authorization on render/append, ordering/deduplication, first-song-only start, duplicate-click protection, scoped queue removal, empty/exhausted mixes and exclusion of stale inaccessible saved references. These are local synthetic/mocked checks, not signed-in mobile or browser-decoder verification. Staging deployment/read-only smoke verification is separate; no existing member playlists, song permissions, billing or publication records are modified by deployment.
+
 ## Premade Mixes and Placement Shelf, 2026-11-16
 
 Public and member song catalogs are organized into three premade groups: Nexus Mix 01, 02 and 03. Existing eligible releases receive a deterministic release-ID-based assignment, not a claim of editorial or mood analysis. Each song appears in one group. Admins can override the group through `metadata.publicationPlaylist` (`nexus-01`, `nexus-02`, `nexus-03`, or `auto`). The automatic sentinel explicitly clears a prior choice through the existing metadata merge. Unknown values fail publication validation. Only the safe resolved `playlistKey` enters public/member projections; internal metadata is not copied.

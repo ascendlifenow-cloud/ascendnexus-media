@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import { memberEngagementApiService } from "../services/MemberEngagementApiService";
 import { useMemberPortal } from "../hooks/useMemberPortal";
 import { CardGrid, Field, inputClass, PageHeader, Panel } from "./memberPageParts";
+import { MemberMixActions } from "../components/media/MemberMixActions";
 
 const resourceTitle = (record: Record<string, unknown>) => {
   const resource = record.resource as Record<string, unknown> | undefined;
@@ -61,6 +62,7 @@ export function MemberPlaylistsPage() {
       <Panel title="Create playlist"><form className="flex flex-col gap-3 sm:flex-row" onSubmit={submit}><input className={inputClass} value={name} onChange={(event) => setName(event.target.value)} /><Button type="submit">Create</Button></form></Panel>
       {dashboard.userPlaylists.length ? dashboard.userPlaylists.map((playlist) => (
         <Panel key={playlist.playlistId} title={playlist.name}>
+          <MemberMixActions name={playlist.name} items={playlist.items} />
           <div className="mb-4 flex items-center justify-between gap-4">
             <p className="text-sm text-white/52">{playlist.itemCount} song{playlist.itemCount === 1 ? "" : "s"}</p>
             <Button variant="secondary" size="sm" onClick={() => void remove(playlist.playlistId)}><Trash2 className="h-4 w-4" aria-hidden /> Remove Playlist</Button>

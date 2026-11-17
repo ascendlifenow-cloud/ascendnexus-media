@@ -20,6 +20,11 @@ try {
   await membershipCatalogService.ensureDefaultCatalog();
   await jsonDatabase.update(data => {
     data.memberAccounts.push({ memberId: "vip", status: "Active", emailVerified: true, metadata: { authorizationVersion: 1 } } as never);
+    data.memberPlaylists.push({ playlistId: "mine", memberId: "vip", name: "My Mix", status: "active", updatedAt: "2026-01-01" } as never);
+    data.memberPlaylistItems.push(
+      { playlistItemId: "visible", playlistId: "mine", memberId: "vip", position: 1, resource: { resourceType: "release", resourceId: "release-0", title: "Stale title" } } as never,
+      { playlistItemId: "hidden", playlistId: "mine", memberId: "vip", position: 2, resource: { resourceType: "release", resourceId: "hidden-release", title: "Hidden stale title" } } as never,
+    );
     for (let i = 0; i < 39; i++) data.releaseRecords.push({ releaseId: `release-${i}`, songId: `song-${i}`, slug: `song-${i}`, title: `Song ${i}`, artistId: "artist", genre: "Rock", status: "published", publicationState: "published", publicVisibility: false, releaseDate: "2026-01-01", featured: false, metadata: { fullSongAssetId: "private-audio", privateObjectKey: "secret" } } as never);
     data.contentAccessPolicies.push({ policyId: "policy", status: "published", defaultEffect: "deny", rules: [{ ruleId: "allow", enabled: true, priority: 1, effect: "allow", requiredEntitlements: [] }] } as never);
     for (const release of data.releaseRecords) data.contentEntitlementRequirements.push({ requirementId: release.releaseId, contentType: "release", contentId: release.releaseId, status: "active", policyId: "policy", accessClassification: "vip", requiredEntitlementKeys: ["content.vip.view"], streamAssetId: "private-audio" } as never);
@@ -76,6 +81,10 @@ try {
   const dashboardPayload = await dashboard.getDashboard(member);
   assert.equal(dashboardPayload.premadePlaylists?.length, 3);
   assert.equal(dashboardPayload.premadePlaylists?.flatMap(mix => mix.items).length, 39);
+  assert.equal(dashboardPayload.userPlaylists[0].itemCount, 1);
+  assert.equal(dashboardPayload.userPlaylists[0].items[0].title, "Song 0");
+  assert.equal(dashboardPayload.userPlaylists[0].items[0].streamAvailable, true);
+  assert.ok(!JSON.stringify(dashboardPayload.userPlaylists).includes("Hidden stale title"));
   assert.ok(!/private-audio|privateObjectKey|secret|streamEndpoint/.test(JSON.stringify(dashboardPayload.premadePlaylists)));
   assert.equal((await memberRecommendationService.getRecommendations(member)).length, 6);
   assert.ok((await dashboard.getExclusiveContent(member)).every(card => card.streamAvailable && !card.downloadAvailable));

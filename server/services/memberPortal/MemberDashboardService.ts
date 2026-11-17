@@ -39,22 +39,10 @@ const releaseCard = (release: PublicSongRelease): MemberDashboardContentCard => 
   downloadAvailable: false,
 });
 
-const resourceCard = (resource: MemberEngagementResourceRef, releases: PublicSongRelease[]): MemberDashboardContentCard | undefined => {
+const resourceCard = (resource: MemberEngagementResourceRef, releases: PublicSongRelease[], cards: MemberDashboardContentCard[]): MemberDashboardContentCard | undefined => {
   const release = releases.find((item) => item.releaseId === resource.resourceId || item.songId === resource.resourceId || item.slug === resource.slug);
-  if (release) return releaseCard(release);
-  if (resource.resourceType !== "release" && resource.resourceType !== "song") return undefined;
-  return {
-    contentType: "release",
-    contentId: resource.resourceId,
-    title: resource.title || "Saved song",
-    href: resource.slug ? `/songs/${resource.slug}` : "/member/songs",
-    imageUrl: safeImage(resource.imageUrl),
-    accessState: "allowed",
-    accessLabel: "Member",
-    previewAvailable: false,
-    streamAvailable: false,
-    downloadAvailable: false,
-  };
+  if (!release || !["song", "release"].includes(resource.resourceType)) return undefined;
+  return cards.find(card => card.contentId === release.releaseId);
 };
 
 export class MemberDashboardService {
@@ -195,14 +183,16 @@ export class MemberDashboardService {
       memberSongCatalogService.getCatalog(member.memberId),
     ]);
     const allReleases = memberCatalog.releases;
-    const continueListeningItems = continueListening.map((item) => resourceCard(item.resource, allReleases)).filter((item): item is MemberDashboardContentCard => Boolean(item));
-    const userPlaylists = playlists.map((playlist) => ({
+    const continueListeningItems = continueListening.map((item) => resourceCard(item.resource, allReleases, memberCatalog.items)).filter((item): item is MemberDashboardContentCard => Boolean(item));
+    const userPlaylists = playlists.map((playlist) => {
+      const items = playlist.items.map(item => resourceCard(item.resource, allReleases, memberCatalog.items)).filter((item): item is MemberDashboardContentCard => Boolean(item));
+      return {
       playlistId: playlist.playlistId,
       name: playlist.name,
       description: playlist.description,
-      itemCount: playlist.items.length,
-      items: playlist.items.map((item) => resourceCard(item.resource, allReleases)).filter((item): item is MemberDashboardContentCard => Boolean(item)),
-    }));
+      itemCount: items.length,
+      items,
+    }; });
     const curatedPlaylist = (continueListeningItems.length ? recommendations : recommendations.length ? recommendations : recentReleases).slice(0, 8);
     const hasFullStream = entitlements.allowed.includes("audio.stream.full");
     const hasDownloads = entitlements.allowed.some((key) => key.endsWith(".download") || key === "audio.download");

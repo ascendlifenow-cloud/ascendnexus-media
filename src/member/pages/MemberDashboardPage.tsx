@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { MemberDashboardContentCard } from "../services/memberPortalTypes";
 import { useMemberPortal } from "../hooks/useMemberPortal";
 import { CardGrid, PageHeader, Panel } from "./memberPageParts";
+import { MemberMixActions } from "../components/media/MemberMixActions";
 
 function StreamingSongList({ title, items, empty, accent }: { title: string; items: MemberDashboardContentCard[]; empty: string; accent: "cyan" | "pink" }) {
   return (
@@ -40,6 +41,7 @@ export function MemberDashboardPage() {
       </section>
       {dashboard.premadePlaylists?.map(playlist => <details key={playlist.key} open className="border-t border-white/15 pt-4">
         <summary className="cursor-pointer py-3 text-xl font-semibold text-white">{playlist.name} <span className="text-sm font-normal text-white/60">{playlist.items.length} songs</span></summary>
+        <MemberMixActions name={playlist.name} items={playlist.items} />
         <div className="max-h-[36rem] overflow-y-auto py-4"><CardGrid items={playlist.items} empty="No songs available in this mix for your account." /></div>
       </details>)}
       <Panel title="Recently Released">
