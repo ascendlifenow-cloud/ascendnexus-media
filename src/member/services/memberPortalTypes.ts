@@ -3,6 +3,7 @@ import type { MemberAccountResponse, MemberSessionResponse, MemberPreferences } 
 export type MemberPortalFeatureStatus = "available" | "coming_soon" | "unavailable";
 
 export interface MemberDashboardContentCard {
+  playlistKey?: string;
   contentType: "release" | "gallery" | "artist" | "announcement";
   contentId: string;
   title: string;
@@ -36,6 +37,7 @@ export interface MemberReadinessSummary {
 }
 
 export interface MemberDashboardResponse {
+  premadePlaylists?: Array<{ key: string; name: string; items: MemberDashboardContentCard[] }>;
   member: Pick<MemberAccountResponse, "memberId" | "displayName" | "avatar" | "status" | "emailVerified" | "createdAt" | "updatedAt" | "authorizationVersion">;
   membership?: {
     tierKey: string;

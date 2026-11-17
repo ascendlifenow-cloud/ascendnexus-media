@@ -7,6 +7,7 @@ import type { ArtistPublicProfile } from "../../../src/models/artist";
 import { AuthApiError } from "../../utils/auth/authErrorUtils";
 import { parseReleasePublicationTargets } from "../../utils/publication/releasePublicationTargets";
 import { publicSafeUrl } from "../../mappers/public/publicUrlMapper";
+import { songMixKey } from "../../../src/models/songMixes";
 
 const safePublicMedia = (value?: string) => value && !/(private\/|signedUrl|signature=|token=|storagePath|privateObjectKey|full[-_]?song)/i.test(value) ? value : undefined;
 
@@ -20,6 +21,7 @@ export class MemberSongCatalogService {
       const decoration = publicReleases.get(release.releaseId);
       return {
         releaseId: release.releaseId, songId: release.songId, artistId: release.artistId,
+        playlistKey: songMixKey(release.releaseId, release.metadata?.publicationPlaylist),
         title: release.title, slug: release.slug, releaseDate: release.releaseDate,
         description: release.description, lyrics: release.lyrics,
         genre: release.genre ?? "", styleTags: release.styleTags ?? [], status: "published", externalLinks: decoration?.externalLinks ?? {},
@@ -68,6 +70,7 @@ export class MemberSongCatalogService {
       // Deliberately project metadata only: catalog discovery must not expose media locations.
       return [{
         contentType: "release", contentId: release.releaseId, title: release.title,
+        playlistKey: songMixKey(release.releaseId, release.metadata?.publicationPlaylist),
         subtitle: release.genre, href: `/songs/${encodeURIComponent(release.slug)}`,
         releaseDate: release.releaseDate, accessState: "allowed", accessLabel: "Member",
         previewAvailable: false, streamAvailable: stream.allowed, downloadAvailable: download.allowed,

@@ -38,6 +38,10 @@ export function MemberDashboardPage() {
         <StreamingSongList title={listeningTitle} items={listeningItems} empty="Play a song and your listening queue will begin here." accent="cyan" />
         <StreamingSongList title="Recommended Playlist" items={dashboard.curatedPlaylist} empty="Recommendations will appear as releases become available." accent="pink" />
       </section>
+      {dashboard.premadePlaylists?.map(playlist => <details key={playlist.key} open className="border-t border-white/15 pt-4">
+        <summary className="cursor-pointer py-3 text-xl font-semibold text-white">{playlist.name} <span className="text-sm font-normal text-white/60">{playlist.items.length} songs</span></summary>
+        <div className="max-h-[36rem] overflow-y-auto py-4"><CardGrid items={playlist.items} empty="No songs available in this mix for your account." /></div>
+      </details>)}
       <Panel title="Recently Released">
         <RecentReleaseGrid items={dashboard.recentReleases} />
       </Panel>

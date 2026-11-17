@@ -1,6 +1,7 @@
 import type { ArtistPublicProfile } from "../../../src/models/artist";
 import type { PublicSongRelease } from "../../../src/models/release";
 import { isPublishedState, publicSafeUrl } from "./publicUrlMapper";
+import { songMixKey } from "../../../src/models/songMixes";
 
 export const mapReleaseRecordToPublicSongRelease = (release: PublicSongRelease, artist?: ArtistPublicProfile): (PublicSongRelease & { artist?: ArtistPublicProfile }) | null => {
   if (release.status !== "published" || !isPublishedState(release)) return null;
@@ -10,6 +11,7 @@ export const mapReleaseRecordToPublicSongRelease = (release: PublicSongRelease, 
   const audioPreviewUrl = publicSafeUrl(release.audioPreviewUrl);
   return {
     releaseId: release.releaseId,
+    playlistKey: songMixKey(release.releaseId, release.playlistKey),
     songId: release.songId,
     artistId: release.artistId,
     artist,

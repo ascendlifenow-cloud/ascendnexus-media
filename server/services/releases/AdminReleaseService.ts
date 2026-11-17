@@ -1,4 +1,5 @@
 import type { SongReleaseRecord } from "../../models/releases/SongReleaseModel";
+import { songMixKey } from "../../../src/models/songMixes";
 import { artistRepository } from "../../repositories/ArtistRepository";
 import { releaseRepository } from "../../repositories/ReleaseRepository";
 import { MediaApiError } from "../../utils/media/mediaErrorUtils";
@@ -305,6 +306,7 @@ export class AdminReleaseService {
   sanitizeReleaseForPublic(record: SongReleaseRecord) {
     return {
       releaseId: record.releaseId,
+      playlistKey: songMixKey(record.releaseId, record.metadata?.publicationPlaylist),
       songId: record.songId,
       artistId: record.artistId,
       title: record.title,

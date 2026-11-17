@@ -2,6 +2,7 @@ import type { ReleaseExternalLinks, ReleaseStatus, FeaturedReleasePlacement } fr
 import type { ArtistAdminRecord, CreateReleaseDto, SongReleaseAdminRecord, UpdateReleaseDto } from "../../models/admin";
 import type { SeoMetadata } from "../../models/seo";
 import type { SocialShareMetadata, TwitterCardType } from "../../models/social";
+import { validSongMix, type SongMixKey } from "../../models/songMixes";
 
 export type ReleasePublicVisibilityState = "public" | "not_public" | "needs_required_fields" | "artist_not_public";
 export const publicationAudiences = ["public", "free", "premium", "supporter", "vip"] as const;
@@ -9,6 +10,7 @@ export type PublicationAudience = typeof publicationAudiences[number];
 
 export interface AdminReleaseFormState {
   publicationAudience: PublicationAudience | "";
+  publicationPlaylist: SongMixKey | "";
   publicationHomepage: boolean;
   publicationNewReleases: boolean;
   originalMetadata?: SongReleaseAdminRecord["metadata"];
@@ -148,6 +150,8 @@ const buildReleaseMetadata = (state: AdminReleaseFormState): Record<string, stri
   metadata.publicationAudience = state.publicationAudience;
   metadata.publicationHomepage = state.publicationHomepage;
   metadata.publicationNewReleases = state.publicationNewReleases;
+  if (state.publicationPlaylist) metadata.publicationPlaylist = state.publicationPlaylist;
+  else metadata.publicationPlaylist = "auto";
   if (state.internalNotes.trim()) metadata.internalNotes = state.internalNotes.trim();
   if (state.coverArtAssetId.trim()) metadata.coverArtAssetId = state.coverArtAssetId.trim();
   if (state.coverArtStorageObjectId.trim()) metadata.coverArtStorageObjectId = state.coverArtStorageObjectId.trim();
@@ -203,6 +207,7 @@ const maybeSocial = (state: AdminReleaseFormState): SocialShareMetadata | undefi
 
 export const createEmptyReleaseFormState = (): AdminReleaseFormState => ({
   publicationAudience: "public",
+  publicationPlaylist: "",
   publicationHomepage: true,
   publicationNewReleases: true,
   title: "",
@@ -264,6 +269,7 @@ export const createEmptyReleaseFormState = (): AdminReleaseFormState => ({
 export const mapReleaseToFormState = (release: SongReleaseAdminRecord): AdminReleaseFormState => ({
   ...createEmptyReleaseFormState(),
   originalMetadata: { ...release.metadata },
+  publicationPlaylist: validSongMix(release.metadata?.publicationPlaylist) ? release.metadata.publicationPlaylist : "",
   publicationAudience: !Object.prototype.hasOwnProperty.call(release.metadata ?? {}, "publicationAudience") ? "public"
     : publicationAudiences.includes(release.metadata?.publicationAudience as PublicationAudience)
       ? release.metadata!.publicationAudience as PublicationAudience : "",

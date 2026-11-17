@@ -14,6 +14,7 @@ export interface ReleaseExternalLinks {
 }
 
 export interface PublicSongRelease {
+  playlistKey?: string;
   releaseId: string;
   songId: string;
   artistId: string;

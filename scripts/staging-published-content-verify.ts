@@ -1,5 +1,6 @@
 import { MongoClient } from "mongodb";
 import { parseReleasePublicationTargets } from "../server/utils/publication/releasePublicationTargets";
+import { groupSongMixes, songMixKey } from "../src/models/songMixes";
 
 if (!process.argv.includes("--environment=staging") || !/stag(?:ing|ging)/i.test(process.env.MONGODB_DATABASE ?? "") || !process.env.MONGODB_URI) throw new Error("Explicit staging configuration required.");
 const client = new MongoClient(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
@@ -18,7 +19,7 @@ try {
     if (!payload.success) throw new Error("Staging content endpoint rejected the request.");
     return payload;
   };
-  const publicRows: Array<{ releaseId: string; coverArtUrl?: string; audioPreviewUrl?: string }> = [];
+  const publicRows: Array<{ releaseId: string; playlistKey?: string; coverArtUrl?: string; audioPreviewUrl?: string }> = [];
   let pages = 1;
   for (let page = 1; page <= pages; page++) {
     const payload = await get(`/api/public/releases?page=${page}&pageSize=48`);
@@ -28,6 +29,9 @@ try {
     if (!Number.isSafeInteger(pages) || pages < 1 || pages > 100) throw new Error("Unbounded staging pagination.");
   }
   const actualIds = new Set(publicRows.map(item => item.releaseId));
+  const expectedMix = new Map(expected.map(item => [item.releaseId, songMixKey(item.releaseId, item.metadata?.publicationPlaylist)]));
+  const mixAssignmentsMatch = publicRows.every(item => item.playlistKey === expectedMix.get(item.releaseId));
+  const publicMixes = groupSongMixes(publicRows, item => item.releaseId, item => item.playlistKey).map(mix => ({ key: mix.key, count: mix.items.length }));
   const catalogMatches = expectedIds.size === actualIds.size && [...expectedIds].every(id => actualIds.has(id)) && actualIds.size === publicRows.length;
   const landing = (await get("/api/public/landing")).data;
   const latest = landing.latestReleases ?? [];
@@ -41,11 +45,11 @@ try {
     imageResults.push(response.status === 200 && response.headers.get("content-type")?.startsWith("image/") ? 200 : response.status === 200 ? 0 : response.status);
   }
   const result = { environment: "staging", mode: "read_only", publishedReleases: releases.length, expectedGuestReleases: expectedIds.size, actualGuestReleases: actualIds.size,
-    catalogMatches, restrictedOrArtistIneligibleReleases: releases.length - expectedIds.size, landingLatestCount: latest.length, landingPlacementSafe: landingSafe,
+    catalogMatches, publicMixes, mixAssignmentsMatch, publicMinimumMet: publicRows.length >= 50, restrictedOrArtistIneligibleReleases: releases.length - expectedIds.size, landingLatestCount: latest.length, landingPlacementSafe: landingSafe,
     coversPresent: publicRows.filter(item => item.coverArtUrl).length, previewsPresent: publicRows.filter(item => item.audioPreviewUrl).length,
     sampledImageStatuses: imageResults, checkedAt: new Date().toISOString(), memberApiVerified: false, fullPlaybackVerified: false, databaseMutated: false };
   console.log(JSON.stringify(result));
-  if (!catalogMatches || !landingSafe || imageResults.some(status => status !== 200)) process.exitCode = 1;
+  if (!catalogMatches || !mixAssignmentsMatch || publicRows.length < 50 || publicMixes.some(mix => mix.count === 0) || !landingSafe || imageResults.some(status => status !== 200)) process.exitCode = 1;
 } catch {
   console.error(JSON.stringify({ environment: "staging", overallStatus: "blocked", error: "Published content verification failed safely; no URLs or member data printed.", databaseMutated: false }));
   process.exitCode = 1;

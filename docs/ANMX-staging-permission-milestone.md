@@ -2,6 +2,16 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Premade Mixes and Placement Shelf, 2026-11-16
+
+Public and member song catalogs are organized into three premade groups: Nexus Mix 01, 02 and 03. Existing eligible releases receive a deterministic release-ID-based assignment, not a claim of editorial or mood analysis. Each song appears in one group. Admins can override the group through `metadata.publicationPlaylist` (`nexus-01`, `nexus-02`, `nexus-03`, or `auto`). The automatic sentinel explicitly clears a prior choice through the existing metadata merge. Unknown values fail publication validation. Only the safe resolved `playlistKey` enters public/member projections; internal metadata is not copied.
+
+Grouping runs after existing public/member access filtering. No audience, publication state, download right or media-storage setting is changed by automatic grouping. Public listening retains dedicated previews; full songs still require current protected authorization. The public target is at least 50 songs across three nonempty groups, verified by the read-only staging catalog command rather than publishing private drafts to fill a quota. The last verified catalog contained 111 public releases.
+
+Member dashboards receive three premade lists built from the member's authorized song catalog, including member-only songs when permitted, rather than only the eight-item recommendation slice. Personal playlists remain separate. Public/member catalog filters apply across the three groups. Publication controls are condensed into a Where This Appears summary and Edit Placement shelf: minimum audience, Homepage, New Releases and premade playlist. Done closes the shelf; existing draft/save/readiness/Save & Publish controls remain the only persistence/publication flow. Opening the shelf never publishes.
+
+Tests cover deterministic grouping, deduplication, explicit overrides, legacy automatic defaults, malformed settings, metadata round trips, member-only catalog privacy, publication/access enforcement and production build. Staging validation reports mix counts without private URLs. Signed-in admin/mobile visual acceptance remains separate from local tests and anonymous catalog verification. No existing records were bulk-edited and billing remains paused.
+
 ## Owner Acceptance and Public Actions, 2026-11-16
 
 Owner confirmed that adding a song produces one playlist entry and signing out clears private content. This is manual acceptance of those two flows, not full mobile, accessibility or production certification. The follow-on public-action correction renders Add to Playlist only under the authenticated member-area context. Guest public pages, signed-in browsing outside that area and admin song previews retain preview/queue/detail actions but do not mount the playlist picker. Existing backend playlist ownership and session checks remain authoritative. Regression test: `test:song-action-area`.

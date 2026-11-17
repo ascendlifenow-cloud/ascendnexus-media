@@ -10,6 +10,7 @@ import {
 } from "../components/releases";
 import { RouteMetadata } from "../components/RouteMetadata";
 import { useReleasesCatalog } from "../hooks/useReleasesCatalog";
+import { groupSongMixes } from "../models/songMixes";
 
 export function ReleasesCatalogPage() {
   const {
@@ -87,7 +88,12 @@ export function ReleasesCatalogPage() {
           {hasPublishedReleases && isNoResults ? (
             <ReleasesCatalogEmptyState mode="no-results" onClearFilters={clearFilters} />
           ) : null}
-          {hasPublishedReleases && !isNoResults ? <ReleasesGrid releases={filteredReleases} /> : null}
+          {hasPublishedReleases && !isNoResults ? groupSongMixes(filteredReleases, item => item.release.releaseId, item => item.release.playlistKey).map(mix => (
+            <details key={mix.key} open className="mb-8 border-t border-white/15 pt-4">
+              <summary className="cursor-pointer py-4 text-xl font-semibold text-white">{mix.name} <span className="text-sm font-normal text-white/60">{mix.items.length} songs</span></summary>
+              {mix.items.length ? <ReleasesGrid releases={mix.items} /> : <p className="py-6 text-white/60">No songs match these filters in this mix.</p>}
+            </details>
+          )) : null}
         </section>
       ) : null}
 

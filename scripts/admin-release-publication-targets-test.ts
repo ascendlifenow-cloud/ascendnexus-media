@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import React, { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AdminReleasePublicationTargets } from "../src/admin/components/releases/form/AdminReleasePublicationTargets";
+import { AdminReleasePublicationTargets, PublicationTargetFields } from "../src/admin/components/releases/form/AdminReleasePublicationTargets";
 import {
   createEmptyReleaseFormState, getReleasePublicVisibilityState, mapReleaseToFormState,
   publicationAudiences, toCreateReleaseDto, toUpdateReleaseDto, validateReleaseForm,
@@ -42,14 +42,25 @@ for (const audience of publicationAudiences) {
       assert.equal(getReleasePublicVisibilityState({ ...state, status: "published" }, artist),
         audience === "public" ? "public" : "not_public");
       assert.equal(getReleasePublicVisibilityState(state, artist), "not_public");
-      const markup = renderToStaticMarkup(createElement(AdminReleasePublicationTargets, {
+      const markup = renderToStaticMarkup(createElement(PublicationTargetFields, {
         state, updateField: () => {},
       }));
       assert.ok(markup.includes("Audience &amp; Website Sections"));
       assert.ok(markup.includes("Songs catalog"));
       assert.equal((markup.match(/checked=""/g) ?? []).length, Number(homepage) + Number(newReleases));
+      const collapsed = renderToStaticMarkup(createElement(AdminReleasePublicationTargets, { state, updateField: () => {} }));
+      assert.ok(collapsed.includes("Edit Placement"));
+      assert.ok(collapsed.includes("Where This Appears"));
+      assert.equal(collapsed.includes('role="dialog"'), false);
     }
   }
+}
+
+for (const publicationPlaylist of ["nexus-01", "nexus-02", "nexus-03"] as const) {
+  const state = mapReleaseToFormState({ ...base, metadata: { publicationPlaylist } });
+  assert.equal(state.publicationPlaylist, publicationPlaylist);
+  assert.equal(toUpdateReleaseDto(state).metadata?.publicationPlaylist, publicationPlaylist);
+  assert.equal(toUpdateReleaseDto({ ...state, publicationPlaylist: "" }).metadata?.publicationPlaylist, "auto");
 }
 
 for (const value of ["unknown", "", null, 42, true, undefined]) {

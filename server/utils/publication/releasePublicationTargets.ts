@@ -1,3 +1,4 @@
+import { validSongMix } from "../../../src/models/songMixes";
 export type ReleasePublicationAudience = "public" | "free" | "premium" | "supporter" | "vip";
 export type ReleasePublicationPlacement = "homepage" | "newReleases";
 
@@ -20,6 +21,7 @@ export function parseReleasePublicationTargets(metadata: unknown): ReleasePublic
   if (metadata === undefined) return { audience: "public", homepage: true, newReleases: true };
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
   const values = metadata as Record<string, unknown>;
+  if (values.publicationPlaylist !== undefined && values.publicationPlaylist !== "auto" && !validSongMix(values.publicationPlaylist)) return null;
   const audience = values.publicationAudience === undefined ? "public" : values.publicationAudience;
   const homepage = values.publicationHomepage === undefined ? true : values.publicationHomepage;
   const newReleases = values.publicationNewReleases === undefined ? true : values.publicationNewReleases;

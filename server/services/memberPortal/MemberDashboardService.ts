@@ -10,6 +10,7 @@ import { favoritesService, followingService, listeningHistoryService, notificati
 import type { MemberEngagementResourceRef } from "../../models/memberEngagement/MemberEngagementModels";
 import type { PublicSongRelease } from "../../../src/models/release";
 import { memberSongCatalogService } from "./MemberSongCatalogService";
+import { groupSongMixes } from "../../../src/models/songMixes";
 
 const forbiddenPattern = /(private\/|signedUrl|signature=|token=|storagePath|privateObjectKey|full[-_]?song)/i;
 const safeImage = (value?: string) => value && !forbiddenPattern.test(value) ? value : undefined;
@@ -177,7 +178,7 @@ export class MemberDashboardService {
   }
 
   private async buildDashboard(member: MemberAccountResponse): Promise<MemberDashboardResponse> {
-    const [membership, entitlements, recentReleases, recommendations, earlyAccess, exclusiveContent, memberGalleries, announcements, continueListening, favorites, follows, playlists, notifications, allReleases] = await Promise.all([
+    const [membership, entitlements, recentReleases, recommendations, earlyAccess, exclusiveContent, memberGalleries, announcements, continueListening, favorites, follows, playlists, notifications, memberCatalog] = await Promise.all([
       this.getMembershipSummary(member),
       effectiveEntitlementService.getForMember(member),
       this.getRecentReleases(8, member),
@@ -191,8 +192,9 @@ export class MemberDashboardService {
       followingService.list(member),
       playlistService.list(member),
       notificationService.list(member),
-      publicContentDeliveryService.listPublicReleases(),
+      memberSongCatalogService.getCatalog(member.memberId),
     ]);
+    const allReleases = memberCatalog.releases;
     const continueListeningItems = continueListening.map((item) => resourceCard(item.resource, allReleases)).filter((item): item is MemberDashboardContentCard => Boolean(item));
     const userPlaylists = playlists.map((playlist) => ({
       playlistId: playlist.playlistId,
@@ -234,6 +236,7 @@ export class MemberDashboardService {
       continueListening: readiness("Continue listening", continueListening.length ? `${continueListening.length} resumable item${continueListening.length === 1 ? "" : "s"} available.` : "Playback history is active. Items appear after member playback events.", "/member/history", continueListening.length),
       continueListeningItems,
       curatedPlaylist,
+      premadePlaylists: groupSongMixes(memberCatalog.items, item => item.contentId, item => item.playlistKey),
       userPlaylists,
       recentReleases,
       recommendations,

@@ -30,6 +30,7 @@ try {
   const member = { ...data.memberAccounts[0], preferences: { privacy: { showFavorites: false } } } as never;
   const catalogPayload = await catalog.getCatalog("vip");
   assert.equal(catalogPayload.releases.length, 39);
+  assert.ok(catalogPayload.items.every(item => /^nexus-0[123]$/.test(item.playlistKey ?? "")));
   assert.equal(catalogPayload.artists.length, 1, "Missing public artist must not discard eligible member songs");
   assert.equal((await catalog.getDetail("vip", "song-38")).song.releaseId, "release-38");
   await assert.rejects(() => catalog.getDetail("vip", "not-published"), /unavailable/);
@@ -72,6 +73,10 @@ try {
   } finally { globalThis.fetch = originalFetch; publicMediaApiClient.listArtists = originalArtists; publicMediaApiClient.listReleases = originalReleases; }
   assert.equal((await catalog.list("vip")).length, 39, "All eligible nonfeatured, nonpublic records must be discoverable");
   assert.equal((await dashboard.getRecentReleases(8, member)).length, 8);
+  const dashboardPayload = await dashboard.getDashboard(member);
+  assert.equal(dashboardPayload.premadePlaylists?.length, 3);
+  assert.equal(dashboardPayload.premadePlaylists?.flatMap(mix => mix.items).length, 39);
+  assert.ok(!/private-audio|privateObjectKey|secret|streamEndpoint/.test(JSON.stringify(dashboardPayload.premadePlaylists)));
   assert.equal((await memberRecommendationService.getRecommendations(member)).length, 6);
   assert.ok((await dashboard.getExclusiveContent(member)).every(card => card.streamAvailable && !card.downloadAvailable));
   assert.ok(!/private-audio|privateObjectKey|secret|streamEndpoint/.test(JSON.stringify(await catalog.list("vip"))));
