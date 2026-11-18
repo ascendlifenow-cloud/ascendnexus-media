@@ -2,6 +2,12 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Playback Promise Isolation, 2026-11-17
+
+The shared player now ignores a rejected play promise after its source operation has been superseded by closing the player or loading another song. Regression tests reproduced the erroneous preview failure before the fix and now verify that both idle and replacement-source state remain intact. Current-operation playback failures still surface normally; authorization and source validation are unchanged.
+
+Local verification covers streaming queue safeguards, member song selection and playlist lifecycle. This resolves a demonstrated stale-error race, not the independently observed automated-browser media decoding/delivery failure. Guest preview decoding and signed-in mobile playback remain unverified. Billing remains paused.
+
 ## Responsive Player Spacing Increment, 2026-11-16
 
 The selected-song menu measures its rendered height with ResizeObserver and a window-resize fallback. The floating player and above-menu playlist picker consume the same bottom offset, including device safe-area spacing, rather than assuming a fixed 12rem/48-unit menu. Menu and picker content have viewport-bounded scrolling. The floating player's artwork remains square but is limited to 12rem on narrow screens; tablet/desktop sizing is unchanged. Playlist choices have minimum 44px touch height and wrap long names.

@@ -150,6 +150,7 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
   }, [stop, updateState]);
 
   const play = useCallback(async () => {
+    const generation = operation.current;
     if (protectedSession.current && Date.now() >= protectedSession.current.expiresAt) {
       stop();
       updateState({ status: "unavailable", error: createAudioPlaybackError("AUDIO_SOURCE_LOAD_FAILED", "Full-song access expired. Select the queued song to authorize again.", false) });
@@ -164,6 +165,8 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       setStatus("loading", "play_requested");
       await audio.play();
     } catch (error) {
+      // Changing or clearing the source rejects the old play promise asynchronously.
+      if (generation !== operation.current) return;
       const blocked = error instanceof DOMException && error.name === "NotAllowedError";
       updateState({
         status: blocked ? "blocked" : "error",

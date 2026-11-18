@@ -22,6 +22,7 @@ function harness() {
   let usageAllowed = true;
   let refreshFails = false;
   let autoPlay = true;
+  let playResult: (() => Promise<void>) | undefined;
   let usageCounts: { streamStarts: number; remainingFullPlays: number | null } = { streamStarts: 7, remainingFullPlays: 0 };
   let resolveUsage: (() => Promise<any>) | undefined;
   let authorization: any = { authorized: true, streamEndpoint: "/api/member/media/stream/protected-auth-id.token", expiresAt: new Date(Date.now() + 90000).toISOString(), refreshAllowed: true, playbackSessionId: "session" };
@@ -30,7 +31,7 @@ function harness() {
     src = ""; preload = ""; crossOrigin = ""; duration = 90; currentTime = 0;
     buffered = { length: 0 }; error = null;
     handlers = new Map<string, () => void>();
-    pause() {} load() {} async play() { if (autoPlay) this.handlers.get("playing")?.(); }
+    pause() {} load() {} async play() { if (playResult) return playResult(); if (autoPlay) this.handlers.get("playing")?.(); }
     removeAttribute() { this.src = ""; }
     addEventListener(name: string, fn: () => void) { this.handlers.set(name, fn); }
   }
@@ -77,11 +78,24 @@ function harness() {
   vm.runInContext(compiled, context);
   const render = () => { cursor = 0; const value = exports.PublicAudioPlayerProvider({ children: null }); effects.splice(0).forEach((fn) => fn()); return value; };
   render();
-  return { render, calls, timers, listeners, get audio() { return audio!; }, preventPlaying() { autoPlay = false; }, counts(value: typeof usageCounts) { usageCounts = value; }, deferUsage(fn: () => Promise<any>) { resolveUsage = fn; }, failRefresh() { refreshFails = true; }, setStatus(n: number) { sessionStatus = n; }, revoke() { usageAllowed = false; }, authorize(value: any) { authorization = value; }, defer(fn: () => Promise<any>) { resolveAuthorization = fn; } };
+  return { render, calls, timers, listeners, get audio() { return audio!; }, deferPlay(fn: () => Promise<void>) { playResult = fn; }, preventPlaying() { autoPlay = false; }, counts(value: typeof usageCounts) { usageCounts = value; }, deferUsage(fn: () => Promise<any>) { resolveUsage = fn; }, failRefresh() { refreshFails = true; }, setStatus(n: number) { sessionStatus = n; }, revoke() { usageAllowed = false; }, authorize(value: any) { authorization = value; }, defer(fn: () => Promise<any>) { resolveAuthorization = fn; } };
 }
 const preview = { releaseId: "song", url: "/preview.mp3" };
 const release = { releaseId: "song", title: "Song" };
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
+
+for (const replacement of [false, true]) {
+  const race = harness();
+  let rejectPlay!: (error: Error) => void;
+  race.deferPlay(() => new Promise<void>((_resolve, reject) => { rejectPlay = reject; }));
+  const pending = race.render().playPreview(preview, release);
+  if (replacement) await race.render().loadPreview({ ...preview, url: "/next-preview.mp3" }, { releaseId: "next", title: "Next" });
+  else race.render().stop();
+  rejectPlay(new DOMException("Interrupted by source change", "AbortError"));
+  await pending;
+  assert.equal(race.render().error, undefined, "obsolete play failures must not overwrite newer state");
+  assert.equal(race.render().status, replacement ? "loading" : "idle");
+}
 
 const member = harness();
 member.render().enqueue(preview, release);
