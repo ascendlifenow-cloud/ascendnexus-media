@@ -2,6 +2,10 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Media Review Refresh Failure Handling, 2026-11-17
+
+Review list/detail methods now propagate a failed queue rebuild instead of returning cached items as a successful fresh response. The existing queue hook receives the error and can display its message; this change does not claim that all prior data is purged or that concurrent refresh ordering is solved. A mocked-transport regression reproduced false success before the fix and verifies 401, 403 and 503 propagation, successful list/detail and missing-item 404 behavior. Review-count events, assignment rollback tests and production build pass. No existing assets or assignments were modified. Signed-in browser assignment/refresh acceptance remains open, alongside audible playback acceptance. Payments remain paused.
+
 ## Media Assignment Failure Recovery, 2026-11-17
 
 A failed application of a replacement media selection previously left the old link replaced and the candidate's review metadata resolved. The failure handler now reactivates the prior link, detaches the failed candidate link and restores the candidate's original ownership, assignment status and metadata. A focused isolated test reproduced the failure before the fix and covers both different-asset replacement and same-asset relinking, followed by successful retry. Media reconciliation's 15 safety checks, review-count events and the production build pass. This is compensating recovery, not a cross-service transaction or certification of concurrent edits; successful partial external side effects and rollback storage failures remain outside this test. No existing media was mutated by testing.

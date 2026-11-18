@@ -72,13 +72,15 @@ export class MediaAssignmentReviewService {
   private removedAssetIds = new Set<string>();
 
   async listReviewItems(filters: MediaReviewFilters = {}): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
-    await this.buildReviewQueueFromMediaAssets();
+    const refreshed = await this.buildReviewQueueFromMediaAssets();
+    if (!refreshed.ok) return refreshed;
     const items = sortMediaReviewItems(filterMediaReviewItems([...this.reviewItems.values()], filters), filters.sortMode ?? "newest");
     return createApiSuccess(items);
   }
 
   async getReviewItem(reviewItemId: string): Promise<ApiResult<MediaAssignmentReviewItem>> {
-    await this.buildReviewQueueFromMediaAssets();
+    const refreshed = await this.buildReviewQueueFromMediaAssets();
+    if (!refreshed.ok) return refreshed;
     const item = this.reviewItems.get(reviewItemId);
     return item ? createApiSuccess(item) : createApiError("not_found", "Review item was not found.", 404);
   }
