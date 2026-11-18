@@ -2,6 +2,22 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Media Assignment Failure Recovery, 2026-11-17
+
+A failed application of a replacement media selection previously left the old link replaced and the candidate's review metadata resolved. The failure handler now reactivates the prior link, detaches the failed candidate link and restores the candidate's original ownership, assignment status and metadata. A focused isolated test reproduced the failure before the fix and covers both different-asset replacement and same-asset relinking, followed by successful retry. Media reconciliation's 15 safety checks, review-count events and the production build pass. This is compensating recovery, not a cross-service transaction or certification of concurrent edits; successful partial external side effects and rollback storage failures remain outside this test. No existing media was mutated by testing.
+
+## Publication Workflow Regression Milestone, 2026-11-17
+
+Extended the isolated publication enforcement test with all 20 combinations of Free/Premium/Supporter/VIP and public/free/premium/supporter/vip publication audiences. The configured entitlement catalog admits the intended minimum audience and rejects lower tiers. This verifies current configured grants; it does not introduce rank-based authorization. Six suites pass: release publication enforcement, target persistence/revocation, admin target round trips, client publication freshness, song mixes and member song catalog. Enforcement includes the new matrix. No runtime behavior was changed.
+
+The read-only staging catalog rerun still matches all 111 eligible public releases out of 113 published records, mixes of 43/24/44, 12 valid homepage placements, all cover/preview references present and six sampled image HTTP 200 responses. No song, visibility, membership or billing mutations occurred. Admin visual Save & Publish acceptance remains separate from isolated service and form tests. Normal-browser audible playback and signed-in queue transitions remain open; payments remain paused. No runtime deployment is required for this test/documentation increment.
+
+## Isolated Staging Permission Acceptance Rerun, 2026-11-17
+
+Run `1242cf65-1004-4ece-a097-51b59cfb4277` passed all 40 checks using temporary Free, Premium, Supporter and VIP accounts and a private synthetic WAV. Real sign-in, private-object isolation, cross-member token denial, protected HEAD and range delivery, continuation without double debit, Free second-play denial, paid-tier stream bytes and credentialed CORS, separate download rights, single-use replay rejection, downgrade/suspension/expiration revocation and logout invalidation passed. Cleanup completed with no failures. Existing memberships were not changed and no real-song allowances were consumed. Evidence: `production/anmx-003/song-acceptance-1242cf65-1004-4ece-a097-51b59cfb4277.json` (local restricted report).
+
+The updated automated guest browser now reports the safe unsupported-preview-format error for Our Love Has a Junk Drawer. This identifies the browser's failure category, not a proven underlying cause. Owner has not yet tested the preview in their normal browser. Audible preview/full-song decoding and signed-in queue transitions remain open acceptance items. No payment activation or public publication occurred. No application-code deployment is needed for this verification-only increment.
+
 ## Playback Failure Classification and Recovery, 2026-11-17
 
 Rejected play requests preserve the existing safe MediaError classification where available, distinguish browser gesture blocking from unsupported formats, and never display raw exception text or source URLs. Starting a new play attempt and receiving a playing event clear obsolete error messages. Regression tests cover NotAllowedError, NotSupportedError, generic failure, exception-detail suppression and successful retry. Streaming queue, song selection, mix actions and the production build pass locally. These mocked checks do not certify audible playback. Membership permissions, media delivery artifacts and billing activation are unchanged.

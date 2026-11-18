@@ -44,6 +44,18 @@ try {
   assert.ok(homepage.spotlightArtists.every(item => item.latestRelease?.releaseId !== "hiddenHome"));
   assert.doesNotMatch(JSON.stringify(homepage), /private-source|privateObjectKey|private\/secret/);
   const baseline = structuredClone(await jsonDatabase.read());
+  const memberTiers = ["free", "premium", "supporter", "vip"];
+  const publicationAudiences = ["public", ...memberTiers];
+  for (const [tierIndex, tier] of memberTiers.entries()) {
+    for (const [audienceIndex, audience] of publicationAudiences.entries()) {
+      const data = structuredClone(baseline);
+      const target = data.releaseRecords.find(item => item.releaseId === "legacy")!;
+      target.metadata!.publicationAudience = audience;
+      target.publicVisibility = audience === "public";
+      assert.equal(evaluateSongAction(data, tier, "legacy", "stream").allowed,
+        audienceIndex <= tierIndex + 1, `${tier} streaming against ${audience} publication audience`);
+    }
+  }
   for (const audience of ["free", "premium", "supporter", "vip"]) {
     const data = structuredClone(baseline);
     data.releaseRecords.find(item => item.releaseId === audience)!.publicVisibility = false;

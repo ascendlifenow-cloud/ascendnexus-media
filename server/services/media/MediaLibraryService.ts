@@ -209,7 +209,14 @@ export class MediaLibraryService {
         updatedEntity = applied.updatedEntity;
       } catch (error) {
         await mediaLinkRepository.update(link.linkId, { status: "detached", metadata: { ...(link.metadata ?? {}), assignmentApplyError: error instanceof Error ? error.message : "Unknown assignment apply error" } });
-        await mediaAssetPersistenceService.patch(assetId, { assignmentStatus: "detached", ownerType: asset.ownerType, ownerId: asset.ownerId, updatedBy: input.actorId });
+        if (existing) await mediaLinkRepository.update(existing.linkId, { status: "active" });
+        await mediaAssetPersistenceService.patch(assetId, {
+          assignmentStatus: asset.assignmentStatus,
+          ownerType: asset.ownerType,
+          ownerId: asset.ownerId,
+          metadata: asset.metadata,
+          updatedBy: input.actorId,
+        });
         throw error;
       }
     }
