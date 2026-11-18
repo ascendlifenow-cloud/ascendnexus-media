@@ -162,15 +162,17 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
       return;
     }
     try {
+      updateState({ error: undefined });
       setStatus("loading", "play_requested");
       await audio.play();
     } catch (error) {
       // Changing or clearing the source rejects the old play promise asynchronously.
       if (generation !== operation.current) return;
       const blocked = error instanceof DOMException && error.name === "NotAllowedError";
+      const unsupported = error instanceof DOMException && error.name === "NotSupportedError";
       updateState({
         status: blocked ? "blocked" : "error",
-        error: createAudioPlaybackError(blocked ? "AUDIO_PLAYBACK_BLOCKED" : "AUDIO_SOURCE_LOAD_FAILED", blocked ? "Playback needs a direct user action." : "The audio preview could not start.", !blocked, {
+        error: !blocked && audio.error ? mapMediaError(audio.error, stateRef.current.activeRelease?.releaseId) : createAudioPlaybackError(blocked ? "AUDIO_PLAYBACK_BLOCKED" : unsupported ? "AUDIO_FORMAT_UNSUPPORTED" : "AUDIO_SOURCE_LOAD_FAILED", blocked ? "Playback needs a direct user action." : unsupported ? "This audio format is not supported by this browser." : "Audio could not start. Try playing again.", !blocked && !unsupported, {
           releaseId: stateRef.current.activeRelease?.releaseId,
           previewVersion: stateRef.current.activePreview?.version,
         }),
@@ -385,6 +387,7 @@ export function PublicAudioPlayerProvider({ children }: { children: ReactNode })
     };
     const setPlaying = () => {
       if (!stateRef.current.source) { audio.pause(); return; }
+      updateState({ error: undefined });
       const session = protectedSession.current;
       if (session && stateRef.current.activeRelease) {
         protectedStarted.current = true;

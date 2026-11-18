@@ -84,6 +84,18 @@ const preview = { releaseId: "song", url: "/preview.mp3" };
 const release = { releaseId: "song", title: "Song" };
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 
+for (const [name, code] of [["NotAllowedError", "AUDIO_PLAYBACK_BLOCKED"], ["NotSupportedError", "AUDIO_FORMAT_UNSUPPORTED"], ["NetworkError", "AUDIO_SOURCE_LOAD_FAILED"]]) {
+  const failure = harness();
+  failure.deferPlay(async () => { throw new DOMException("private delivery details must not escape", name); });
+  await failure.render().playPreview(preview, release);
+  assert.equal(failure.render().error.code, code);
+  assert.equal(JSON.stringify(failure.render().error).includes("private delivery"), false);
+  failure.deferPlay(async () => { failure.audio.handlers.get("playing")?.(); });
+  await failure.render().play();
+  assert.equal(failure.render().error, undefined, "a successful retry must clear the old error");
+  assert.equal(failure.render().status, "playing");
+}
+
 for (const replacement of [false, true]) {
   const race = harness();
   let rejectPlay!: (error: Error) => void;

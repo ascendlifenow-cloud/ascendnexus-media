@@ -2,6 +2,16 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Playback Failure Classification and Recovery, 2026-11-17
+
+Rejected play requests preserve the existing safe MediaError classification where available, distinguish browser gesture blocking from unsupported formats, and never display raw exception text or source URLs. Starting a new play attempt and receiving a playing event clear obsolete error messages. Regression tests cover NotAllowedError, NotSupportedError, generic failure, exception-detail suppression and successful retry. Streaming queue, song selection, mix actions and the production build pass locally. These mocked checks do not certify audible playback. Membership permissions, media delivery artifacts and billing activation are unchanged.
+
+## Staging Catalog Acceptance Check, 2026-11-17
+
+Cloudflare reports successful completion for revision `9db0996`; the staging API identifies the same revision and all seven anonymous read-only permission smoke checks pass. The published-content audit found 113 published releases, 111 guest-eligible releases and an exact match between eligible database records and the public API. The three public mixes contain 43, 24 and 44 songs. All 111 have cover and preview references; six sampled covers return HTTP 200 with image content types. Twelve landing-page releases satisfy their configured homepage/new-release placements. No database records were changed.
+
+The deployed guest preview for Our Love Has a Junk Drawer still reports a start failure in the automated browser. A separate header-range request confirmed a 16-bit stereo PCM WAV at 48kHz, HTTP 206, valid Content-Range and cross-origin allowance. These transport checks do not establish successful browser decoding or audible playback, and the root cause remains unresolved. Member playback, automatic next-song transitions and signed-in mobile acceptance were not tested in this run. Billing remains paused. The catalog placement check passes; playback acceptance remains open.
+
 ## Playback Promise Isolation, 2026-11-17
 
 The shared player now ignores a rejected play promise after its source operation has been superseded by closing the player or loading another song. Regression tests reproduced the erroneous preview failure before the fix and now verify that both idle and replacement-source state remain intact. Current-operation playback failures still surface normally; authorization and source validation are unchanged.
