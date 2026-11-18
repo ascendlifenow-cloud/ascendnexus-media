@@ -2,6 +2,10 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Shared Media Review Rebuild, 2026-11-17
+
+Overlapping callers now share one in-flight Media Review rebuild, preventing competing snapshots from separately rewriting the shared queue and reducing duplicate asset/intake requests. The promise is released on success, API failure and thrown transport rejection. The regression first reproduced duplicate requests, then verified sharing, deletion during the pending refresh, error propagation and successful recovery. Each later non-overlapping call still requests a fresh snapshot. The existing deletion exclusion remains authoritative within this client service; this does not certify cross-tab synchronization or per-screen filter response ordering. Build and review badge tests pass. No media records, account permissions or billing settings were changed.
+
 ## Media Review Refresh Failure Handling, 2026-11-17
 
 Review list/detail methods now propagate a failed queue rebuild instead of returning cached items as a successful fresh response. The existing queue hook receives the error and can display its message; this change does not claim that all prior data is purged or that concurrent refresh ordering is solved. A mocked-transport regression reproduced false success before the fix and verifies 401, 403 and 503 propagation, successful list/detail and missing-item 404 behavior. Review-count events, assignment rollback tests and production build pass. No existing assets or assignments were modified. Signed-in browser assignment/refresh acceptance remains open, alongside audible playback acceptance. Payments remain paused.

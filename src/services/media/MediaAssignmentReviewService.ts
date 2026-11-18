@@ -70,6 +70,7 @@ const intakeMetadata = (record: AdminMediaIntakeRecord): Record<string, MediaAss
 export class MediaAssignmentReviewService {
   private reviewItems = new Map<string, MediaAssignmentReviewItem>();
   private removedAssetIds = new Set<string>();
+  private refreshInFlight?: Promise<ApiResult<MediaAssignmentReviewItem[]>>;
 
   async listReviewItems(filters: MediaReviewFilters = {}): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
     const refreshed = await this.buildReviewQueueFromMediaAssets();
@@ -86,6 +87,17 @@ export class MediaAssignmentReviewService {
   }
 
   async buildReviewQueueFromMediaAssets(): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
+    if (this.refreshInFlight) return this.refreshInFlight;
+    const request = this.rebuildReviewQueue();
+    this.refreshInFlight = request;
+    try {
+      return await request;
+    } finally {
+      if (this.refreshInFlight === request) this.refreshInFlight = undefined;
+    }
+  }
+
+  private async rebuildReviewQueue(): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
     const [assets, intakeRecords] = await Promise.all([
       adminMediaService.listMediaAssets(),
       adminMediaService.listMediaIntakeRecords(),
