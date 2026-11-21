@@ -68,6 +68,7 @@ const validateAdminSession = (session: AdminAuthSession): AdminAuthSession => {
 export class AdminAuthApiService {
   private cachedSession: AdminAuthSession | null = null;
   private sessionRequest: Promise<AdminAuthSession> | null = null;
+  private sessionVersion = 0;
 
   getCachedSession(): AdminAuthSession | null {
     return this.cachedSession;
@@ -79,42 +80,46 @@ export class AdminAuthApiService {
   }
 
   async login(email: string, password: string): Promise<AdminAuthSession> {
+    const version = ++this.sessionVersion;
+    this.cachedSession = null;
+    this.sessionRequest = null;
     const response = await authRequest("/api/auth/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
     const session = validateAdminSession(await parse<AdminAuthSession>(response));
+    if (version !== this.sessionVersion) throw new AdminAuthRequestError("Admin session changed. Please sign in again.", 401);
     this.cachedSession = session;
     return session;
   }
 
   async getSession(): Promise<AdminAuthSession> {
     if (this.sessionRequest) return this.sessionRequest;
+    const version = this.sessionVersion;
     this.sessionRequest = (async () => {
       try {
         const session = validateAdminSession(await parse<AdminAuthSession>(await authRequest("/api/admin/auth/session")));
+        if (version !== this.sessionVersion) throw new AdminAuthRequestError("Admin session changed. Please sign in again.", 401);
         this.cachedSession = session;
         return session;
       } catch (error) {
-        if (error instanceof AdminAuthRequestError && (error.status === 401 || error.status === 403)) {
+        if (version === this.sessionVersion && error instanceof AdminAuthRequestError && (error.status === 401 || error.status === 403)) {
           this.cachedSession = null;
         }
         throw error;
       } finally {
-        this.sessionRequest = null;
+        if (version === this.sessionVersion) this.sessionRequest = null;
       }
     })();
     return this.sessionRequest;
   }
 
   async logout(): Promise<void> {
-    try {
-      await fetch(adminUrl("/api/admin/auth/logout"), { method: "POST", credentials: "include" });
-    } finally {
-      this.cachedSession = null;
-      this.sessionRequest = null;
-    }
+    this.sessionVersion++;
+    this.cachedSession = null;
+    this.sessionRequest = null;
+    await authRequest("/api/admin/auth/logout", { method: "POST" });
   }
 
   async requestPasswordReset(email: string): Promise<{ accepted: true; resetToken?: string }> {

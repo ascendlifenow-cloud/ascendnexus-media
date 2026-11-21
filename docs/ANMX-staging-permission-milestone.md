@@ -2,6 +2,14 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Admin Session Cache Race Repair, 2026-11-21
+
+Admin session caching now uses an operation version. Logout immediately invalidates cached identity and pending session requests; late session results cannot repopulate the cache or clear a newer session request. Login supersedes prior session operations. Logout uses the existing bounded authentication request helper, and the provider clears visible session state before waiting for the request. Mocked transport tests reproduced the old post-logout cache resurrection and verify stale-session rejection plus preservation of newer login cache when older requests finish. The production build, workflow-navigation and Media Review hook checks pass. These tests do not certify server cookie ordering for simultaneous login/logout, cross-tab synchronization, or real browser sessions. Backend RBAC remains authoritative and unchanged. Existing accounts and assets were not modified; billing remains paused.
+
+## Admin Queue Interaction Regression, 2026-11-21
+
+Expanded the real review hook's mocked lifecycle harness with event subscriptions and query invalidation recording. Verified immediate row removal for assignment and hard-delete notifications, release/media cache invalidation without unrelated artist invalidation, malformed event no-op, listener cleanup and no requests triggered by events after unmount. Existing filter ordering, session rejection clearing and late-response guards remain covered. Five local suites pass: hook lifecycle, shared service refresh, badge count, assignment rollback and reconciliation (15 planner safety checks). No runtime changes or staging deployment are required for this test-only increment. These checks do not replace signed-in browser assignment/deletion acceptance or authorize deletion of existing media. Audible playback and billing acceptance remain open; payments stay paused.
+
 ## Cloudflare Build Failure Diagnosis, 2026-11-21
 
 Owner-supplied logs establish that the first app build succeeded. Wrangler auto-configuration installed additional tooling and ran a second build, which failed at AdminReleaseFormPage.tsx with TS2322 (number versus Timeout). The browser action timeout now explicitly stores a number and clears it whenever defined. Temporary Node 22 typings outside the repository reproduced the original failure through an in-memory source overlay; the corrected full client typecheck with those typings passed. Normal production build, admin workflow navigation and frontend identity tests pass. No dependency versions or Cloudflare settings were changed. Dependency audit and chunk warnings in the log are separate from the fatal timer error. Deployment verification is still required before calling the repair live.

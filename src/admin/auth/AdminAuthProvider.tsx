@@ -62,9 +62,9 @@ export function AdminAuthProvider({ children }: AdminAuthProviderProps) {
 
   const logout = useCallback(async () => {
     requestVersion.current += 1;
-    await adminAuthApiService.logout();
     setSession(null);
     setStatus("unauthenticated");
+    await adminAuthApiService.logout();
   }, []);
 
   const value = useMemo(() => {
