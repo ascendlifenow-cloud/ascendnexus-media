@@ -14,22 +14,38 @@ export function useMediaAssignmentReviewQueue(filters: MediaReviewFilters = defa
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const hasLoaded = useRef(false);
+  const active = useRef(false);
+  const requestVersion = useRef(0);
 
   const refreshQueue = useCallback(async () => {
+    if (!active.current) return;
+    const version = ++requestVersion.current;
+    const current = () => active.current && version === requestVersion.current;
     if (!hasLoaded.current) setLoading(true);
     setError(null);
-    const result = await mediaAssignmentReviewService.listReviewItems(filters);
-    if (result.ok) {
-      setItems(result.data);
-    } else {
-      setError(result.error.message);
+    try {
+      const result = await mediaAssignmentReviewService.listReviewItems(filters);
+      if (!current()) return;
+      if (result.ok) {
+        setItems(result.data);
+      } else {
+        if (result.error.status === 401 || result.error.status === 403) setItems([]);
+        setError(result.error.message);
+      }
+    } catch {
+      if (current()) setError("Media Review could not refresh. Please try again.");
+    } finally {
+      if (current()) {
+        hasLoaded.current = true;
+        setLoading(false);
+      }
     }
-    hasLoaded.current = true;
-    setLoading(false);
   }, [filters]);
 
   useEffect(() => {
+    active.current = true;
     void refreshQueue();
+    return () => { active.current = false; requestVersion.current++; };
   }, [refreshQueue]);
 
   useEffect(() => {

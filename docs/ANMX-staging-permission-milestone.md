@@ -2,6 +2,10 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Media Review Screen Response Ordering, 2026-11-20
+
+The review-screen hook now accepts only its latest pending refresh result and invalidates pending state updates on filter-effect cleanup/unmount. Thrown transport failures produce a fixed safe message and settle loading; 401/403 responses clear displayed rows. An isolated hook test reproduced the old-filter overwrite before the fix and verifies out-of-order completion, 401 clearing, safe exception handling and no late writes after unmount. Service refresh-sharing, badge-count and assignment-rollback tests plus the production build pass. This is mocked lifecycle coverage, not signed-in browser E2E or cross-tab account-change certification. No existing records or payment settings changed; audible playback and signed-in admin acceptance remain open.
+
 ## Shared Media Review Rebuild, 2026-11-17
 
 Overlapping callers now share one in-flight Media Review rebuild, preventing competing snapshots from separately rewriting the shared queue and reducing duplicate asset/intake requests. The promise is released on success, API failure and thrown transport rejection. The regression first reproduced duplicate requests, then verified sharing, deletion during the pending refresh, error propagation and successful recovery. Each later non-overlapping call still requests a fresh snapshot. The existing deletion exclusion remains authoritative within this client service; this does not certify cross-tab synchronization or per-screen filter response ordering. Build and review badge tests pass. No media records, account permissions or billing settings were changed.
