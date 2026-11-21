@@ -2,7 +2,19 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Cloudflare Build Failure Diagnosis, 2026-11-21
+
+Owner-supplied logs establish that the first app build succeeded. Wrangler auto-configuration installed additional tooling and ran a second build, which failed at AdminReleaseFormPage.tsx with TS2322 (number versus Timeout). The browser action timeout now explicitly stores a number and clears it whenever defined. Temporary Node 22 typings outside the repository reproduced the original failure through an in-memory source overlay; the corrected full client typecheck with those typings passed. Normal production build, admin workflow navigation and frontend identity tests pass. No dependency versions or Cloudflare settings were changed. Dependency audit and chunk warnings in the log are separate from the fatal timer error. Deployment verification is still required before calling the repair live.
+
+## Frontend Deployment Identity, 2026-11-21
+
+Prepared locally: the Vite build emits `build-info.json` containing only schemaVersion, frontend component label and a validated 40-character commit SHA. Known CI commit variables are considered before a Git checkout fallback; absent/invalid identity becomes unidentified. The existing global no-store response policy covers this path. Local build output and identity tests pass. Local Git fallback identifies the base commit, not uncommitted changes; this is not a dirty-worktree artifact digest.
+
+`npm run staging:frontend-verify -- --environment=staging --expected-commit=<revision>` checks the actual frontend origin independently of API health, rejects redirects/non-JSON/oversized responses, prints no response body, and exits nonzero for unavailable or mismatched identity. Current staging verification is blocked because this artifact is not deployed. Cloudflare check `136671798252` still reports failure without diagnostic output through GitHub. No new deployment was triggered while that failure remains unexplained. These local changes do not resolve or certify the failed frontend rollout. Build logs remain required; billing remains paused.
+
 ## Media Review Screen Response Ordering, 2026-11-20
+
+Deployment evidence: revision `0c545ab` is live on the staging Render API and all seven anonymous safety checks pass. Cloudflare check run `136671798252` concluded failure; its GitHub output contains no diagnostic error text. The frontend fix is not confirmed deployed. Cloudflare build logs are required before remediation; no build settings were changed. Local build success is not staging frontend acceptance.
 
 The review-screen hook now accepts only its latest pending refresh result and invalidates pending state updates on filter-effect cleanup/unmount. Thrown transport failures produce a fixed safe message and settle loading; 401/403 responses clear displayed rows. An isolated hook test reproduced the old-filter overwrite before the fix and verifies out-of-order completion, 401 clearing, safe exception handling and no late writes after unmount. Service refresh-sharing, badge-count and assignment-rollback tests plus the production build pass. This is mocked lifecycle coverage, not signed-in browser E2E or cross-tab account-change certification. No existing records or payment settings changed; audible playback and signed-in admin acceptance remain open.
 

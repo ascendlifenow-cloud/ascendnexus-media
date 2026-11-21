@@ -1,0 +1,13 @@
+import assert from "node:assert/strict";
+import { frontendBuildIdentity, matchesFrontendRevision } from "./frontend-build-identity";
+const sha = "a".repeat(40);
+assert.equal(frontendBuildIdentity({ CF_PAGES_COMMIT_SHA: sha }).commitSha, sha);
+assert.equal(frontendBuildIdentity({ WORKERS_CI_COMMIT_SHA: sha }).commitSha, sha);
+assert.equal(frontendBuildIdentity({}, sha).commitSha, sha);
+assert.equal(frontendBuildIdentity({ GIT_COMMIT_SHA: "secret-invalid-value" }).commitSha, "unidentified");
+const identity = frontendBuildIdentity({ GIT_COMMIT_SHA: sha, SECRET: "must-not-appear" });
+assert.equal(JSON.stringify(identity).includes("must-not-appear"), false);
+assert.equal(matchesFrontendRevision(identity, "aaaaaaa"), true);
+for (const value of [null, {}, { ...identity, component: "api" }, { ...identity, commitSha: "unidentified" }, { ...identity, commitSha: "b".repeat(40) }]) assert.equal(matchesFrontendRevision(value, "aaaaaaa"), false);
+assert.equal(matchesFrontendRevision(identity, ""), false);
+console.log("Frontend identity passed: provider/fallback identity, secret exclusion and fail-closed revision matching.");

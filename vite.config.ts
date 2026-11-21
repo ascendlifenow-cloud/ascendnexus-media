@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { execFileSync } from "node:child_process";
+import { frontendBuildIdentity } from "./scripts/frontend-build-identity";
 
 const mediaApiTarget = (process.env.VITE_MEDIA_UPLOAD_API_BASE_URL ?? process.env.MEDIA_API_BASE_URL ?? "http://127.0.0.1:5313").replace(/\/+$/, "");
 
@@ -19,7 +21,14 @@ const writeJsonProxyError = (res: unknown, status: number, message: string): voi
 };
 
 export default defineConfig({
-  plugins: [react],
+  plugins: [react, {
+    name: "frontend-build-identity",
+    generateBundle() {
+      let fallback: string | undefined;
+      try { fallback = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* Source archives can use the CI revision instead. */ }
+      this.emitFile({ type: "asset", fileName: "build-info.json", source: JSON.stringify(frontendBuildIdentity(process.env, fallback)) });
+    },
+  }],
   server: {
     host: "0.0.0.0",
     port: 5303,

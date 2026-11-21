@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:frontend-build-identity": "node --import tsx scripts/frontend-build-identity-test.ts",
+    "staging:frontend-verify": "node --import tsx scripts/staging-frontend-verify.ts",
     "test:member-mix-actions": "node --import tsx scripts/member-mix-actions-test.ts",
     "test:song-mixes": "node --import tsx scripts/song-mixes-test.ts",
     "test:song-action-area": "node --import tsx scripts/song-action-area-test.ts",

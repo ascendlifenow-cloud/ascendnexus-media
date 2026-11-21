@@ -22,7 +22,7 @@ import type { ReleaseActionOperationState, ReleaseEditorAction } from "../servic
 const RELEASE_ACTION_TIMEOUT_MS = 20000;
 
 const withActionTimeout = async <T,>(operation: Promise<T>, label: string): Promise<T> => {
-  let timeoutId: ReturnType<typeof window.setTimeout> | undefined;
+  let timeoutId: number | undefined;
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = window.setTimeout(() => {
       reject(new Error(`${label} took too long. Please retry after checking the media/API connection.`));
@@ -32,7 +32,7 @@ const withActionTimeout = async <T,>(operation: Promise<T>, label: string): Prom
   try {
     return await Promise.race([operation, timeout]);
   } finally {
-    if (timeoutId) window.clearTimeout(timeoutId);
+    if (timeoutId !== undefined) window.clearTimeout(timeoutId);
   }
 };
 
