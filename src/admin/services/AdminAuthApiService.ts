@@ -74,6 +74,12 @@ export class AdminAuthApiService {
     return this.cachedSession;
   }
 
+  invalidateSession(): void {
+    this.sessionVersion++;
+    this.cachedSession = null;
+    this.sessionRequest = null;
+  }
+
   async getAvailability(): Promise<{ available: boolean; temporarilyUnavailable: boolean; setupIncomplete: boolean; mfaRequiredByPolicy: boolean }> {
     const response = await fetch(adminUrl("/api/auth/admin/availability"), { credentials: "include" });
     return parse(response);
@@ -116,9 +122,7 @@ export class AdminAuthApiService {
   }
 
   async logout(): Promise<void> {
-    this.sessionVersion++;
-    this.cachedSession = null;
-    this.sessionRequest = null;
+    this.invalidateSession();
     await authRequest("/api/admin/auth/logout", { method: "POST" });
   }
 

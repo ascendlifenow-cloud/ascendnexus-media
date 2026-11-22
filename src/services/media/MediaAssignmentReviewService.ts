@@ -71,6 +71,15 @@ export class MediaAssignmentReviewService {
   private reviewItems = new Map<string, MediaAssignmentReviewItem>();
   private removedAssetIds = new Set<string>();
   private refreshInFlight?: Promise<ApiResult<MediaAssignmentReviewItem[]>>;
+  private sessionVersion = 0;
+
+  reset(): void {
+    this.sessionVersion++;
+    this.refreshInFlight = undefined;
+    this.reviewItems.clear();
+    this.removedAssetIds.clear();
+    dispatchMediaReviewCountChanged(this.reviewItems.values());
+  }
 
   async listReviewItems(filters: MediaReviewFilters = {}): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
     const refreshed = await this.buildReviewQueueFromMediaAssets();
@@ -88,7 +97,7 @@ export class MediaAssignmentReviewService {
 
   async buildReviewQueueFromMediaAssets(): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
     if (this.refreshInFlight) return this.refreshInFlight;
-    const request = this.rebuildReviewQueue();
+    const request = this.rebuildReviewQueue(this.sessionVersion);
     this.refreshInFlight = request;
     try {
       return await request;
@@ -97,11 +106,12 @@ export class MediaAssignmentReviewService {
     }
   }
 
-  private async rebuildReviewQueue(): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
+  private async rebuildReviewQueue(version: number): Promise<ApiResult<MediaAssignmentReviewItem[]>> {
     const [assets, intakeRecords] = await Promise.all([
       adminMediaService.listMediaAssets(),
       adminMediaService.listMediaIntakeRecords(),
     ]);
+    if (version !== this.sessionVersion) return createApiError("unauthorized", "Admin session changed. Please sign in again.", 401);
     if (!assets.ok) return createApiError(assets.error.code, assets.error.message, assets.error.status);
     const records = intakeRecords.ok ? intakeRecords.data : [];
     const activeIntakeByAssetId = new Map(

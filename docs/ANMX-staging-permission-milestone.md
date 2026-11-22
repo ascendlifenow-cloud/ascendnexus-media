@@ -2,6 +2,12 @@
 
 Date: 2026-10-28 (America/Denver).
 
+## Cross-Tab Admin Sign-Out, 2026-11-22
+
+Local admin logout publishes a separate sign-out-only storage key with a timestamp/random nonce, never identity or credentials. Receiving provider instances invalidate pending session results, clear visible session state, cancel/remove queries under the standard admin key prefix and reset the in-memory Media Review queue. Queue resets invalidate pending rebuilds so old-account responses cannot restore rows. Member events are ignored and the signal cannot grant access. Fresh server authentication remains required to restore the admin view. If storage is blocked, local logout continues but cross-tab delivery cannot be guaranteed.
+
+Mocked lifecycle tests verify remote/local sign-out, standard cache-prefix clearing, stale session and review-response suppression, event listener cleanup, non-sensitive signal format and storage-failure tolerance. Existing admin session race, Media Review refresh/hook tests and production build pass. This does not certify every independently managed admin cache, simultaneous cookie mutation ordering, server-session revocation notifications or an actual two-browser E2E run. Existing accounts/media and backend permissions are unchanged; payments remain paused.
+
 ## Admin Session Cache Race Repair, 2026-11-21
 
 Admin session caching now uses an operation version. Logout immediately invalidates cached identity and pending session requests; late session results cannot repopulate the cache or clear a newer session request. Login supersedes prior session operations. Logout uses the existing bounded authentication request helper, and the provider clears visible session state before waiting for the request. Mocked transport tests reproduced the old post-logout cache resurrection and verify stale-session rejection plus preservation of newer login cache when older requests finish. The production build, workflow-navigation and Media Review hook checks pass. These tests do not certify server cookie ordering for simultaneous login/logout, cross-tab synchronization, or real browser sessions. Backend RBAC remains authoritative and unchanged. Existing accounts and assets were not modified; billing remains paused.

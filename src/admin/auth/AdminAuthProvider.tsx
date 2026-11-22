@@ -1,17 +1,40 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AdminAuthRequestError, adminAuthApiService, type AdminAuthSession } from "../services/AdminAuthApiService";
 import { AdminAuthContext } from "./AdminAuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { adminLogoutEventKey, announceAdminLogout } from "./adminLogoutEvents";
+import { mediaAssignmentReviewService } from "../../services/media/MediaAssignmentReviewService";
 
 interface AdminAuthProviderProps {
   children: ReactNode;
 }
 
 export function AdminAuthProvider({ children }: AdminAuthProviderProps) {
+  const queryClient = useQueryClient();
   const initialSession = adminAuthApiService.getCachedSession();
   const [session, setSession] = useState<AdminAuthSession | null>(initialSession);
   const [status, setStatus] = useState<"loading" | "authenticated" | "unauthenticated">(initialSession ? "authenticated" : "loading");
   const [error, setError] = useState<string | null>(null);
   const requestVersion = useRef(0);
+
+  const clearAdminState = useCallback(() => {
+    requestVersion.current++;
+    adminAuthApiService.invalidateSession();
+    setSession(null);
+    setStatus("unauthenticated");
+    setError(null);
+    void queryClient.cancelQueries({ queryKey: ["admin"] }).catch(() => undefined);
+    queryClient.removeQueries({ queryKey: ["admin"] });
+    mediaAssignmentReviewService.reset();
+  }, [queryClient]);
+
+  useEffect(() => {
+    const signedOut = (event: StorageEvent) => {
+      if (event.key === adminLogoutEventKey && event.newValue !== null) clearAdminState();
+    };
+    window.addEventListener("storage", signedOut);
+    return () => { requestVersion.current++; window.removeEventListener("storage", signedOut); };
+  }, [clearAdminState]);
 
   const refresh = useCallback(async () => {
     const version = ++requestVersion.current;
@@ -61,11 +84,10 @@ export function AdminAuthProvider({ children }: AdminAuthProviderProps) {
   }, []);
 
   const logout = useCallback(async () => {
-    requestVersion.current += 1;
-    setSession(null);
-    setStatus("unauthenticated");
+    clearAdminState();
+    announceAdminLogout();
     await adminAuthApiService.logout();
-  }, []);
+  }, [clearAdminState]);
 
   const value = useMemo(() => {
     const permissions = new Set(session?.permissions ?? session?.user?.permissions ?? []);
