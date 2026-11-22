@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ViewportPortal } from "../../components/layout/ViewportPortal";
 import { ArrowLeft, ImageOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { PublicLoadingErrorState } from "../../components/fallback";
@@ -142,7 +143,7 @@ export function AdminArtworkCollagePage() {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#07050a] text-white">
+    <ViewportPortal><div className="fixed inset-0 z-[100] overflow-y-auto bg-[#07050a] text-white">
       <SEOHead metadata={adminArtworkCollageMetadata} disableSocial />
 
       <div className="min-h-screen px-2 py-2 sm:px-3 sm:py-3">
@@ -175,6 +176,6 @@ export function AdminArtworkCollagePage() {
         <ArrowLeft className="h-4 w-4" aria-hidden />
         Back
       </button>
-    </div>
+    </div></ViewportPortal>
   );
 }

@@ -42,8 +42,8 @@ requiredRoutes.forEach((route) => {
 });
 
 assert(appRouter.includes('path="/releases"'), "Missing optional /releases route alias");
-assert(appRouter.includes("<ResponsiveHeader />"), "ResponsiveHeader is not mounted in AppRouter");
-assert(appRouter.includes("<ResponsiveFooter />"), "ResponsiveFooter is not mounted in AppRouter");
+assert(/<ApplicationShell\b/.test(read("src/components/public/PublicShell.tsx")) && /<ResponsiveHeader\b/.test(read("src/components/authShell/ApplicationShell.tsx")), "Public shell header is missing");
+assert(/<ResponsiveFooter\b/.test(read("src/components/public/PublicShell.tsx")), "Public shell footer is missing");
 assert(appRouter.includes("<Suspense"), "Route-level Suspense is not configured");
 
 const publicUiFiles = sourceFiles.filter((file) => file.startsWith("src/components/") || file.startsWith("src/pages/"));
@@ -52,7 +52,9 @@ assert(directSeedImports.length === 0, `Public UI imports seed/config files dire
 
 const appSource = sourceFiles.map((file) => read(file)).join("\n");
 assert(!/preload="metadata"/.test(appSource), "Audio preview metadata preloading is still present");
-assert(!/\.load\(\)/.test(appSource), "Forced media load() call is still present");
+// load() is also required to unload revoked media; it is not evidence of autoplay.
+// Interaction-driven authorization/playback is covered by the player lifecycle tests.
+assert(!/<(?:audio|video)\b[^>]*\bautoPlay(?!\s*=\s*\{false\})(?:\s|=|>)/.test(appSource), "Declarative media autoplay is present");
 assert(/protocol === "https:" \|\| parsedUrl\.protocol === "mailto:"/.test(read("src/utils/externalLinksUtils.ts")), "External URL protocol allowlist changed or is missing");
 assert(/noIndex: true/.test(read("src/utils/seoMetadata.ts")), "SEO noIndex readiness is missing from metadata utilities");
 assert(/provider: isDevelopment \? "console" : "none"/.test(read("src/utils/analytics/analyticsUtils.ts")), "Analytics default provider is not development-console/production-none");

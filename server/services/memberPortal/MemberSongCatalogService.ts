@@ -8,6 +8,7 @@ import { AuthApiError } from "../../utils/auth/authErrorUtils";
 import { parseReleasePublicationTargets } from "../../utils/publication/releasePublicationTargets";
 import { publicSafeUrl } from "../../mappers/public/publicUrlMapper";
 import { songMixKey } from "../../../src/models/songMixes";
+import { consumerStyleTags } from "../../../src/utils/consumerStyleTags";
 
 const safePublicMedia = (value?: string) => value && !/(private\/|signedUrl|signature=|token=|storagePath|privateObjectKey|full[-_]?song)/i.test(value) ? value : undefined;
 
@@ -24,7 +25,7 @@ export class MemberSongCatalogService {
         playlistKey: songMixKey(release.releaseId, release.metadata?.publicationPlaylist),
         title: release.title, slug: release.slug, releaseDate: release.releaseDate,
         description: release.description, lyrics: release.lyrics,
-        genre: release.genre ?? "", styleTags: release.styleTags ?? [], status: "published", externalLinks: decoration?.externalLinks ?? {},
+        genre: release.genre ?? "", styleTags: consumerStyleTags(release.styleTags), status: "published", externalLinks: decoration?.externalLinks ?? {},
         featured: release.featured,
         coverArtUrl: safePublicMedia(decoration?.coverArtUrl ?? publicSafeUrl(release.coverArtUrl)),
         coverArtThumbnailUrl: safePublicMedia(decoration?.coverArtThumbnailUrl ?? publicSafeUrl(release.coverArtThumbnailUrl)),

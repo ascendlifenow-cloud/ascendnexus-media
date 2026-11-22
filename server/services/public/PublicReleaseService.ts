@@ -1,4 +1,5 @@
 import { publicArtistsSeed, publicSongReleasesSeed } from "../../../src/data";
+import { consumerStyleTags } from "../../../src/utils/consumerStyleTags";
 import type { ArtistReleaseGroup } from "../../../src/models/homepage";
 import type { PublicSongRelease } from "../../../src/models/release";
 import { getBackendConfig } from "../../config/backendConfig";
@@ -23,7 +24,7 @@ const publicArtistFromRecord = (artist: Awaited<ReturnType<typeof artistReposito
   profileThumbnailUrl: artist.profileThumbnailUrl,
   status: "active" as const,
   sortOrder: artist.sortOrder,
-  musicStyle: [...artist.genres, ...artist.styleTags].join(", "),
+  musicStyle: [...artist.genres, ...consumerStyleTags(artist.styleTags)].join(", "),
   featured: artist.featured,
   externalLinks: artist.externalLinks,
 });

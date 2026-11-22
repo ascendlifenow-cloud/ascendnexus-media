@@ -11,7 +11,14 @@ export const getEnabledSocialLinks = (links: readonly FooterSocialLink[] | undef
 
 export const getFooterExternalLinks = (links: readonly FooterSocialLink[] | undefined): ExternalLink[] =>
   getVisibleExternalLinks(
-    (links ?? []).map((link, index) => ({
+    (links ?? []).filter(link => {
+      try {
+        const host = new URL(link.href).hostname.toLowerCase();
+        return !["example.com", "example.org", "example.net"].some(domain => host === domain || host.endsWith(`.${domain}`));
+      } catch {
+        return false;
+      }
+    }).map((link, index) => ({
       platform: link.platform,
       label: link.label,
       url: link.href,

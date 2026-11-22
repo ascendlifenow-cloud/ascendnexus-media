@@ -1,4 +1,5 @@
 import type { ArtistRecord } from "../../models/artists/ArtistModel";
+import { consumerStyleTags } from "../../../src/utils/consumerStyleTags";
 import { artistRepository } from "../../repositories/ArtistRepository";
 import { mediaAuditPersistenceService } from "../media/MediaAuditPersistenceService";
 import { mediaStoragePromotionService } from "../media/MediaStoragePromotionService";
@@ -247,7 +248,7 @@ export class AdminArtistService {
       status: record.status,
       sortOrder: record.sortOrder,
       genres: record.genres,
-      styleTags: record.styleTags,
+      styleTags: consumerStyleTags(record.styleTags),
       featured: record.featured,
       externalLinks: record.externalLinks,
       seoMetadata: record.metadata?.seoMetadata,

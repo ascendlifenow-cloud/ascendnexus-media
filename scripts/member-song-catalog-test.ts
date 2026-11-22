@@ -30,11 +30,13 @@ try {
     for (const release of data.releaseRecords) data.contentEntitlementRequirements.push({ requirementId: release.releaseId, contentType: "release", contentId: release.releaseId, status: "active", policyId: "policy", accessClassification: "vip", requiredEntitlementKeys: ["content.vip.view"], streamAssetId: "private-audio" } as never);
   });
   await membershipAssignmentService.assignTier("vip", "tier-vip", "admin_grant", "fixture-admin");
+  await jsonDatabase.update(data => { data.releaseRecords[0].styleTags = ["recovered", "media-intake", "Dream Pop"]; });
   publicContentDeliveryService.listPublicReleases = async () => [];
   const data = structuredClone(await jsonDatabase.read());
   const member = { ...data.memberAccounts[0], preferences: { privacy: { showFavorites: false } } } as never;
   const catalogPayload = await catalog.getCatalog("vip");
   assert.equal(catalogPayload.releases.length, 39);
+  assert.deepEqual(catalogPayload.releases.find(release => release.releaseId === "release-0")?.styleTags, ["Dream Pop"]);
   assert.ok(catalogPayload.items.every(item => /^nexus-0[123]$/.test(item.playlistKey ?? "")));
   assert.equal(catalogPayload.artists.length, 1, "Missing public artist must not discard eligible member songs");
   assert.equal((await catalog.getDetail("vip", "song-38")).song.releaseId, "release-38");

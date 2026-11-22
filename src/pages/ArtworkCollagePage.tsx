@@ -9,6 +9,7 @@ import type { GalleryMediaType } from "../models/gallery";
 import { publicMediaApiClient } from "../services/public/PublicMediaApiClient";
 import { isSafePublicMediaUrl } from "../utils/media/publicSafeUrlUtils";
 import { loadArtworkSources } from "../services/public/publicJsonRequest";
+import { ViewportPortal } from "../components/layout/ViewportPortal";
 
 interface PublicArtworkCollageItem {
   id: string;
@@ -255,7 +256,7 @@ export function ArtworkCollagePage() {
         ) : null}
       </div>
 
-      <button
+      <ViewportPortal><button
         type="button"
         onClick={goBack}
         className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/78 px-4 py-3 text-sm font-semibold text-white shadow-[0_20px_70px_rgba(0,0,0,0.55)] backdrop-blur-xl transition hover:-translate-y-0.5 hover:border-anm-cyan/55 hover:bg-anm-cyan/16 focus:outline-none focus:ring-2 focus:ring-anm-cyan/70 motion-reduce:transform-none"
@@ -263,7 +264,7 @@ export function ArtworkCollagePage() {
       >
         <ArrowLeft className="h-4 w-4" aria-hidden />
         Back
-      </button>
+      </button></ViewportPortal>
     </div>
   );
 }

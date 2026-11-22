@@ -8,6 +8,7 @@ import { releaseRepository } from "../../repositories/ReleaseRepository";
 import { mapArtistRecordToPublicProfile } from "../../mappers/public/mapArtistRecordToPublicProfile";
 import { mapReleaseRecordToPublicSongRelease } from "../../mappers/public/mapReleaseRecordToPublicSongRelease";
 import { adminArtistService } from "../artists/AdminArtistService";
+import { consumerStyleTags } from "../../../src/utils/consumerStyleTags";
 
 const recordToPublicArtist = (artist: Awaited<ReturnType<typeof artistRepository.listPublic>>[number]): ArtistPublicProfile => {
   const safe = adminArtistService.sanitizeArtistForPublic(artist);
@@ -43,7 +44,7 @@ const recordToPublicRelease = (release: Awaited<ReturnType<typeof releaseReposit
   audioPreviewUrl: release.audioPreviewUrl,
   releaseDate: release.releaseDate,
   genre: release.genre,
-  styleTags: release.styleTags,
+  styleTags: consumerStyleTags(release.styleTags),
   status: "published",
   externalLinks: release.externalLinks,
   featured: release.featured,

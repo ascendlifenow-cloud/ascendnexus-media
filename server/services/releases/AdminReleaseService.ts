@@ -1,4 +1,5 @@
 import type { SongReleaseRecord } from "../../models/releases/SongReleaseModel";
+import { consumerStyleTags } from "../../../src/utils/consumerStyleTags";
 import { songMixKey } from "../../../src/models/songMixes";
 import { artistRepository } from "../../repositories/ArtistRepository";
 import { releaseRepository } from "../../repositories/ReleaseRepository";
@@ -319,7 +320,7 @@ export class AdminReleaseService {
       audioPreviewUrl: isPublicSafeUrl(record.audioPreviewUrl) ? record.audioPreviewUrl : undefined,
       releaseDate: record.releaseDate,
       genre: record.genre,
-      styleTags: record.styleTags,
+      styleTags: consumerStyleTags(record.styleTags),
       status: "published" as const,
       externalLinks: record.externalLinks,
       featured: record.featured,

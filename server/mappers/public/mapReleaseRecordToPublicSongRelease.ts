@@ -1,4 +1,5 @@
 import type { ArtistPublicProfile } from "../../../src/models/artist";
+import { consumerStyleTags } from "../../../src/utils/consumerStyleTags";
 import type { PublicSongRelease } from "../../../src/models/release";
 import { isPublishedState, publicSafeUrl } from "./publicUrlMapper";
 import { songMixKey } from "../../../src/models/songMixes";
@@ -25,7 +26,7 @@ export const mapReleaseRecordToPublicSongRelease = (release: PublicSongRelease, 
     audioPreviewUrl,
     releaseDate: release.releaseDate,
     genre: release.genre,
-    styleTags: Array.isArray(release.styleTags) ? release.styleTags : [],
+    styleTags: consumerStyleTags(release.styleTags),
     status: "published",
     externalLinks: release.externalLinks ?? {},
     featured: release.featured,

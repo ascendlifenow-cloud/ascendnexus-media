@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:viewport-portal": "node --import tsx scripts/viewport-portal-test.ts",
+    "test:consumer-discovery": "node --import tsx scripts/consumer-discovery-test.ts",
     "test:frontend-build-identity": "node --import tsx scripts/frontend-build-identity-test.ts",
     "staging:frontend-verify": "node --import tsx scripts/staging-frontend-verify.ts",
     "test:member-mix-actions": "node --import tsx scripts/member-mix-actions-test.ts",
