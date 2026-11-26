@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:router-migration": "node --import tsx scripts/router-migration-test.ts",
     "test:viewport-portal": "node --import tsx scripts/viewport-portal-test.ts",
     "test:consumer-discovery": "node --import tsx scripts/consumer-discovery-test.ts",
     "test:frontend-build-identity": "node --import tsx scripts/frontend-build-identity-test.ts",
@@ -486,7 +487,7 @@
     "mongodb": "^7.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.30.6",
+    "react-router-dom": "^7.18.7",
     "stripe": "^23.0.1",
     "tsx": "^4.23.15",
     "zustand": "^5.0.2"

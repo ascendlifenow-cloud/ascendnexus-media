@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { memberReturnPath } from "../../utils/memberReturnPath";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { memberAuthApiService } from "../../services/member/MemberAuthApiService";
@@ -9,8 +10,6 @@ import { MemberPortalContext } from "../contexts/MemberPortalContext";
 import { MemberApiError } from "../../services/member/MemberApiError";
 import { Button } from "../../components/ui/Button";
 import { authShellChangedEvent } from "../../services/auth/AuthenticationShellService";
-
-const isSafeReturnPath = (path: string) => path.startsWith("/member") && !path.startsWith("//") && !path.includes("://");
 
 export function MemberRouteGuard({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -74,7 +73,8 @@ export function MemberRouteGuard({ children }: { children: ReactNode }) {
     </main>
   );
   if (blocked === "auth" || !session || !dashboard) {
-    const target = isSafeReturnPath(location.pathname) ? `?returnTo=${encodeURIComponent(location.pathname)}` : "";
+    const safePath = memberReturnPath(location.pathname);
+    const target = safePath ? `?returnTo=${encodeURIComponent(safePath)}` : "";
     return <Navigate to={`/login${target}`} replace />;
   }
   if (blocked === "suspended") return <Navigate to="/member/suspended" replace />;

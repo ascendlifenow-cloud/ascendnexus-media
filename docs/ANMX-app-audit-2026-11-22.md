@@ -73,7 +73,7 @@ The large-chunk warning remains. No Lighthouse or full WCAG certification was ru
 | Priority | Item / Status | Completion Evidence Required |
 | --- | --- | --- |
 | P0 before charging | Signed-in acceptance matrix: open | Guest preview; Free allowance/exhaustion; Premium/Supporter/VIP full playback; seek/refresh; separate download; logout/downgrade/suspension; cross-member denial, desktop and mobile, with actual browser/audio evidence |
-| P1 security | Dependency remediation: partial, updated November 25 | Compatible updates remove all five high findings and reduce reported packages from nine to two moderate router findings. Router 7.18+ migration and signed-in browser acceptance remain open; see follow-up below |
+| P1 security | Dependency remediation: local migration tested November 26 | Router DOM 7.18.7 clears the remaining advisories; audit reports zero known vulnerabilities. Migration regression and build pass; deployment/browser acceptance tracked separately below |
 | P1 verification | Account/member/admin browser acceptance: open | Registration, verification/resend, recovery, session restore/revoke, profile/preferences, admin login/navigation, upload/assign/publish/delete synchronization; isolated disposable fixtures only |
 | P1 security | Deployed storage/cache/upload assurance: unverified this pass | Confirm private origin denial, all full-song object classifications, scanner policy, service-worker exclusion, protected no-store, log/analytics redaction and preview duration/format across catalog |
 | P1 UX/performance | Heavy entry bundle: confirmed open | Split eager admin/editor code from guest entry and optimize large fallback/hero/emblem images; measure cold/warm mobile route and API latency with budgets |
@@ -136,3 +136,31 @@ Do not use forced upgrades, suppress the findings, or mark this item complete.
 Next: a separately tested router migration, including member/admin redirects,
 nested routes, direct refresh, logout, external-link handling and staging browser
 acceptance. Payment activation remains deferred.
+
+## November 26 Router Migration
+
+Updated react-router-dom/react-router to 7.18.7, retaining BrowserRouter and the
+existing declarative Routes structure. Node 20 and React 18 satisfy the published
+package requirements. No framework-mode, SSR or authentication-platform replacement
+was introduced. Existing absolute admin/member links and nested layout routes remain.
+
+Added a shared member return-path validator to the login and member guard. It accepts
+only normalized /member routes, rejects prefix lookalikes, external origins,
+backslashes, escaped separators, malformed escapes and control characters, and falls
+back safely without changing account permissions. Valid query/fragment context is
+retained. Updated the admin navigation test's removed server subpath import to the
+v7 root export.
+
+All 42 previous suites pass after correcting that import; the new router migration
+test also passes, for 43 distinct passing suites. The new test extracts real route
+declarations from AppRouter and uses installed router matching/navigation to cover
+public/member/admin routes, aliases, nesting, guard placement and safe return paths.
+It does not execute authenticated guard effects or claim browser/audio acceptance.
+Production build and public structural QA pass. Dependency audit reports zero known
+vulnerabilities at this check, not a guarantee of application security. Large bundle
+warning remains. User-provided signed-in Opera is available for bounded read-only
+post-deploy acceptance; no membership, publication or payment changes are authorized
+by this migration.
+
+Reference: [official router changelog](https://reactrouter.com/changelog), including
+v7 minimum versions, compatibility re-exports and adopted future-flag behavior.

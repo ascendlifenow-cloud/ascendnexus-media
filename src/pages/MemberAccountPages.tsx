@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { memberReturnPath } from "../utils/memberReturnPath";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, CircleAlert, LoaderCircle } from "lucide-react";
@@ -48,7 +49,7 @@ export function PublicMemberLoginPage() {
       await memberAuthApiService.login({ email, password, rememberMe });
       authenticationShellService.announceAuthChange();
       const returnTo = params.get("returnTo");
-      navigate(returnTo?.startsWith("/member") ? returnTo : "/member");
+      navigate(memberReturnPath(returnTo) ?? "/member");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed.");
     } finally {
