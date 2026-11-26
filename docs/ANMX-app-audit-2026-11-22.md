@@ -205,3 +205,13 @@ regressions, not full signed-in lifecycle or audible playback certification.
 Production build and public structural QA pass. Staging revision checks and browser
 acceptance must confirm deployment before claiming the improvement is live.
 Payments remain paused; no members, media, publications or billing records changed.
+
+The isolated deployed-browser check caught a startup ReferenceError after the
+initial deployment: eager SEO defaults reached an uninitialized media-CDN service
+through the shared media barrel. SEO now calls the same standalone URL-normalizing
+utility directly; Media Review also imports its admin dependencies directly to
+remove Rollup's cross-chunk circular-export warning. The corrected production
+build renders Admin sign in and navigates to password recovery in an isolated
+local browser. The loading regression guards the SEO initialization boundary.
+This correction still requires deployed-browser confirmation; native signed-in
+acceptance and audible playback remain open.

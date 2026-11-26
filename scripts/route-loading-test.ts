@@ -7,6 +7,10 @@ import ts from "typescript";
 import postcss from "postcss";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const seoSource = ts.createSourceFile("seoMetadata.ts", read("src/utils/seoMetadata.ts"), ts.ScriptTarget.Latest, true);
+const seoImports = seoSource.statements.filter(ts.isImportDeclaration).map(node => (node.moduleSpecifier as ts.StringLiteral).text);
+assert.ok(!seoImports.some(path => path.includes("services/")), "Eager SEO defaults must not initialize the media/admin service graph");
+assert.ok(seoImports.includes("./media/cdnUrlUtils"), "SEO normalization must use the standalone URL utility");
 const css = postcss.parse(read("src/styles.css"));
 let checkedAnimation = false;
 css.walkAtRules("keyframes", rule => {

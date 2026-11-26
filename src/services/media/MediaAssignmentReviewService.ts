@@ -8,7 +8,8 @@ import type {
 } from "../../models/media";
 import type { ApiResult } from "../api/httpClient";
 import { createApiError, createApiSuccess } from "../api/httpClient";
-import { adminMediaService, recordMediaAuditEvent } from "../admin";
+import { adminMediaService } from "../admin/AdminMediaService";
+import { recordMediaAuditEvent } from "../admin/AdminAuditService";
 import type { AdminMediaIntakeRecord } from "../admin/AdminMediaService";
 import { dispatchMediaAssignmentChanged, dispatchMediaReviewCountChanged } from "./MediaAssignmentEvents";
 import { mediaAssetLinkingService } from "./MediaAssetLinkingService";

@@ -4,7 +4,7 @@ import type { SeoMetadata } from "../models/seo";
 import { getArtistImageUrl } from "./artistImageUtils";
 import { getCoverArtUrl } from "./coverArtUtils";
 import { isSafePublicMediaUrl } from "./media/publicSafeUrlUtils";
-import { mediaCdnService } from "../services/media";
+import { normalizePublicMediaUrl } from "./media/cdnUrlUtils";
 export { siteSeoDefaults } from "./siteSeoDefaults";
 import { siteSeoDefaults } from "./siteSeoDefaults";
 
@@ -30,7 +30,7 @@ export const buildPageTitle = (title: string | null | undefined, siteName = site
 
 export const getSeoImageUrl = (imageUrl: string | null | undefined): string => {
   const value = sanitizeMetaText(imageUrl);
-  const normalized = mediaCdnService.normalizePublicMediaUrl(value);
+  const normalized = normalizePublicMediaUrl(value);
   return normalized && isSafePublicMediaUrl(normalized) ? normalized : siteSeoDefaults.defaultImage;
 };
 

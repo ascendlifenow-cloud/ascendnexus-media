@@ -21,10 +21,11 @@ vm.runInNewContext(ts.transpileModule(source, {
     shouldIncludeAssetInReviewQueue: () => true,
     buildReviewItemFromMediaAsset: (asset: any) => ({ reviewItemId: `media-review-${asset.assetId}`, assetId: asset.assetId, asset, status: "pending" }),
   };
-  if (name === "../admin") return { adminMediaService: {
+  if (name === "../admin/AdminMediaService") return { adminMediaService: {
     listMediaAssets: () => { assetRequests++; return assetReply(); },
     listMediaIntakeRecords: async () => { intakeRequests++; return { ok: true, data: [] }; },
-  }, recordMediaAuditEvent: () => {} };
+  } };
+  if (name === "../admin/AdminAuditService") return { recordMediaAuditEvent: () => {} };
   if (name.includes("MediaAssignmentEvents")) return { dispatchMediaReviewCountChanged: () => {} };
   return {};
 } });
