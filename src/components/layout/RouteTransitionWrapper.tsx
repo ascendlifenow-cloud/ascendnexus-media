@@ -1,15 +1,14 @@
-import { useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 
 interface RouteTransitionWrapperProps {
   children: ReactNode;
 }
 
 export function RouteTransitionWrapper({ children }: RouteTransitionWrapperProps) {
-  const location = useLocation();
-
+  const { pathname } = useLocation();
   return (
-    <div key={`${location.pathname}${location.search}`} className="animate-anm-route-enter">
+    <div key={pathname} className="animate-anm-route-enter">
       {children}
     </div>
   );

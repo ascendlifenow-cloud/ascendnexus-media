@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { PublicPageLoader } from "../../components/loading";
 import type { CSSProperties } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { SEOHead } from "../../components/SEOHead";
@@ -53,7 +54,7 @@ export function AdminLayout() {
             <AdminSidebar mobile onNavigate={() => setMobileNavOpen(false)} />
           </div>
           <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            <Outlet />
+            <Suspense key={location.pathname} fallback={<PublicPageLoader />}><Outlet /></Suspense>
           </main>
         </div>
       </div>

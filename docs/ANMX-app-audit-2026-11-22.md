@@ -76,7 +76,7 @@ The large-chunk warning remains. No Lighthouse or full WCAG certification was ru
 | P1 security | Dependency remediation: local migration tested November 26 | Router DOM 7.18.7 clears the remaining advisories; audit reports zero known vulnerabilities. Migration regression and build pass; deployment/browser acceptance tracked separately below |
 | P1 verification | Account/member/admin browser acceptance: open | Registration, verification/resend, recovery, session restore/revoke, profile/preferences, admin login/navigation, upload/assign/publish/delete synchronization; isolated disposable fixtures only |
 | P1 security | Deployed storage/cache/upload assurance: unverified this pass | Confirm private origin denial, all full-song object classifications, scanner policy, service-worker exclusion, protected no-store, log/analytics redaction and preview duration/format across catalog |
-| P1 UX/performance | Heavy entry bundle: confirmed open | Split eager admin/editor code from guest entry and optimize large fallback/hero/emblem images; measure cold/warm mobile route and API latency with budgets |
+| P1 UX/performance | Bundle split tested November 26; latency acceptance open | Admin/page code deferred; initial JS reduced about 66% raw / 60% gzip. Image optimization, measured device/API latency and signed-in acceptance remain open; see follow-up |
 | P1 data safety | Snapshot migration boundary: partial | Existing changed-record transactions remain; retire remaining broad snapshot reads/full write paths after stale-edit, concurrency, recovery and migration tests; see database-mutation-safety record |
 | P1 release automation | Transactional approval executor: incomplete/locked | Validate exact revision-bound approval immediately before public effects; test withdrawal, changed assets/schedule/destinations, retries, deduplication, partial success and rollback |
 | P1 operations | Repeatable CI acceptance gate: partial | Wire recent standalone lifecycle tests into CI; add signed-in staging browser fixtures, mobile screenshots, accessibility, network leakage and deploy revision checks. No generic npm test/lint/E2E script currently provides this entire gate |
@@ -164,3 +164,44 @@ by this migration.
 
 Reference: [official router changelog](https://reactrouter.com/changelog), including
 v7 minimum versions, compatibility re-exports and adopted future-flag behavior.
+
+## November 26 Loading and Bundle Follow-Up
+
+Confirmed the eager guest/member bootstrap included every admin page. Moved the
+unchanged admin route declarations into deferred AdminAppRoutes and made all 59
+admin page entries individually lazy. Permission wrappers and admin/member session
+boundaries remain; no API authorization or server/session configuration changed.
+An inner route-body Suspense boundary preserves admin navigation while the requested
+page bundle loads, with a pathname key to avoid stale prior-page content.
+
+The public/member transition wrapper now keys only by pathname, not query string.
+Filter/query changes no longer force a full member session/layout remount. Page
+changes still trigger the existing account revalidation. Further decoupling of
+member shell hydration requires dedicated lifecycle/security coverage and remains
+open. Removed zero-opacity route animation frames so a paused animation cannot hide
+otherwise loaded content; reduced-motion behavior is unchanged.
+
+Measured using Vite's build manifest and the transitive static JavaScript imports of
+the HTML entry (dynamic page chunks, CSS, images and network latency excluded):
+
+| Measure | Before | After, approximately |
+| --- | --- | --- |
+| Entry JavaScript | 1,274,768 bytes | 260,638 bytes |
+| Static bootstrap JavaScript | 1,530,309 bytes | 516,179 bytes |
+| Sum of gzip sizes of static JavaScript | 386,161 bytes | 153,577 bytes |
+| Deferred admin page entries | 0 | 59 |
+
+This is roughly 80% less entry JS, 66% less static bootstrap JS and 60% less gzip
+bootstrap JS. It is not a 66% page-load latency claim. The build's >500 kB chunk
+warning no longer appears. Large image assets and backend latency are not fixed by
+this change.
+
+All 43 prior distinct suites and the new route-loading suite pass (44 total).
+The router test now reads actual declarations from both route files. Loading tests
+check query-key stability, retained pathname revalidation, a local admin loading
+boundary, visible animation frames, actual deferred build entries and budgets of
+400 KB entry / 700 KB static bootstrap JS. These are component-structure and build
+regressions, not full signed-in lifecycle or audible playback certification.
+Production build and public structural QA pass. Staging revision checks and browser
+acceptance must confirm deployment before claiming the improvement is live.
+Payments remain paused; no members, media, publications or billing records changed.

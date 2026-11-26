@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "test:route-loading": "node --import tsx scripts/route-loading-test.ts",
     "test:router-migration": "node --import tsx scripts/router-migration-test.ts",
     "test:viewport-portal": "node --import tsx scripts/viewport-portal-test.ts",
     "test:consumer-discovery": "node --import tsx scripts/consumer-discovery-test.ts",

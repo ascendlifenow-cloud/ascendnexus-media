@@ -6,24 +6,26 @@ import { memberReturnPath } from "../src/utils/memberReturnPath";
 
 // Extract actual route declarations so matching tests cannot drift to a copied route map.
 const source = ts.createSourceFile("AppRouter.tsx", readFileSync(new URL("../src/routes/AppRouter.tsx", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const adminSource = ts.createSourceFile("AdminAppRoutes.tsx", readFileSync(new URL("../src/routes/AdminAppRoutes.tsx", import.meta.url), "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const groups: RouteObject[][] = [];
 const tag = (node: ts.JsxElement | ts.JsxSelfClosingElement) => ts.isJsxElement(node) ? node.openingElement : node;
-const attribute = (node: ts.JsxElement | ts.JsxSelfClosingElement, name: string) => tag(node).attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText(source) === name) as ts.JsxAttribute | undefined;
+const attribute = (node: ts.JsxElement | ts.JsxSelfClosingElement, name: string) => tag(node).attributes.properties.find(item => ts.isJsxAttribute(item) && item.name.getText() === name) as ts.JsxAttribute | undefined;
 const literal = (node: ts.JsxElement | ts.JsxSelfClosingElement, name: string) => {
   const value = attribute(node, name)?.initializer;
   return value && ts.isStringLiteral(value) ? value.text : undefined;
 };
 const childRoutes = (node: ts.JsxElement): RouteObject[] => node.children.flatMap(child => {
-  if ((!ts.isJsxElement(child) && !ts.isJsxSelfClosingElement(child)) || tag(child).tagName.getText(source) !== "Route") return [];
+  if ((!ts.isJsxElement(child) && !ts.isJsxSelfClosingElement(child)) || tag(child).tagName.getText() !== "Route") return [];
   const path = literal(child, "path");
-  const element = attribute(child, "element")?.initializer?.getText(source) ?? "";
+  const element = attribute(child, "element")?.initializer?.getText() ?? "";
   const handle = { element, redirect: /<Navigate\s+to="([^"]+)"/.exec(element)?.[1] };
   return [attribute(child, "index") ? { index: true, handle } : { path, handle, children: ts.isJsxElement(child) ? childRoutes(child) : undefined }];
 });
 const visit = (node: ts.Node) => {
-  if (ts.isJsxElement(node) && tag(node).tagName.getText(source) === "Routes") groups.push(childRoutes(node));
+  if (ts.isJsxElement(node) && tag(node).tagName.getText() === "Routes") groups.push(childRoutes(node));
   ts.forEachChild(node, visit);
 };
+visit(adminSource);
 visit(source);
 assert.equal(groups.length, 2, "Review extraction when routing structure changes");
 const routesFor = (path: string) => groups[path.startsWith("/admin") ? 0 : 1];
