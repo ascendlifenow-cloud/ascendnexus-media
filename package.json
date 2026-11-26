@@ -486,7 +486,7 @@
     "mongodb": "^7.5.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
+    "react-router-dom": "^6.30.6",
     "stripe": "^23.0.1",
     "tsx": "^4.23.15",
     "zustand": "^5.0.2"
@@ -496,9 +496,9 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
     "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.49",
+    "postcss": "^8.5.33",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.6.3",
-    "vite": "^7.3.6"
+    "vite": "^7.3.8"
   }
 }

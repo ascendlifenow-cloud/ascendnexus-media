@@ -73,7 +73,7 @@ The large-chunk warning remains. No Lighthouse or full WCAG certification was ru
 | Priority | Item / Status | Completion Evidence Required |
 | --- | --- | --- |
 | P0 before charging | Signed-in acceptance matrix: open | Guest preview; Free allowance/exhaustion; Premium/Supporter/VIP full playback; seek/refresh; separate download; logout/downgrade/suspension; cross-member denial, desktop and mobile, with actual browser/audio evidence |
-| P1 security | Dependency remediation: confirmed open | Review and patch React Router/DOM, Vite, PostCSS and affected transitive packages; repeat build, redirects/auth and regression suites. Audit reports baseline-browser-mapping, browserslist, nanoid and source-map-js too |
+| P1 security | Dependency remediation: partial, updated November 25 | Compatible updates remove all five high findings and reduce reported packages from nine to two moderate router findings. Router 7.18+ migration and signed-in browser acceptance remain open; see follow-up below |
 | P1 verification | Account/member/admin browser acceptance: open | Registration, verification/resend, recovery, session restore/revoke, profile/preferences, admin login/navigation, upload/assign/publish/delete synchronization; isolated disposable fixtures only |
 | P1 security | Deployed storage/cache/upload assurance: unverified this pass | Confirm private origin denial, all full-song object classifications, scanner policy, service-worker exclusion, protected no-store, log/analytics redaction and preview duration/format across catalog |
 | P1 UX/performance | Heavy entry bundle: confirmed open | Split eager admin/editor code from guest entry and optimize large fallback/hero/emblem images; measure cold/warm mobile route and API latency with budgets |
@@ -106,3 +106,33 @@ ANMX-AGENT-003 readiness and staging-permission records.
   after scrolling, and returns to the prior route. Repeat signed-in member/admin.
 - Re-run read-only catalog reconciliation and anonymous authorization checks.
 - Complete signed-in acceptance separately; do not mark it passed from mocks.
+
+## November 25 Dependency Follow-Up
+
+Applied reviewed compatible updates without `--force` or package lifecycle scripts.
+Raised manifest minimums for React Router DOM 6.30.6, Vite 7.3.8 and PostCSS 8.5.33.
+The lockfile also updates @remix-run/router 1.23.4, baseline-browser-mapping 2.11.39,
+browserslist 4.29.6, nanoid 3.3.20, source-map-js 1.2.4 and associated browser/CSS
+metadata dependencies. React, MongoDB, Stripe and application behavior are unchanged.
+
+Validation rerun on November 25: all 42 distinct regression suites listed above
+pass with isolated fixtures, as do public structural QA and the production build.
+Clean-install dry run confirms manifest/lockfile consistency. These results do not
+replace signed-in browser/audio acceptance. The existing large-entry-chunk warning
+remains; no performance or billing completion is claimed.
+
+The audit is **not clean**: two moderate package entries remain for react-router
+and its dependent react-router-dom. The published router advisories identify
+7.18.0 as patched; npm proposes a major migration rather than a compatible fix.
+Do not use forced upgrades, suppress the findings, or mark this item complete.
+
+- [Backslash navigation advisory](https://github.com/advisories/GHSA-wrjc-x8rr-h8h6):
+  keep open for migration and untrusted navigation review.
+- [SSR hydration advisory](https://github.com/advisories/GHSA-337j-9hxr-rhxg): the
+  maintainer excludes Declarative Mode. This app uses BrowserRouter/createRoot;
+  no manual SSR/hydration usage was found in src/server. This applicability review
+  is not removal of the vulnerable package or blanket security certification.
+
+Next: a separately tested router migration, including member/admin redirects,
+nested routes, direct refresh, logout, external-link handling and staging browser
+acceptance. Payment activation remains deferred.
